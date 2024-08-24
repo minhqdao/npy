@@ -2,36 +2,33 @@ import 'package:npy/src/np_exception.dart';
 
 abstract class NpyFile {
   const NpyFile({
-    required this.ndarray,
-    required this.dtype,
-    required this.shape,
+    required this.version,
+    // required this.headerLength,
+    // required this.dtype,
+    // required this.shape,
+    // required this.ndarray,
   });
 
-  final List<dynamic> ndarray;
-  final DType dtype;
-  final List<int> shape;
+  final NpVersion version;
+  // final int headerLength;
+  // final DType dtype;
+  // final List<int> shape;
+  // final List<dynamic> ndarray;
 }
 
-class NpyFileInt implements NpyFile {
+class NpyFileInt extends NpyFile {
   const NpyFileInt({
-    required this.ndarray,
-    required this.dtype,
-    required this.shape,
+    required super.version,
   });
-
-  @override
-  final List<int> ndarray;
-  final DType dtype;
-  final List<int> shape;
 }
 
-class NpzFile {
-  const NpzFile({
-    required this.files,
-  });
+// class NpzFile {
+//   const NpzFile({
+//     required this.files,
+//   });
 
-  final Map<String, NpyFile> files;
-}
+//   final Map<String, NpyFile> files;
+// }
 
 class NpVersion {
   const NpVersion({
@@ -46,12 +43,12 @@ class NpVersion {
   static const _supportedMinorVersions = {0};
 
   factory NpVersion.fromBytes(Iterable<int> bytes) {
-    if (bytes.length != 2) throw const NpInvalidVersionException(message: 'Version must have exactly two bytes.');
+    if (bytes.length != 2) throw const NpUnsupportedVersionException(message: 'Version must have exactly two bytes.');
     if (!_supportedMajorVersions.contains(bytes.elementAt(0))) {
-      throw NpInvalidVersionException(message: 'Unsupported major version: ${bytes.elementAt(0)}.');
+      throw NpUnsupportedVersionException(message: 'Unsupported major version: ${bytes.elementAt(0)}.');
     }
     if (!_supportedMinorVersions.contains(bytes.elementAt(1))) {
-      throw NpInvalidVersionException(message: 'Unsupported minor version: ${bytes.elementAt(1)}.');
+      throw NpUnsupportedVersionException(message: 'Unsupported minor version: ${bytes.elementAt(1)}.');
     }
     return NpVersion(major: bytes.elementAt(0), minor: bytes.elementAt(1));
   }

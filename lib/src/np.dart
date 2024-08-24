@@ -9,21 +9,26 @@ import 'package:npy/src/np_file.dart';
 Future<NpyFile> loadNpy(String path) async {
   final stream = File(path).openRead();
   List<int> buffer = [];
-  bool magicNumberChecked = false;
+  bool isMagicStringChecked = false;
+  NpVersion? version;
   try {
     await for (final chunk in stream) {
       buffer = [...buffer, ...chunk];
-      if (!magicNumberChecked && buffer.length >= _magicNumbers.length) {
-        if (!isMagicNumber(buffer.take(_magicNumbers.length))) {
-          throw NpInvalidMagicNumberException(path: path);
-        }
-        magicNumberChecked = true;
+      if (!isMagicStringChecked && buffer.length >= magicString.length) {
+        if (!isMagicString(buffer.take(magicString.length))) throw NpInvalidMagicNumberException(path: path);
+        isMagicStringChecked = true;
       }
+      if (version == null && buffer.length >= magicString.length + 2) {
+        version = NpVersion.fromBytes(buffer.skip(magicString.length).take(2));
+      }
+      if (version != null) return NpyFileInt(version: version);
     }
   } on FileSystemException catch (e) {
     if (e.osError?.errorCode == 2) throw NpFileNotExistsException(path: path);
     throw NpFileOpenException(path: path, error: e.toString());
   } on NpInvalidMagicNumberException catch (_) {
+    rethrow;
+  } on NpUnsupportedVersionException catch (_) {
     rethrow;
   } catch (e) {
     throw NpFileOpenException(path: path, error: e.toString());
@@ -31,8 +36,8 @@ Future<NpyFile> loadNpy(String path) async {
   throw NpInsufficientLengthException(path: path);
 }
 
-/// Corresponds to the string "\x93NUMPY" and marks the beginning of an NPY file.
-const _magicNumbers = [147, 78, 85, 77, 80, 89];
+/// Whether the given bytes represent the magic string that NPY files start with.
+bool isMagicString(Iterable<int> bytes) => const IterableEquality().equals(bytes, magicString.codeUnits);
 
-/// Whether the given bytes represent the magic number of an NPY file. NPY files start with the magic number "\x93NUMPY".
-bool isMagicNumber(Iterable<int> bytes) => const IterableEquality().equals(bytes, _magicNumbers);
+/// Marks the beginning of an NPY file.
+const magicString = '\x93NUMPY';

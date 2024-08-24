@@ -35,8 +35,8 @@ class NpInvalidMagicNumberException extends NpException {
   String get message => "Invalid magic number in file '$path'.";
 }
 
-class NpInvalidVersionException extends NpException {
-  const NpInvalidVersionException({required this.message});
+class NpUnsupportedVersionException extends NpException {
+  const NpUnsupportedVersionException({required this.message});
 
   @override
   final String message;
