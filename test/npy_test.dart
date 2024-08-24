@@ -22,15 +22,16 @@ void main() {
     test('One entry', () {
       expect(() => NpVersion.fromBytes([1]), throwsA(const TypeMatcher<NpInvalidVersionException>()));
     });
-    test('[1, 0]', () {
+    test('Supported version', () {
       final version = NpVersion.fromBytes([1, 0]);
       expect(version.major, 1);
       expect(version.minor, 0);
     });
-    test('[99, 100]', () {
-      final version = NpVersion.fromBytes([99, 100]);
-      expect(version.major, 99);
-      expect(version.minor, 100);
+    test('Unsupported major version', () {
+      expect(() => NpVersion.fromBytes([4, 0]), throwsA(const TypeMatcher<NpInvalidVersionException>()));
+    });
+    test('Unsupported minor version', () {
+      expect(() => NpVersion.fromBytes([1, 1]), throwsA(const TypeMatcher<NpInvalidVersionException>()));
     });
     test('Three entries', () {
       expect(() => NpVersion.fromBytes([1, 2, 3]), throwsA(const TypeMatcher<NpInvalidVersionException>()));

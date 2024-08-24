@@ -36,10 +36,10 @@ class NpInvalidMagicNumberException extends NpException {
 }
 
 class NpInvalidVersionException extends NpException {
-  const NpInvalidVersionException();
+  const NpInvalidVersionException({required this.message});
 
   @override
-  String get message => "NPY file has invalid version.";
+  final String message;
 }
 
 class NpInsufficientLengthException extends NpException {
