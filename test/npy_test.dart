@@ -48,13 +48,13 @@ void main() {
     test('Empty file', () {
       const filename = 'empty_file.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([]);
-      expect(loadNpy(filename), throwsA(const TypeMatcher<NpInsufficientLengthException>()));
+      expect(loadNpy(filename), throwsA(const TypeMatcher<NpParseException>()));
       tmpFile.deleteSync();
     });
     test('Insufficient length', () {
       const filename = 'insufficient_length.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([1, 2, 3]);
-      expect(loadNpy(filename), throwsA(const TypeMatcher<NpInsufficientLengthException>()));
+      expect(loadNpy(filename), throwsA(const TypeMatcher<NpParseException>()));
       tmpFile.deleteSync();
     });
     test('Invalid magic number', () {
@@ -63,24 +63,46 @@ void main() {
       expect(loadNpy(filename), throwsA(const TypeMatcher<NpInvalidMagicNumberException>()));
       tmpFile.deleteSync();
     });
-    test('Supported version', () async {
-      const filename = 'unsupported_version.tmp';
-      final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 1, 0]);
-      final npyFile = await loadNpy(filename);
-      expect(npyFile.version.major, 1);
-      expect(npyFile.version.minor, 0);
-      tmpFile.deleteSync();
-    });
     test('Unsupported major version', () {
-      const filename = 'unsupported_version.tmp';
+      const filename = 'unsupported_major_version.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 4, 0]);
       expect(loadNpy(filename), throwsA(const TypeMatcher<NpUnsupportedVersionException>()));
       tmpFile.deleteSync();
     });
     test('Unsupported minor version', () {
-      const filename = 'unsupported_version.tmp';
+      const filename = 'unsupported_minor_version.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 1, 1]);
       expect(loadNpy(filename), throwsA(const TypeMatcher<NpUnsupportedVersionException>()));
+      tmpFile.deleteSync();
+    });
+    test('Supported version 1', () async {
+      const filename = 'supported_version_1.tmp';
+      final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 1, 0, 0x78, 0x56, 0x34, 0x12]);
+      final npyFile = await loadNpy(filename);
+      expect(npyFile.version.major, 1);
+      expect(npyFile.version.minor, 0);
+      expect(npyFile.headerLength, 0x5678);
+      expect(npyFile.headerLength, 22136);
+      tmpFile.deleteSync();
+    });
+    test('Supported version 2', () async {
+      const filename = 'supported_version_2.tmp';
+      final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 2, 0, 0x78, 0x56, 0x34, 0x12]);
+      final npyFile = await loadNpy(filename);
+      expect(npyFile.version.major, 2);
+      expect(npyFile.version.minor, 0);
+      expect(npyFile.headerLength, 0x12345678);
+      expect(npyFile.headerLength, 305419896);
+      tmpFile.deleteSync();
+    });
+    test('Supported version 3', () async {
+      const filename = 'supported_version_2.tmp';
+      final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 3, 0, 0x78, 0x56, 0x34, 0x12]);
+      final npyFile = await loadNpy(filename);
+      expect(npyFile.version.major, 3);
+      expect(npyFile.version.minor, 0);
+      expect(npyFile.headerLength, 0x12345678);
+      expect(npyFile.headerLength, 305419896);
       tmpFile.deleteSync();
     });
 

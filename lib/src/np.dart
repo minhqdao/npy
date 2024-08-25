@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
 import 'package:npy/src/np_exception.dart';
@@ -11,6 +12,7 @@ Future<NpyFile> loadNpy(String path) async {
   List<int> buffer = [];
   bool isMagicStringChecked = false;
   NpVersion? version;
+  int? headerLength;
   try {
     await for (final chunk in stream) {
       buffer = [...buffer, ...chunk];
@@ -21,7 +23,14 @@ Future<NpyFile> loadNpy(String path) async {
       if (version == null && buffer.length >= magicString.length + 2) {
         version = NpVersion.fromBytes(buffer.skip(magicString.length).take(2));
       }
-      if (version != null) return NpyFileInt(version: version);
+      if (headerLength == null && version != null) {
+        if (version.major == 1 && buffer.length >= magicString.length + 2 + 2) {
+          headerLength = _fromLittleEndian16(buffer.skip(magicString.length + 2).take(2).toList());
+        } else if (version.major >= 2 && buffer.length >= magicString.length + 2 + 4) {
+          headerLength = _fromLittleEndian32(buffer.skip(magicString.length + 2).take(4).toList());
+        }
+      }
+      if (version != null && headerLength != null) return NpyFileInt(version: version, headerLength: headerLength);
     }
   } on FileSystemException catch (e) {
     if (e.osError?.errorCode == 2) throw NpFileNotExistsException(path: path);
@@ -33,7 +42,7 @@ Future<NpyFile> loadNpy(String path) async {
   } catch (e) {
     throw NpFileOpenException(path: path, error: e.toString());
   }
-  throw NpInsufficientLengthException(path: path);
+  throw NpParseException(path: path);
 }
 
 /// Whether the given bytes represent the magic string that NPY files start with.
@@ -41,3 +50,17 @@ bool isMagicString(Iterable<int> bytes) => const IterableEquality().equals(bytes
 
 /// Marks the beginning of an NPY file.
 const magicString = '\x93NUMPY';
+
+/// Converts the given [bytes] to a 16-bit unsigned integer in little-endian byte order.
+int _fromLittleEndian16(List<int> bytes) {
+  assert(bytes.length == 2);
+  final byteData = ByteData.sublistView(Uint8List.fromList(bytes));
+  return byteData.getUint16(0, Endian.little);
+}
+
+/// Converts the given [bytes] to a 32-bit unsigned integer in little-endian byte order.
+int _fromLittleEndian32(List<int> bytes) {
+  assert(bytes.length == 4);
+  final byteData = ByteData.sublistView(Uint8List.fromList(bytes));
+  return byteData.getUint32(0, Endian.little);
+}

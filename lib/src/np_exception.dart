@@ -42,11 +42,11 @@ class NpUnsupportedVersionException extends NpException {
   final String message;
 }
 
-class NpInsufficientLengthException extends NpException {
-  const NpInsufficientLengthException({required this.path});
+class NpParseException extends NpException {
+  const NpParseException({required this.path});
 
   final String path;
 
   @override
-  String get message => "NPY file '$path' has insufficient length.";
+  String get message => "Error parsing file '$path' as an NPY file.";
 }

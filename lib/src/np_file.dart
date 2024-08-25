@@ -3,14 +3,14 @@ import 'package:npy/src/np_exception.dart';
 abstract class NpyFile {
   const NpyFile({
     required this.version,
-    // required this.headerLength,
+    required this.headerLength,
     // required this.dtype,
     // required this.shape,
     // required this.ndarray,
   });
 
   final NpVersion version;
-  // final int headerLength;
+  final int headerLength;
   // final DType dtype;
   // final List<int> shape;
   // final List<dynamic> ndarray;
@@ -19,6 +19,7 @@ abstract class NpyFile {
 class NpyFileInt extends NpyFile {
   const NpyFileInt({
     required super.version,
+    required super.headerLength,
   });
 }
 
