@@ -29,6 +29,33 @@ void main() {
     });
   });
 
+  group('Parse header length', () {
+    test('[2, 1]', () => expect(littleEndian16ToInt([2, 1]), 258));
+    test('[1, 2]', () => expect(littleEndian16ToInt([1, 2]), 513));
+    test('[4, 3, 2, 1]', () => expect(littleEndian32ToInt([4, 3, 2, 1]), 16909060));
+    test('[1, 2, 3, 4]', () => expect(littleEndian32ToInt([1, 2, 3, 4]), 67305985));
+    test('[0x56, 0x78]', () {
+      final bytes = [0x56, 0x78];
+      expect(littleEndian16ToInt(bytes), 0x7856);
+      expect(littleEndian16ToInt(bytes), 30806);
+    });
+    test('[0x78, 0x56]', () {
+      final bytes = [0x78, 0x56];
+      expect(littleEndian16ToInt(bytes), 0x5678);
+      expect(littleEndian16ToInt(bytes), 22136);
+    });
+    test('[0x12, 0x34, 0x56, 0x78]', () {
+      final bytes = [0x12, 0x34, 0x56, 0x78];
+      expect(littleEndian32ToInt(bytes), 0x78563412);
+      expect(littleEndian32ToInt(bytes), 2018915346);
+    });
+    test('[0x78, 0x56, 0x34, 0x12]', () {
+      final bytes = [0x78, 0x56, 0x34, 0x12];
+      expect(littleEndian32ToInt(bytes), 0x12345678);
+      expect(littleEndian32ToInt(bytes), 305419896);
+    });
+  });
+
   group('Parse NpyByteOrder:', () {
     test('Little Endian byte order', () => expect(NpyByteOrder.fromChar('<'), NpyByteOrder.littleEndian));
     test('Big Endian byte order', () => expect(NpyByteOrder.fromChar('>'), NpyByteOrder.bigEndian));
@@ -226,7 +253,8 @@ void main() {
     });
     // test('Supported version 1', () async {
     //   const filename = 'supported_version_1.tmp';
-    //   final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 1, 0, 0x78, 0x56, 0x34, 0x12]);
+    //   const header = "{'descr': '<f8', 'fortran_order': True, 'shape': (2, 3)}";
+    //   final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 1, 0, ...headerSize(header, 1), ...header.codeUnits]);
     //   final npyFile = await loadNpy(filename);
     //   expect(npyFile.version.major, 1);
     //   expect(npyFile.version.minor, 0);

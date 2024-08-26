@@ -33,7 +33,7 @@ Future<NpyFile> loadNpy(String path) async {
           numberOfHeaderBytes != null &&
           buffer.length >= magicString.length + 2 + numberOfHeaderBytes) {
         final bytesTaken = buffer.skip(magicString.length + 2).take(numberOfHeaderBytes).toList();
-        headerLength = version.major == 1 ? _fromLittleEndian16(bytesTaken) : _fromLittleEndian32(bytesTaken);
+        headerLength = version.major == 1 ? littleEndian16ToInt(bytesTaken) : littleEndian32ToInt(bytesTaken);
       }
       if (version != null &&
           headerLength != null &&
@@ -62,14 +62,14 @@ bool isMagicString(Iterable<int> bytes) => const IterableEquality().equals(bytes
 const magicString = '\x93NUMPY';
 
 /// Converts the given [bytes] to a 16-bit unsigned integer in little-endian byte order.
-int _fromLittleEndian16(List<int> bytes) {
+int littleEndian16ToInt(List<int> bytes) {
   assert(bytes.length == 2);
   final byteData = ByteData.sublistView(Uint8List.fromList(bytes));
   return byteData.getUint16(0, Endian.little);
 }
 
 /// Converts the given [bytes] to a 32-bit unsigned integer in little-endian byte order.
-int _fromLittleEndian32(List<int> bytes) {
+int littleEndian32ToInt(List<int> bytes) {
   assert(bytes.length == 4);
   final byteData = ByteData.sublistView(Uint8List.fromList(bytes));
   return byteData.getUint32(0, Endian.little);
