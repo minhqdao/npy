@@ -1,7 +1,7 @@
 import 'package:npy/src/np_exception.dart';
 
-class NpyFile<T> {
-  const NpyFile({
+class NDArray<T> {
+  const NDArray({
     required this.version,
     required this.headerLength,
     required this.header,
@@ -19,7 +19,7 @@ class NpyFile<T> {
 //     required this.files,
 //   });
 
-//   final Map<String, NpyFile> files;
+//   final Map<String, NDArray> files;
 // }
 
 class NpyVersion {

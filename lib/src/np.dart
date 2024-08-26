@@ -13,12 +13,12 @@ import 'package:npy/src/np_file.dart';
 ///
 /// ```dart
 /// void main() async {
-///  final npyFile = await loadNpy<double>('example.npy');
-///  final List<double> array = npyFile.data;
-///  print(array);
+///  final NDArray<double> ndarray = await loadNpy<double>('example.npy');
+///  final List<double> data = ndarray.data;
+///  print(data);
 ///}
 /// ```
-Future<NpyFile<T>> loadNpy<T>(String path) async {
+Future<NDArray<T>> loadNpy<T>(String path) async {
   final stream = File(path).openRead();
 
   List<int> buffer = [];
@@ -54,15 +54,18 @@ Future<NpyFile<T>> loadNpy<T>(String path) async {
           headerLength != null &&
           version != null &&
           buffer.length >= magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes + headerLength) {
-        final headerBytes = buffer
-            .skip(magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes)
-            .take(headerLength)
-            .toList();
-        header = NpyHeader.fromString(String.fromCharCodes(headerBytes));
+        header = NpyHeader.fromString(
+          String.fromCharCodes(
+            buffer
+                .skip(magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes)
+                .take(headerLength)
+                .toList(),
+          ),
+        );
       }
 
       if (header != null && headerLength != null && version != null) {
-        return NpyFile(
+        return NDArray(
           version: version,
           headerLength: headerLength,
           header: header,
