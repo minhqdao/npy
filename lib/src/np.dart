@@ -52,7 +52,7 @@ Future<NpyFile> loadNpy(String path) async {
   } catch (e) {
     throw NpFileOpenException(path: path, error: e.toString());
   }
-  throw NpyParseException(message: "Error parsing file '$path' as an NPY file.");
+  throw NpyParseException(message: "Error parsing '$path' as an NPY file.");
 }
 
 /// Whether the given bytes represent the magic string that NPY files start with.

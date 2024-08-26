@@ -198,6 +198,14 @@ void main() {
       expect(header.fortranOrder, true);
       expect(header.shape, [2, 3]);
     });
+    test('<f8, True, (2, 3) with extra space', () {
+      final header = NpyHeader.fromString("{' descr' :  '<f8 ' ,  ' fortran_order ':  True ,  ' shape' :  ( 2 , 3 ) }");
+      expect(header.dtype.byteOrder, NpyByteOrder.littleEndian);
+      expect(header.dtype.kind, NpyType.float);
+      expect(header.dtype.itemsize, 8);
+      expect(header.fortranOrder, true);
+      expect(header.shape, [2, 3]);
+    });
     test('<f8, True, (2, 3, 4)', () {
       final header = NpyHeader.fromString("{'descr': '<f8', 'fortran_order': True, 'shape': (2, 3, 4)}");
       expect(header.dtype.byteOrder, NpyByteOrder.littleEndian);
@@ -251,38 +259,82 @@ void main() {
       expect(loadNpy(filename), throwsA(const TypeMatcher<NpyParseException>()));
       tmpFile.deleteSync();
     });
-    // test('Supported version 1', () async {
-    //   const filename = 'supported_version_1.tmp';
-    //   const header = "{'descr': '<f8', 'fortran_order': True, 'shape': (2, 3)}";
-    //   final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 1, 0, ...headerSize(header, 1), ...header.codeUnits]);
-    //   final npyFile = await loadNpy(filename);
-    //   expect(npyFile.version.major, 1);
-    //   expect(npyFile.version.minor, 0);
-    //   expect(npyFile.headerLength, 0x5678);
-    //   expect(npyFile.headerLength, 22136);
-    //   tmpFile.deleteSync();
-    // });
-    // test('Supported version 2', () async {
-    //   const filename = 'supported_version_2.tmp';
-    //   final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 2, 0, 0x78, 0x56, 0x34, 0x12]);
-    //   final npyFile = await loadNpy(filename);
-    //   expect(npyFile.version.major, 2);
-    //   expect(npyFile.version.minor, 0);
-    //   expect(npyFile.headerLength, 0x12345678);
-    //   expect(npyFile.headerLength, 305419896);
-    //   tmpFile.deleteSync();
-    // });
-    // test('Supported version 3', () async {
-    //   const filename = 'supported_version_3.tmp';
-    //   final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 3, 0, 0x78, 0x56, 0x34, 0x12]);
-    //   final npyFile = await loadNpy(filename);
-    //   expect(npyFile.version.major, 3);
-    //   expect(npyFile.version.minor, 0);
-    //   expect(npyFile.headerLength, 0x12345678);
-    //   expect(npyFile.headerLength, 305419896);
-    //   tmpFile.deleteSync();
-    // });
-
+    test('Header 1', () async {
+      const filename = 'header_1.tmp';
+      const majorVersion = 1;
+      const header = "{'descr': '<f8', 'fortran_order': True, 'shape': (3,)}";
+      final tmpFile = File(filename)
+        ..writeAsBytesSync(
+          [...magicString.codeUnits, majorVersion, 0, ...headerSize(header, majorVersion), ...header.codeUnits],
+        );
+      final npyFile = await loadNpy(filename);
+      expect(npyFile.version.major, 1);
+      expect(npyFile.version.minor, 0);
+      expect(npyFile.headerLength, 54);
+      expect(npyFile.header.dtype.byteOrder, NpyByteOrder.littleEndian);
+      expect(npyFile.header.dtype.kind, NpyType.float);
+      expect(npyFile.header.dtype.itemsize, 8);
+      expect(npyFile.header.fortranOrder, true);
+      expect(npyFile.header.shape, [3]);
+      tmpFile.deleteSync();
+    });
+    test('Header 2', () async {
+      const filename = 'header_2.tmp';
+      const majorVersion = 1;
+      const header = "{'descr': '>i4', 'fortran_order': False, 'shape': (3,4,5)}";
+      final tmpFile = File(filename)
+        ..writeAsBytesSync(
+          [...magicString.codeUnits, majorVersion, 0, ...headerSize(header, majorVersion), ...header.codeUnits],
+        );
+      final npyFile = await loadNpy(filename);
+      expect(npyFile.version.major, 1);
+      expect(npyFile.version.minor, 0);
+      expect(npyFile.headerLength, 58);
+      expect(npyFile.header.dtype.byteOrder, NpyByteOrder.bigEndian);
+      expect(npyFile.header.dtype.kind, NpyType.int);
+      expect(npyFile.header.dtype.itemsize, 4);
+      expect(npyFile.header.fortranOrder, false);
+      expect(npyFile.header.shape, [3, 4, 5]);
+      tmpFile.deleteSync();
+    });
+    test('Header 3', () async {
+      const filename = 'header_3.tmp';
+      const majorVersion = 2;
+      const header = "{'descr': '>i4', 'fortran_order': False, 'shape': (3,4,5)}";
+      final tmpFile = File(filename)
+        ..writeAsBytesSync(
+          [...magicString.codeUnits, majorVersion, 0, ...headerSize(header, majorVersion), ...header.codeUnits],
+        );
+      final npyFile = await loadNpy(filename);
+      expect(npyFile.version.major, 2);
+      expect(npyFile.version.minor, 0);
+      expect(npyFile.headerLength, 58);
+      expect(npyFile.header.dtype.byteOrder, NpyByteOrder.bigEndian);
+      expect(npyFile.header.dtype.kind, NpyType.int);
+      expect(npyFile.header.dtype.itemsize, 4);
+      expect(npyFile.header.fortranOrder, false);
+      expect(npyFile.header.shape, [3, 4, 5]);
+      tmpFile.deleteSync();
+    });
+    test('Header 4', () async {
+      const filename = 'header_4.tmp';
+      const majorVersion = 1;
+      const header = "{'descr': '>i4', 'fortran_order': False, 'shape': ()}";
+      final tmpFile = File(filename)
+        ..writeAsBytesSync(
+          [...magicString.codeUnits, majorVersion, 0, ...headerSize(header, majorVersion), ...header.codeUnits],
+        );
+      final npyFile = await loadNpy(filename);
+      expect(npyFile.version.major, 1);
+      expect(npyFile.version.minor, 0);
+      expect(npyFile.headerLength, 53);
+      expect(npyFile.header.dtype.byteOrder, NpyByteOrder.bigEndian);
+      expect(npyFile.header.dtype.kind, NpyType.int);
+      expect(npyFile.header.dtype.itemsize, 4);
+      expect(npyFile.header.fortranOrder, false);
+      expect(npyFile.header.shape, []);
+      tmpFile.deleteSync();
+    });
     // test('np.array(0)', () async {
     //   await loadNpy('test/files/array_0.npy');
     //   // expect(loadNpy('test/array_0.npy'), throwsA(const TypeMatcher<int>()));

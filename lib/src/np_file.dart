@@ -67,11 +67,10 @@ class NpyHeader {
     if (headerString.length < 2) throw const NpyInvalidHeaderException(message: 'Header string is too short.');
 
     final inputString = headerString.trim().substring(1, headerString.length - 1);
-
     final Map<String, dynamic> header = {};
-    final entryPattern = RegExp(r"'([^']+)':\s*(.+?)(?=,\s*'|$)", multiLine: true, dotAll: true);
+    final entryPattern = RegExp(r"'([^']+)'\s*:\s*(.+?)(?=\s*,\s*'|$)", multiLine: true, dotAll: true);
     for (final match in entryPattern.allMatches(inputString)) {
-      final key = match.group(1)!;
+      final key = match.group(1)!.trim();
       final value = match.group(2)!.trim();
 
       if (value == 'True') {
@@ -86,12 +85,12 @@ class NpyHeader {
           header[key] =
               shapeString.split(',').where((s) => s.trim().isNotEmpty).map((s) => int.parse(s.trim())).toList();
         }
-      } else if (RegExp(r"^[0-9]+$").hasMatch(value)) {
-        header[key] = int.parse(value);
-      } else if (RegExp(r"^[0-9.]+$").hasMatch(value)) {
-        header[key] = double.parse(value);
+      } else if (RegExp(r"^\s*[0-9]+\s*$").hasMatch(value)) {
+        header[key] = int.parse(value.trim());
+      } else if (RegExp(r"^\s*[0-9.]+\s*$").hasMatch(value)) {
+        header[key] = double.parse(value.trim());
       } else {
-        header[key] = value.replaceAll("'", "");
+        header[key] = value.replaceAll("'", "").trim();
       }
     }
 
