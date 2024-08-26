@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:npy/src/np_exception.dart';
 
 class NDArray<T> {
@@ -24,8 +26,8 @@ class NDArray<T> {
 
 class NpyVersion {
   const NpyVersion({
-    required this.major,
-    required this.minor,
+    this.major = 1,
+    this.minor = 0,
   });
 
   final int major;
@@ -112,6 +114,24 @@ class NpyHeader {
       shape: shape,
     );
   }
+
+  /// Returns the length of the header depending on the version and the given [bytes].
+  static int getLength({required List<int> bytes, NpyVersion version = const NpyVersion()}) =>
+      version.major == 1 ? littleEndian16ToInt(bytes) : littleEndian32ToInt(bytes);
+}
+
+/// Converts the given [bytes] to a 16-bit unsigned integer in little-endian byte order.
+int littleEndian16ToInt(List<int> bytes) {
+  assert(bytes.length == 2);
+  final byteData = ByteData.sublistView(Uint8List.fromList(bytes));
+  return byteData.getUint16(0, Endian.little);
+}
+
+/// Converts the given [bytes] to a 32-bit unsigned integer in little-endian byte order.
+int littleEndian32ToInt(List<int> bytes) {
+  assert(bytes.length == 4);
+  final byteData = ByteData.sublistView(Uint8List.fromList(bytes));
+  return byteData.getUint32(0, Endian.little);
 }
 
 class NpyDType {

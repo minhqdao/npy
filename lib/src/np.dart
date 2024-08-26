@@ -1,24 +1,23 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
 import 'package:npy/src/np_exception.dart';
 import 'package:npy/src/np_file.dart';
 
-/// Loads an NPY file from the given [path].
+/// Loads an NPY file from the given [path] and returns an [NDArray] object.
 ///
 /// If you're expecting a specific type of data, you can use the generic type parameter [T] to specify it as such:
 ///
 /// ```dart
 /// void main() async {
-///  final NDArray<double> ndarray = await loadNpy<double>('example.npy');
+///  final NDArray<double> ndarray = await load<double>('example.npy');
 ///  final List<double> data = ndarray.data;
 ///  print(data);
 ///}
 /// ```
-Future<NDArray<T>> loadNpy<T>(String path) async {
+Future<NDArray<T>> load<T>(String path) async {
   final stream = File(path).openRead();
 
   List<int> buffer = [];
@@ -45,9 +44,10 @@ Future<NDArray<T>> loadNpy<T>(String path) async {
       if (headerLength == null &&
           version != null &&
           buffer.length >= magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes) {
-        final bytesTaken =
-            buffer.skip(magicString.length + NpyVersion.reservedBytes).take(version.numberOfHeaderBytes).toList();
-        headerLength = version.major == 1 ? littleEndian16ToInt(bytesTaken) : littleEndian32ToInt(bytesTaken);
+        headerLength = NpyHeader.getLength(
+          bytes: buffer.skip(magicString.length + NpyVersion.reservedBytes).take(version.numberOfHeaderBytes).toList(),
+          version: version,
+        );
       }
 
       if (header == null &&
@@ -89,20 +89,6 @@ bool isMagicString(Iterable<int> bytes) => const IterableEquality().equals(bytes
 
 /// Marks the beginning of an NPY file.
 const magicString = '\x93NUMPY';
-
-/// Converts the given [bytes] to a 16-bit unsigned integer in little-endian byte order.
-int littleEndian16ToInt(List<int> bytes) {
-  assert(bytes.length == 2);
-  final byteData = ByteData.sublistView(Uint8List.fromList(bytes));
-  return byteData.getUint16(0, Endian.little);
-}
-
-/// Converts the given [bytes] to a 32-bit unsigned integer in little-endian byte order.
-int littleEndian32ToInt(List<int> bytes) {
-  assert(bytes.length == 4);
-  final byteData = ByteData.sublistView(Uint8List.fromList(bytes));
-  return byteData.getUint32(0, Endian.little);
-}
 
 /// Determines the size of the given [header] as a List<int> for the given NPY file [version].
 List<int> headerSize(String header, int version) {

@@ -47,6 +47,16 @@ void main() {
     test('[1, 2]', () => expect(littleEndian16ToInt([1, 2]), 513));
     test('[4, 3, 2, 1]', () => expect(littleEndian32ToInt([4, 3, 2, 1]), 16909060));
     test('[1, 2, 3, 4]', () => expect(littleEndian32ToInt([1, 2, 3, 4]), 67305985));
+    test('[2, 1] from getLength', () => expect(NpyHeader.getLength(bytes: [2, 1]), 258));
+    test('[1, 2] from getLength', () => expect(NpyHeader.getLength(bytes: [1, 2]), 513));
+    test(
+      '[4, 3, 2, 1] from getLength',
+      () => expect(NpyHeader.getLength(bytes: [4, 3, 2, 1], version: const NpyVersion(major: 2)), 16909060),
+    );
+    test(
+      '[1, 2, 3, 4] from getLength',
+      () => expect(NpyHeader.getLength(bytes: [1, 2, 3, 4], version: const NpyVersion(major: 2)), 67305985),
+    );
     test('[0x56, 0x78]', () {
       final bytes = [0x56, 0x78];
       expect(littleEndian16ToInt(bytes), 0x7856);
@@ -237,39 +247,39 @@ void main() {
 
   group('Load npy:', () {
     test('Non-existent file', () {
-      expect(loadNpy('not_existent.npy'), throwsA(const TypeMatcher<NpFileNotExistsException>()));
+      expect(load('not_existent.npy'), throwsA(const TypeMatcher<NpFileNotExistsException>()));
     });
     test('Pointing at current directory', () {
-      expect(loadNpy('.'), throwsA(const TypeMatcher<NpFileOpenException>()));
+      expect(load('.'), throwsA(const TypeMatcher<NpFileOpenException>()));
     });
     test('Empty file', () {
       const filename = 'empty_file.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([]);
-      expect(loadNpy(filename), throwsA(const TypeMatcher<NpyParseException>()));
+      expect(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
       tmpFile.deleteSync();
     });
     test('Insufficient length', () {
       const filename = 'insufficient_length.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([1, 2, 3]);
-      expect(loadNpy(filename), throwsA(const TypeMatcher<NpyParseException>()));
+      expect(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
       tmpFile.deleteSync();
     });
     test('Invalid magic number', () {
       const filename = 'invalid_magic_number.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([1, 2, 3, 4, 5, 6]);
-      expect(loadNpy(filename), throwsA(const TypeMatcher<NpyInvalidMagicNumberException>()));
+      expect(load(filename), throwsA(const TypeMatcher<NpyInvalidMagicNumberException>()));
       tmpFile.deleteSync();
     });
     test('Unsupported major version', () {
       const filename = 'unsupported_major_version.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 4, 0]);
-      expect(loadNpy(filename), throwsA(const TypeMatcher<NpyParseException>()));
+      expect(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
       tmpFile.deleteSync();
     });
     test('Unsupported minor version', () {
       const filename = 'unsupported_minor_version.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 1, 1]);
-      expect(loadNpy(filename), throwsA(const TypeMatcher<NpyParseException>()));
+      expect(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
       tmpFile.deleteSync();
     });
     test('Header 1', () async {
@@ -280,7 +290,7 @@ void main() {
         ..writeAsBytesSync(
           [...magicString.codeUnits, majorVersion, 0, ...headerSize(header, majorVersion), ...header.codeUnits],
         );
-      final npyFile = await loadNpy(filename);
+      final npyFile = await load(filename);
       expect(npyFile.version.major, 1);
       expect(npyFile.version.minor, 0);
       expect(npyFile.headerLength, 54);
@@ -299,7 +309,7 @@ void main() {
         ..writeAsBytesSync(
           [...magicString.codeUnits, majorVersion, 0, ...headerSize(header, majorVersion), ...header.codeUnits],
         );
-      final npyFile = await loadNpy(filename);
+      final npyFile = await load(filename);
       expect(npyFile.version.major, 1);
       expect(npyFile.version.minor, 0);
       expect(npyFile.headerLength, 58);
@@ -318,7 +328,7 @@ void main() {
         ..writeAsBytesSync(
           [...magicString.codeUnits, majorVersion, 0, ...headerSize(header, majorVersion), ...header.codeUnits],
         );
-      final npyFile = await loadNpy(filename);
+      final npyFile = await load(filename);
       expect(npyFile.version.major, 2);
       expect(npyFile.version.minor, 0);
       expect(npyFile.headerLength, 58);
@@ -337,7 +347,7 @@ void main() {
         ..writeAsBytesSync(
           [...magicString.codeUnits, majorVersion, 0, ...headerSize(header, majorVersion), ...header.codeUnits],
         );
-      final npyFile = await loadNpy(filename);
+      final npyFile = await load(filename);
       expect(npyFile.version.major, 1);
       expect(npyFile.version.minor, 0);
       expect(npyFile.headerLength, 53);
@@ -349,8 +359,8 @@ void main() {
       tmpFile.deleteSync();
     });
     // test('np.array(0)', () async {
-    //   await loadNpy('test/files/array_0.npy');
-    //   // expect(loadNpy('test/array_0.npy'), throwsA(const TypeMatcher<int>()));
+    //   await load('test/files/array_0.npy');
+    //   // expect(load('test/array_0.npy'), throwsA(const TypeMatcher<int>()));
     // });
   });
 }
