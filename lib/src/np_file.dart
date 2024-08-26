@@ -1,6 +1,6 @@
 import 'package:npy/src/np_exception.dart';
 
-abstract class NpyFile<T> {
+class NpyFile<T> {
   const NpyFile({
     required this.version,
     required this.headerLength,
@@ -12,15 +12,6 @@ abstract class NpyFile<T> {
   final int headerLength;
   final NpyHeader header;
   final List<T> data;
-}
-
-class NpyFileInt<int> extends NpyFile<int> {
-  const NpyFileInt({
-    required super.version,
-    required super.headerLength,
-    required super.header,
-    required super.data,
-  });
 }
 
 // class NpzFile {

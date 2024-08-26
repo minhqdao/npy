@@ -62,7 +62,7 @@ Future<NpyFile<T>> loadNpy<T>(String path) async {
       }
 
       if (header != null && headerLength != null && version != null) {
-        return NpyFileInt(
+        return NpyFile(
           version: version,
           headerLength: headerLength,
           header: header,
