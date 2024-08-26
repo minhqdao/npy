@@ -4,22 +4,19 @@ abstract class NpyFile {
   const NpyFile({
     required this.version,
     required this.headerLength,
-    // required this.dtype,
-    // required this.shape,
-    // required this.ndarray,
+    required this.header,
   });
 
-  final NpVersion version;
+  final NpyVersion version;
   final int headerLength;
-  // final DType dtype;
-  // final List<int> shape;
-  // final List<dynamic> ndarray;
+  final NpyHeader header;
 }
 
 class NpyFileInt extends NpyFile {
   const NpyFileInt({
     required super.version,
     required super.headerLength,
+    required super.header,
   });
 }
 
@@ -31,8 +28,8 @@ class NpyFileInt extends NpyFile {
 //   final Map<String, NpyFile> files;
 // }
 
-class NpVersion {
-  const NpVersion({
+class NpyVersion {
+  const NpyVersion({
     required this.major,
     required this.minor,
   });
@@ -43,31 +40,139 @@ class NpVersion {
   static const _supportedMajorVersions = {1, 2, 3};
   static const _supportedMinorVersions = {0};
 
-  factory NpVersion.fromBytes(Iterable<int> bytes) {
-    if (bytes.length != 2) throw const NpUnsupportedVersionException(message: 'Version must have exactly two bytes.');
+  factory NpyVersion.fromBytes(Iterable<int> bytes) {
+    assert(bytes.length == 2);
     if (!_supportedMajorVersions.contains(bytes.elementAt(0))) {
-      throw NpUnsupportedVersionException(message: 'Unsupported major version: ${bytes.elementAt(0)}.');
+      throw NpyUnsupportedVersionException(message: 'Unsupported major version: ${bytes.elementAt(0)}');
     }
     if (!_supportedMinorVersions.contains(bytes.elementAt(1))) {
-      throw NpUnsupportedVersionException(message: 'Unsupported minor version: ${bytes.elementAt(1)}.');
+      throw NpyUnsupportedVersionException(message: 'Unsupported minor version: ${bytes.elementAt(1)}');
     }
-    return NpVersion(major: bytes.elementAt(0), minor: bytes.elementAt(1));
+    return NpyVersion(major: bytes.elementAt(0), minor: bytes.elementAt(1));
   }
 }
 
-enum DType {
-  bool,
-  int8,
-  int16,
-  int32,
-  int64,
-  uint8,
-  uint16,
-  uint32,
-  uint64,
-  float16,
-  float32,
-  float64,
-  complex64,
-  complex128,
+class NpyHeader {
+  final NpyDType dtype;
+  final bool fortranOrder;
+  final List<int> shape;
+
+  const NpyHeader({
+    required this.dtype,
+    required this.fortranOrder,
+    required this.shape,
+  });
+
+  factory NpyHeader.fromString(String headerString) {
+    if (headerString.length < 2) throw const NpyInvalidHeaderException(message: 'Header string is too short.');
+
+    final inputString = headerString.trim().substring(1, headerString.length - 1);
+
+    final Map<String, dynamic> header = {};
+    final entryPattern = RegExp(r"'([^']+)':\s*(.+?)(?=,\s*'|$)", multiLine: true, dotAll: true);
+    for (final match in entryPattern.allMatches(inputString)) {
+      final key = match.group(1)!;
+      final value = match.group(2)!.trim();
+
+      if (value == 'True') {
+        header[key] = true;
+      } else if (value == 'False') {
+        header[key] = false;
+      } else if (value.startsWith('(') && value.endsWith(')')) {
+        final shapeString = value.substring(1, value.length - 1).trim();
+        if (shapeString.isEmpty) {
+          header[key] = <int>[];
+        } else {
+          header[key] =
+              shapeString.split(',').where((s) => s.trim().isNotEmpty).map((s) => int.parse(s.trim())).toList();
+        }
+      } else if (RegExp(r"^[0-9]+$").hasMatch(value)) {
+        header[key] = int.parse(value);
+      } else if (RegExp(r"^[0-9.]+$").hasMatch(value)) {
+        header[key] = double.parse(value);
+      } else {
+        header[key] = value.replaceAll("'", "");
+      }
+    }
+
+    final descr = header['descr'];
+    final fortranOrder = header['fortran_order'];
+    final shape = header['shape'];
+
+    if (descr is! String) throw const NpyInvalidHeaderException(message: "Missing or invalid 'descr' field.");
+    if (fortranOrder is! bool) {
+      throw const NpyInvalidHeaderException(message: "Missing or invalid 'fortran_order' field.");
+    }
+    if (shape is! List<int>) throw const NpyInvalidHeaderException(message: "Missing or invalid 'shape' field.");
+
+    return NpyHeader(
+      dtype: NpyDType.fromString(descr),
+      fortranOrder: fortranOrder,
+      shape: shape,
+    );
+  }
+}
+
+class NpyDType {
+  const NpyDType({
+    required this.byteOrder,
+    required this.kind,
+    required this.itemsize,
+  });
+
+  final NpyByteOrder byteOrder;
+  final NpyType kind;
+  final int itemsize;
+
+  factory NpyDType.fromString(String string) {
+    if (string.length < 3) throw NpyInvalidDTypeException(message: "Invalid 'descr' field: '$string'");
+    try {
+      final byteOrder = NpyByteOrder.fromChar(string[0]);
+      final kind = NpyType.fromChar(string[1]);
+      final itemsize = int.parse(string.substring(2));
+      return NpyDType(byteOrder: byteOrder, kind: kind, itemsize: itemsize);
+    } catch (e) {
+      throw NpyInvalidDTypeException(message: "Invalid 'descr' field: '$string': $e");
+    }
+  }
+}
+
+enum NpyByteOrder {
+  littleEndian('<'),
+  bigEndian('>'),
+  nativeEndian('='),
+  none('|');
+
+  const NpyByteOrder(this.char);
+
+  final String char;
+
+  factory NpyByteOrder.fromChar(String char) {
+    return NpyByteOrder.values.firstWhere(
+      (order) => order.char == char,
+      orElse: () => throw NpyUnsupportedByteOrderException(message: 'Unsupported byte order: $char'),
+    );
+  }
+}
+
+enum NpyType {
+  boolean('b'),
+  int('i'),
+  uint('u'),
+  float('f'),
+  complex('c'),
+  string('S'),
+  unicode('U'),
+  voidType('V');
+
+  const NpyType(this.char);
+
+  final String char;
+
+  factory NpyType.fromChar(String char) {
+    return NpyType.values.firstWhere(
+      (type) => type.char == char,
+      orElse: () => throw NpyUnsupportedTypeException(message: 'Unsupported data type: $char'),
+    );
+  }
 }

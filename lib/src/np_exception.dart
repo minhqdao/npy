@@ -26,27 +26,33 @@ class NpFileOpenException extends NpException {
   String get message => "Could not open file '$path': $error.";
 }
 
-class NpInvalidMagicNumberException extends NpException {
-  const NpInvalidMagicNumberException({required this.path});
-
-  final String path;
-
-  @override
-  String get message => "Invalid magic number in file '$path'.";
-}
-
-class NpUnsupportedVersionException extends NpException {
-  const NpUnsupportedVersionException({required this.message});
+class NpyParseException extends NpException {
+  const NpyParseException({required this.message});
 
   @override
   final String message;
 }
 
-class NpParseException extends NpException {
-  const NpParseException({required this.path});
+class NpyInvalidMagicNumberException extends NpyParseException {
+  const NpyInvalidMagicNumberException({required super.message});
+}
 
-  final String path;
+class NpyUnsupportedVersionException extends NpyParseException {
+  const NpyUnsupportedVersionException({required super.message});
+}
 
-  @override
-  String get message => "Error parsing file '$path' as an NPY file.";
+class NpyInvalidHeaderException extends NpyParseException {
+  const NpyInvalidHeaderException({required super.message});
+}
+
+class NpyInvalidDTypeException extends NpyInvalidHeaderException {
+  const NpyInvalidDTypeException({required super.message});
+}
+
+class NpyUnsupportedByteOrderException extends NpyInvalidDTypeException {
+  const NpyUnsupportedByteOrderException({required super.message});
+}
+
+class NpyUnsupportedTypeException extends NpyInvalidDTypeException {
+  const NpyUnsupportedTypeException({required super.message});
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -11,38 +12,47 @@ Future<NpyFile> loadNpy(String path) async {
   final stream = File(path).openRead();
   List<int> buffer = [];
   bool isMagicStringChecked = false;
-  NpVersion? version;
+  NpyVersion? version;
+  int? numberOfHeaderBytes;
   int? headerLength;
   try {
     await for (final chunk in stream) {
       buffer = [...buffer, ...chunk];
       if (!isMagicStringChecked && buffer.length >= magicString.length) {
-        if (!isMagicString(buffer.take(magicString.length))) throw NpInvalidMagicNumberException(path: path);
+        if (!isMagicString(buffer.take(magicString.length))) {
+          throw NpyInvalidMagicNumberException(message: "Invalid magic number in '$path'.");
+        }
         isMagicStringChecked = true;
       }
       if (version == null && buffer.length >= magicString.length + 2) {
-        version = NpVersion.fromBytes(buffer.skip(magicString.length).take(2));
+        version = NpyVersion.fromBytes(buffer.skip(magicString.length).take(2));
+        numberOfHeaderBytes = version.major == 1 ? 2 : 4;
       }
-      if (headerLength == null && version != null) {
-        if (version.major == 1 && buffer.length >= magicString.length + 2 + 2) {
-          headerLength = _fromLittleEndian16(buffer.skip(magicString.length + 2).take(2).toList());
-        } else if (version.major >= 2 && buffer.length >= magicString.length + 2 + 4) {
-          headerLength = _fromLittleEndian32(buffer.skip(magicString.length + 2).take(4).toList());
-        }
+      if (headerLength == null &&
+          version != null &&
+          numberOfHeaderBytes != null &&
+          buffer.length >= magicString.length + 2 + numberOfHeaderBytes) {
+        final bytesTaken = buffer.skip(magicString.length + 2).take(numberOfHeaderBytes).toList();
+        headerLength = version.major == 1 ? _fromLittleEndian16(bytesTaken) : _fromLittleEndian32(bytesTaken);
       }
-      if (version != null && headerLength != null) return NpyFileInt(version: version, headerLength: headerLength);
+      if (version != null &&
+          headerLength != null &&
+          numberOfHeaderBytes != null &&
+          buffer.length >= magicString.length + 2 + numberOfHeaderBytes + headerLength) {
+        final headerBytes = buffer.skip(magicString.length + 2 + numberOfHeaderBytes).take(headerLength).toList();
+        final header = NpyHeader.fromString(String.fromCharCodes(headerBytes));
+        return NpyFileInt(version: version, headerLength: headerLength, header: header);
+      }
     }
   } on FileSystemException catch (e) {
     if (e.osError?.errorCode == 2) throw NpFileNotExistsException(path: path);
     throw NpFileOpenException(path: path, error: e.toString());
-  } on NpInvalidMagicNumberException catch (_) {
-    rethrow;
-  } on NpUnsupportedVersionException catch (_) {
+  } on NpyParseException {
     rethrow;
   } catch (e) {
     throw NpFileOpenException(path: path, error: e.toString());
   }
-  throw NpParseException(path: path);
+  throw NpyParseException(message: "Error parsing file '$path' as an NPY file.");
 }
 
 /// Whether the given bytes represent the magic string that NPY files start with.
@@ -63,4 +73,24 @@ int _fromLittleEndian32(List<int> bytes) {
   assert(bytes.length == 4);
   final byteData = ByteData.sublistView(Uint8List.fromList(bytes));
   return byteData.getUint32(0, Endian.little);
+}
+
+/// Determines the size of the given [header] as a List<int> for the given NPY file [version].
+List<int> headerSize(String header, int version) {
+  final headerLength = utf8.encode(header).length;
+  List<int> headerSizeBytes;
+  if (version == 1) {
+    if (headerLength > 65535) throw ArgumentError('Header too large for version 1.0 NPY file');
+    headerSizeBytes = [headerLength & 0xFF, (headerLength >> 8) & 0xFF];
+  } else if (version >= 2) {
+    headerSizeBytes = [
+      headerLength & 0xFF,
+      (headerLength >> 8) & 0xFF,
+      (headerLength >> 16) & 0xFF,
+      (headerLength >> 24) & 0xFF,
+    ];
+  } else {
+    throw ArgumentError('Unsupported NPY version');
+  }
+  return headerSizeBytes;
 }
