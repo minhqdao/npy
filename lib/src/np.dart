@@ -24,7 +24,6 @@ Future<NpyFile<T>> loadNpy<T>(String path) async {
   List<int> buffer = [];
   bool isMagicStringChecked = false;
   NpyVersion? version;
-  int? numberOfHeaderBytes;
   int? headerLength;
   NpyHeader? header;
 
@@ -41,31 +40,28 @@ Future<NpyFile<T>> loadNpy<T>(String path) async {
 
       if (version == null && buffer.length >= magicString.length + NpyVersion.reservedBytes) {
         version = NpyVersion.fromBytes(buffer.skip(magicString.length).take(NpyVersion.reservedBytes));
-        numberOfHeaderBytes = version.numberOfHeaderBytes;
       }
 
       if (headerLength == null &&
           version != null &&
-          numberOfHeaderBytes != null &&
-          buffer.length >= magicString.length + NpyVersion.reservedBytes + numberOfHeaderBytes) {
+          buffer.length >= magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes) {
         final bytesTaken =
-            buffer.skip(magicString.length + NpyVersion.reservedBytes).take(numberOfHeaderBytes).toList();
+            buffer.skip(magicString.length + NpyVersion.reservedBytes).take(version.numberOfHeaderBytes).toList();
         headerLength = version.major == 1 ? littleEndian16ToInt(bytesTaken) : littleEndian32ToInt(bytesTaken);
       }
 
       if (header == null &&
           headerLength != null &&
           version != null &&
-          numberOfHeaderBytes != null &&
-          buffer.length >= magicString.length + NpyVersion.reservedBytes + numberOfHeaderBytes + headerLength) {
+          buffer.length >= magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes + headerLength) {
         final headerBytes = buffer
-            .skip(magicString.length + NpyVersion.reservedBytes + numberOfHeaderBytes)
+            .skip(magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes)
             .take(headerLength)
             .toList();
         header = NpyHeader.fromString(String.fromCharCodes(headerBytes));
       }
 
-      if (header != null && version != null && headerLength != null) {
+      if (header != null && headerLength != null && version != null) {
         return NpyFileInt(
           version: version,
           headerLength: headerLength,
