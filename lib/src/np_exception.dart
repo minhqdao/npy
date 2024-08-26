@@ -53,6 +53,14 @@ class NpyUnsupportedByteOrderException extends NpyInvalidDTypeException {
   const NpyUnsupportedByteOrderException({required super.message});
 }
 
-class NpyUnsupportedTypeException extends NpyInvalidDTypeException {
+class NpyUnsupportedNpyTypeException extends NpyInvalidDTypeException {
+  const NpyUnsupportedNpyTypeException({required super.message});
+}
+
+class NpyUnsupportedDTypeException extends NpyParseException {
+  const NpyUnsupportedDTypeException({required super.message});
+}
+
+class NpyUnsupportedTypeException extends NpyParseException {
   const NpyUnsupportedTypeException({required super.message});
 }

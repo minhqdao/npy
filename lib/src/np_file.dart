@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:npy/src/np_exception.dart';
@@ -118,6 +119,28 @@ class NpyHeader {
   /// Returns the length of the header depending on the version and the given [bytes].
   static int getLength({required List<int> bytes, NpyVersion version = const NpyVersion()}) =>
       version.major == 1 ? littleEndian16ToInt(bytes) : littleEndian32ToInt(bytes);
+
+  /// Returns the size of the given [header] as a List<int> for the given NPY file [version].
+  static List<int> getSizeFromString(String header, int version) {
+    final headerLength = utf8.encode(header).length;
+    List<int> headerSizeBytes;
+
+    if (version == 1) {
+      assert(headerLength < 65536);
+      headerSizeBytes = [headerLength & 0xFF, (headerLength >> 8) & 0xFF];
+    } else if (version >= 2) {
+      headerSizeBytes = [
+        headerLength & 0xFF,
+        (headerLength >> 8) & 0xFF,
+        (headerLength >> 16) & 0xFF,
+        (headerLength >> 24) & 0xFF,
+      ];
+    } else {
+      throw ArgumentError('Unsupported NPY version');
+    }
+
+    return headerSizeBytes;
+  }
 }
 
 /// Converts the given [bytes] to a 16-bit unsigned integer in little-endian byte order.
@@ -138,27 +161,27 @@ class NpyDType {
   const NpyDType({
     required this.byteOrder,
     required this.kind,
-    required this.itemsize,
+    required this.itemSize,
   });
 
   final NpyByteOrder byteOrder;
   final NpyType kind;
-  final int itemsize;
+  final int itemSize;
 
   factory NpyDType.fromString(String string) {
     if (string.length < 3) throw NpyInvalidDTypeException(message: "Invalid 'descr' field: '$string'");
     try {
       final byteOrder = NpyByteOrder.fromChar(string[0]);
       final kind = NpyType.fromChar(string[1]);
-      final itemsize = int.parse(string.substring(2));
-      return NpyDType(byteOrder: byteOrder, kind: kind, itemsize: itemsize);
+      final itemSize = int.parse(string.substring(2));
+      return NpyDType(byteOrder: byteOrder, kind: kind, itemSize: itemSize);
     } catch (e) {
       throw NpyInvalidDTypeException(message: "Invalid 'descr' field: '$string': $e");
     }
   }
 
   @override
-  String toString() => '${byteOrder.char}${kind.char}$itemsize';
+  String toString() => '${byteOrder.char}${kind.char}$itemSize';
 }
 
 enum NpyByteOrder {
@@ -196,7 +219,7 @@ enum NpyType {
   factory NpyType.fromChar(String char) {
     return NpyType.values.firstWhere(
       (type) => type.char == char,
-      orElse: () => throw NpyUnsupportedTypeException(message: 'Unsupported data type: $char'),
+      orElse: () => throw NpyUnsupportedNpyTypeException(message: 'Unsupported data type: $char'),
     );
   }
 }

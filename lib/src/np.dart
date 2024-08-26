@@ -1,6 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
 import 'package:npy/src/np_exception.dart';
@@ -18,6 +19,10 @@ import 'package:npy/src/np_file.dart';
 ///}
 /// ```
 Future<NDArray<T>> load<T>(String path) async {
+  if (T != dynamic && T != int && T != double) {
+    throw NpyUnsupportedTypeException(message: 'Unsupported NDArray type: $T');
+  }
+
   final stream = File(path).openRead();
 
   List<int> buffer = [];
@@ -25,10 +30,13 @@ Future<NDArray<T>> load<T>(String path) async {
   NpyVersion? version;
   int? headerLength;
   NpyHeader? header;
+  int dataOffset = 0;
+  int dataRead = 0;
+  final List<T> data = [];
 
   try {
     await for (final chunk in stream) {
-      buffer = [...buffer, ...chunk];
+      buffer.addAll(chunk);
 
       if (!isMagicStringChecked && buffer.length >= magicString.length) {
         if (!isMagicString(buffer.take(magicString.length))) {
@@ -62,15 +70,32 @@ Future<NDArray<T>> load<T>(String path) async {
                 .toList(),
           ),
         );
+        dataOffset = magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes + headerLength;
       }
 
       if (header != null && headerLength != null && version != null) {
-        return NDArray(
-          version: version,
-          headerLength: headerLength,
-          header: header,
-          data: [],
-        );
+        while (dataOffset < buffer.length) {
+          final remainingElements = header.shape.reduce((a, b) => a * b) - dataRead;
+          final elementsInBuffer = (buffer.length - dataOffset) ~/ header.dtype.itemSize;
+          final elementsToProcess = min(remainingElements, elementsInBuffer);
+
+          final newData = _parseData<T>(
+            buffer.sublist(dataOffset, dataOffset + elementsToProcess * header.dtype.itemSize),
+            header.dtype,
+            elementsToProcess,
+          );
+
+          data.addAll(newData);
+          dataRead += elementsToProcess;
+          dataOffset += elementsToProcess * header.dtype.itemSize;
+
+          if (dataRead == header.shape.reduce((a, b) => a * b)) {
+            return NDArray<T>(version: version, headerLength: headerLength, header: header, data: data);
+          }
+
+          buffer = buffer.sublist(dataOffset);
+          dataOffset = 0;
+        }
       }
     }
   } on FileSystemException catch (e) {
@@ -90,22 +115,25 @@ bool isMagicString(Iterable<int> bytes) => const IterableEquality().equals(bytes
 /// Marks the beginning of an NPY file.
 const magicString = '\x93NUMPY';
 
-/// Determines the size of the given [header] as a List<int> for the given NPY file [version].
-List<int> headerSize(String header, int version) {
-  final headerLength = utf8.encode(header).length;
-  List<int> headerSizeBytes;
-  if (version == 1) {
-    assert(headerLength < 65536);
-    headerSizeBytes = [headerLength & 0xFF, (headerLength >> 8) & 0xFF];
-  } else if (version >= 2) {
-    headerSizeBytes = [
-      headerLength & 0xFF,
-      (headerLength >> 8) & 0xFF,
-      (headerLength >> 16) & 0xFF,
-      (headerLength >> 24) & 0xFF,
-    ];
-  } else {
-    throw ArgumentError('Unsupported NPY version');
+List<T> _parseData<T>(List<int> bytes, NpyDType dtype, int count) {
+  final Uint8List uint8List = Uint8List.fromList(bytes);
+  final ByteData byteData = ByteData.view(uint8List.buffer);
+  final List<T> result = List.filled(count, null as T);
+
+  for (int i = 0; i < count; i++) {
+    switch (dtype.toString()) {
+      case '<f4':
+        result[i] = byteData.getFloat32(i * 4, Endian.little) as T;
+      case '<f8':
+        result[i] = byteData.getFloat64(i * 8, Endian.little) as T;
+      case '<i4':
+        result[i] = byteData.getInt32(i * 4, Endian.little) as T;
+      case '<i8':
+        result[i] = byteData.getInt64(i * 8, Endian.little) as T;
+      default:
+        throw NpyUnsupportedDTypeException(message: 'Unsupported dtype: $dtype');
+    }
   }
-  return headerSizeBytes;
+
+  return result;
 }
