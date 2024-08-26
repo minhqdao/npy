@@ -8,6 +8,16 @@ import 'package:npy/src/np_exception.dart';
 import 'package:npy/src/np_file.dart';
 
 /// Loads an NPY file from the given [path].
+///
+/// If you're expecting a specific type of data, you can use the generic type parameter [T] to specify it as such:
+///
+/// ```dart
+/// void main() async {
+///  final npyFile = await loadNpy<double>('example.npy');
+///  final List<double> array = npyFile.data;
+///  print(array);
+///}
+/// ```
 Future<NpyFile<T>> loadNpy<T>(String path) async {
   final stream = File(path).openRead();
 
@@ -16,38 +26,51 @@ Future<NpyFile<T>> loadNpy<T>(String path) async {
   NpyVersion? version;
   int? numberOfHeaderBytes;
   int? headerLength;
-  
+  NpyHeader? header;
+
   try {
     await for (final chunk in stream) {
       buffer = [...buffer, ...chunk];
+
       if (!isMagicStringChecked && buffer.length >= magicString.length) {
         if (!isMagicString(buffer.take(magicString.length))) {
           throw NpyInvalidMagicNumberException(message: "Invalid magic number in '$path'.");
         }
         isMagicStringChecked = true;
       }
-      if (version == null && buffer.length >= magicString.length + 2) {
-        version = NpyVersion.fromBytes(buffer.skip(magicString.length).take(2));
-        numberOfHeaderBytes = version.major == 1 ? 2 : 4;
+
+      if (version == null && buffer.length >= magicString.length + NpyVersion.reservedBytes) {
+        version = NpyVersion.fromBytes(buffer.skip(magicString.length).take(NpyVersion.reservedBytes));
+        numberOfHeaderBytes = version.numberOfHeaderBytes;
       }
+
       if (headerLength == null &&
           version != null &&
           numberOfHeaderBytes != null &&
-          buffer.length >= magicString.length + 2 + numberOfHeaderBytes) {
-        final bytesTaken = buffer.skip(magicString.length + 2).take(numberOfHeaderBytes).toList();
+          buffer.length >= magicString.length + NpyVersion.reservedBytes + numberOfHeaderBytes) {
+        final bytesTaken =
+            buffer.skip(magicString.length + NpyVersion.reservedBytes).take(numberOfHeaderBytes).toList();
         headerLength = version.major == 1 ? littleEndian16ToInt(bytesTaken) : littleEndian32ToInt(bytesTaken);
       }
-      if (version != null &&
+
+      if (header == null &&
           headerLength != null &&
+          version != null &&
           numberOfHeaderBytes != null &&
-          buffer.length >= magicString.length + 2 + numberOfHeaderBytes + headerLength) {
-        final headerBytes = buffer.skip(magicString.length + 2 + numberOfHeaderBytes).take(headerLength).toList();
-        final header = NpyHeader.fromString(String.fromCharCodes(headerBytes));
+          buffer.length >= magicString.length + NpyVersion.reservedBytes + numberOfHeaderBytes + headerLength) {
+        final headerBytes = buffer
+            .skip(magicString.length + NpyVersion.reservedBytes + numberOfHeaderBytes)
+            .take(headerLength)
+            .toList();
+        header = NpyHeader.fromString(String.fromCharCodes(headerBytes));
+      }
+
+      if (header != null && version != null && headerLength != null) {
         return NpyFileInt(
           version: version,
           headerLength: headerLength,
           header: header,
-          ndarray: [],
+          data: [],
         );
       }
     }

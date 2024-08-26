@@ -5,13 +5,13 @@ abstract class NpyFile<T> {
     required this.version,
     required this.headerLength,
     required this.header,
-    required this.ndarray,
+    required this.data,
   });
 
   final NpyVersion version;
   final int headerLength;
   final NpyHeader header;
-  final List<T> ndarray;
+  final List<T> data;
 }
 
 class NpyFileInt<int> extends NpyFile<int> {
@@ -19,7 +19,7 @@ class NpyFileInt<int> extends NpyFile<int> {
     required super.version,
     required super.headerLength,
     required super.header,
-    required super.ndarray,
+    required super.data,
   });
 }
 
@@ -40,11 +40,13 @@ class NpyVersion {
   final int major;
   final int minor;
 
+  static const reservedBytes = 2;
+
   static const _supportedMajorVersions = {1, 2, 3};
   static const _supportedMinorVersions = {0};
 
   factory NpyVersion.fromBytes(Iterable<int> bytes) {
-    assert(bytes.length == 2);
+    assert(bytes.length == reservedBytes);
     if (!_supportedMajorVersions.contains(bytes.elementAt(0))) {
       throw NpyUnsupportedVersionException(message: 'Unsupported major version: ${bytes.elementAt(0)}');
     }
@@ -55,6 +57,9 @@ class NpyVersion {
   }
 
   List<int> toBytes() => [major, minor];
+
+  /// Returns the number of bytes used to store the header length depending on the version.
+  int get numberOfHeaderBytes => major == 1 ? 2 : 4;
 }
 
 class NpyHeader {
@@ -74,6 +79,7 @@ class NpyHeader {
     final inputString = headerString.trim().substring(1, headerString.length - 1);
     final Map<String, dynamic> header = {};
     final entryPattern = RegExp(r"'([^']+)'\s*:\s*(.+?)(?=\s*,\s*'|$)", multiLine: true, dotAll: true);
+
     for (final match in entryPattern.allMatches(inputString)) {
       final key = match.group(1)!.trim();
       final value = match.group(2)!.trim();

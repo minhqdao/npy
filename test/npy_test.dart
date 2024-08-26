@@ -16,10 +16,23 @@ void main() {
   });
 
   group('Parse NpyVersion:', () {
-    test('Supported version', () {
+    test('Major: 1, Minor: 0', () {
       final version = NpyVersion.fromBytes([1, 0]);
       expect(version.major, 1);
       expect(version.minor, 0);
+      expect(version.numberOfHeaderBytes, 2);
+    });
+    test('Major: 2, Minor: 0', () {
+      final version = NpyVersion.fromBytes([2, 0]);
+      expect(version.major, 2);
+      expect(version.minor, 0);
+      expect(version.numberOfHeaderBytes, 4);
+    });
+    test('Major: 3, Minor: 0', () {
+      final version = NpyVersion.fromBytes([3, 0]);
+      expect(version.major, 3);
+      expect(version.minor, 0);
+      expect(version.numberOfHeaderBytes, 4);
     });
     test('Unsupported major version', () {
       expect(() => NpyVersion.fromBytes([4, 0]), throwsA(const TypeMatcher<NpyUnsupportedVersionException>()));
