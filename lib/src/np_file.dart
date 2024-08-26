@@ -1,22 +1,25 @@
 import 'package:npy/src/np_exception.dart';
 
-abstract class NpyFile {
+abstract class NpyFile<T> {
   const NpyFile({
     required this.version,
     required this.headerLength,
     required this.header,
+    required this.ndarray,
   });
 
   final NpyVersion version;
   final int headerLength;
   final NpyHeader header;
+  final List<T> ndarray;
 }
 
-class NpyFileInt extends NpyFile {
+class NpyFileInt<int> extends NpyFile<int> {
   const NpyFileInt({
     required super.version,
     required super.headerLength,
     required super.header,
+    required super.ndarray,
   });
 }
 
@@ -50,6 +53,8 @@ class NpyVersion {
     }
     return NpyVersion(major: bytes.elementAt(0), minor: bytes.elementAt(1));
   }
+
+  List<int> toBytes() => [major, minor];
 }
 
 class NpyHeader {
@@ -134,6 +139,9 @@ class NpyDType {
       throw NpyInvalidDTypeException(message: "Invalid 'descr' field: '$string': $e");
     }
   }
+
+  @override
+  String toString() => '${byteOrder.char}${kind.char}$itemsize';
 }
 
 enum NpyByteOrder {

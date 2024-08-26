@@ -8,13 +8,15 @@ import 'package:npy/src/np_exception.dart';
 import 'package:npy/src/np_file.dart';
 
 /// Loads an NPY file from the given [path].
-Future<NpyFile> loadNpy(String path) async {
+Future<NpyFile<T>> loadNpy<T>(String path) async {
   final stream = File(path).openRead();
+
   List<int> buffer = [];
   bool isMagicStringChecked = false;
   NpyVersion? version;
   int? numberOfHeaderBytes;
   int? headerLength;
+  
   try {
     await for (final chunk in stream) {
       buffer = [...buffer, ...chunk];
@@ -41,7 +43,12 @@ Future<NpyFile> loadNpy(String path) async {
           buffer.length >= magicString.length + 2 + numberOfHeaderBytes + headerLength) {
         final headerBytes = buffer.skip(magicString.length + 2 + numberOfHeaderBytes).take(headerLength).toList();
         final header = NpyHeader.fromString(String.fromCharCodes(headerBytes));
-        return NpyFileInt(version: version, headerLength: headerLength, header: header);
+        return NpyFileInt(
+          version: version,
+          headerLength: headerLength,
+          header: header,
+          ndarray: [],
+        );
       }
     }
   } on FileSystemException catch (e) {
@@ -80,7 +87,7 @@ List<int> headerSize(String header, int version) {
   final headerLength = utf8.encode(header).length;
   List<int> headerSizeBytes;
   if (version == 1) {
-    if (headerLength > 65535) throw ArgumentError('Header too large for version 1.0 NPY file');
+    assert(headerLength < 65536);
     headerSizeBytes = [headerLength & 0xFF, (headerLength >> 8) & 0xFF];
   } else if (version >= 2) {
     headerSizeBytes = [
