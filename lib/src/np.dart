@@ -41,14 +41,10 @@ Future<NDArray<T>> load<T>(String path) async {
         ..parseHeader(buffer);
 
       if (headerSection.header != null && headerSection.headerLength != null && headerSection.version != null) {
-        if (headerSection.header!.shape.isEmpty) {
-          return NDArray<T>(
-            header: headerSection.header!,
-          );
-        }
+        if (headerSection.header!.shape.isEmpty) return NDArray<T>(header: headerSection.header!);
 
         dataOffset = magicString.length +
-            NpyVersion.numberOfReservedBytes +
+            NpyHeaderSection.numberOfVersionBytes +
             headerSection.numberOfHeaderBytes +
             headerSection.headerLength!;
 
