@@ -7,12 +7,33 @@ import 'package:test/test.dart';
 
 void main() {
   group('Check magic string:', () {
-    test('Valid code units', () => expect(NpyHeaderBlock().hasInvalidMagicString([147, 78, 85, 77, 80, 89]), false));
-    test('Invalid first byte', () => expect(NpyHeaderBlock().hasInvalidMagicString([146, 78, 85, 77, 80, 89]), true));
-    test('Invalid last byte', () => expect(NpyHeaderBlock().hasInvalidMagicString([147, 78, 85, 77, 80, 87]), true));
-    test('Too short', () => expect(NpyHeaderBlock().hasInvalidMagicString([147, 78, 85, 77, 80]), false));
-    test('Too long', () => expect(NpyHeaderBlock().hasInvalidMagicString([147, 78, 85, 77, 80, 89, 90]), false));
-    test('From valid text', () => expect(NpyHeaderBlock().hasInvalidMagicString('\x93NUMPY'.codeUnits), false));
+    test(
+      'Valid code units',
+      () => expect(() => NpyHeaderBlock().checkMagicString([147, 78, 85, 77, 80, 89]), returnsNormally),
+    );
+    test(
+      'Invalid first byte',
+      () => expect(
+        () => NpyHeaderBlock().checkMagicString([146, 78, 85, 77, 80, 89]),
+        throwsA(const TypeMatcher<NpyInvalidMagicStringException>()),
+      ),
+    );
+    test(
+      'Invalid last byte',
+      () => expect(
+        () => NpyHeaderBlock().checkMagicString([147, 78, 85, 77, 80, 87]),
+        throwsA(const TypeMatcher<NpyInvalidMagicStringException>()),
+      ),
+    );
+    test('Too short', () => expect(() => NpyHeaderBlock().checkMagicString([147, 78, 85, 77, 80]), returnsNormally));
+    test(
+      'Too long',
+      () => expect(() => NpyHeaderBlock().checkMagicString([147, 78, 85, 77, 80, 89, 90]), returnsNormally),
+    );
+    test(
+      'From valid text',
+      () => expect(() => NpyHeaderBlock().checkMagicString('\x93NUMPY'.codeUnits), returnsNormally),
+    );
   });
 
   group('Parse NpyVersion:', () {
@@ -275,7 +296,7 @@ void main() {
     test('Invalid magic string', () {
       const filename = 'invalid_magic_string.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([1, 2, 3, 4, 5, 6]);
-      expect(load(filename), throwsA(const TypeMatcher<NpyInvalidMagicNumberException>()));
+      expect(load(filename), throwsA(const TypeMatcher<NpyInvalidMagicStringException>()));
       tmpFile.deleteSync();
     });
     test('Unsupported major version', () {

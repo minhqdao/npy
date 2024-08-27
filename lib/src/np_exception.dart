@@ -33,8 +33,8 @@ class NpyParseException extends NpException {
   final String message;
 }
 
-class NpyInvalidMagicNumberException extends NpyParseException {
-  const NpyInvalidMagicNumberException({required super.message});
+class NpyInvalidMagicStringException extends NpyParseException {
+  const NpyInvalidMagicStringException({required super.message});
 }
 
 class NpyUnsupportedVersionException extends NpyParseException {

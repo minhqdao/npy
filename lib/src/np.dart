@@ -37,9 +37,7 @@ Future<NDArray<T>> load<T>(String path) async {
     await for (final chunk in stream) {
       buffer.addAll(chunk);
 
-      if (!headerBlock.isMagicStringChecked && headerBlock.hasInvalidMagicString(buffer)) {
-        throw NpyInvalidMagicNumberException(message: "Invalid magic string in '$path'.");
-      }
+      headerBlock.checkMagicString(buffer);
 
       if (version == null && buffer.length >= magicString.length + NpyVersion.reservedBytes) {
         version = NpyVersion.fromBytes(buffer.skip(magicString.length).take(NpyVersion.reservedBytes));

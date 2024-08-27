@@ -42,6 +42,28 @@ class NDArray<T> {
 //   final Map<String, NDArray> files;
 // }
 
+class NpyHeaderBlock {
+  NpyHeaderBlock({
+    this.isMagicStringChecked = false,
+    this.version,
+    this.headerLength,
+    this.header,
+  });
+
+  bool isMagicStringChecked;
+  NpyVersion? version;
+  int? headerLength;
+  NpyHeader? header;
+
+  void checkMagicString(List<int> bytes) {
+    if (isMagicStringChecked || bytes.length < magicString.length) return;
+    if (!const IterableEquality().equals(magicString.codeUnits, bytes.take(magicString.length))) {
+      throw const NpyInvalidMagicStringException(message: 'Invalid magic string.');
+    }
+    isMagicStringChecked = true;
+  }
+}
+
 class NpyVersion {
   const NpyVersion({
     this.major = 1,
@@ -74,26 +96,6 @@ class NpyVersion {
 
   /// Returns the length of the header depending on the given [bytes].
   int getHeaderLengthFromBytes(List<int> bytes) => major == 1 ? littleEndian16ToInt(bytes) : littleEndian32ToInt(bytes);
-}
-
-class NpyHeaderBlock {
-  NpyHeaderBlock({
-    this.isMagicStringChecked = false,
-    this.version,
-    this.headerLength,
-    this.header,
-  });
-
-  bool isMagicStringChecked;
-  NpyVersion? version;
-  int? headerLength;
-  NpyHeader? header;
-
-  bool hasInvalidMagicString(List<int> bytes) {
-    if (bytes.length < magicString.length) return false;
-    isMagicStringChecked = true;
-    return !const IterableEquality().equals(magicString.codeUnits, bytes.take(magicString.length));
-  }
 }
 
 class NpyHeader {
