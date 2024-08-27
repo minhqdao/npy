@@ -31,11 +31,11 @@ Future<NDArray<T>> load<T>(String path) async {
   NpyHeader? header;
   int dataOffset = 0;
   int dataRead = 0;
-  List<T> data = [];
+  final List<T> data = [];
 
   try {
     await for (final chunk in stream) {
-      buffer = [...buffer, ...chunk];
+      buffer.addAll(chunk);
 
       if (!isMagicStringChecked && buffer.length >= magicString.length) {
         if (!isMagicString(buffer.take(magicString.length))) {
@@ -60,16 +60,20 @@ Future<NDArray<T>> load<T>(String path) async {
           headerLength != null &&
           version != null &&
           buffer.length >= magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes + headerLength) {
-        final bytes = buffer
+        final headerBytes = buffer
             .skip(magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes)
             .take(headerLength)
             .toList();
-        header = NpyHeader.fromString(String.fromCharCodes(bytes));
+        header = NpyHeader.fromString(String.fromCharCodes(headerBytes));
         dataOffset = magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes + headerLength;
       }
 
       if (header != null && headerLength != null && version != null) {
-        final totalElements = header.shape.reduce((a, b) => a * b);
+        final totalElements = header.shape.isEmpty ? 0 : header.shape.reduce((a, b) => a * b);
+
+        if (totalElements == 0) {
+          return NDArray<T>(version: version, headerLength: headerLength, header: header, data: []);
+        }
 
         while (dataOffset < buffer.length) {
           final remainingElements = totalElements - dataRead;
@@ -82,17 +86,17 @@ Future<NDArray<T>> load<T>(String path) async {
             elementsToProcess,
           );
 
-          data = [...data, ...newData];
+          data.addAll(newData);
           dataRead += elementsToProcess;
           dataOffset += elementsToProcess * header.dtype.itemSize;
 
           if (dataRead == totalElements) {
             return NDArray<T>(version: version, headerLength: headerLength, header: header, data: data);
           }
-
-          buffer = buffer.sublist(dataOffset);
-          dataOffset = 0;
         }
+
+        buffer = buffer.sublist(dataOffset);
+        dataOffset = 0;
       }
     }
   } on FileSystemException catch (e) {
