@@ -67,7 +67,7 @@ class NpyHeaderSection {
   void parseHeaderLength(List<int> bytes) {
     const bytesTaken = magicString.length + NpyVersion.numberOfReservedBytes;
     if (headerLength != null || version == null || bytes.length < bytesTaken + numberOfHeaderBytes) return;
-    headerLength = headerLengthFromBytes(bytes.skip(bytesTaken).take(numberOfHeaderBytes).toList());
+    headerLength = getHeaderLength(bytes.skip(bytesTaken).take(numberOfHeaderBytes).toList());
   }
 
   void parseHeader(List<int> bytes) {
@@ -77,7 +77,7 @@ class NpyHeaderSection {
   }
 
   /// Returns the length of the header depending on the given [bytes].
-  int headerLengthFromBytes(List<int> bytes) {
+  int getHeaderLength(List<int> bytes) {
     if (version == null) {
       throw const NpyParseOrderException(message: 'Version must be set before parsing header length.');
     }
