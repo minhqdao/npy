@@ -221,8 +221,16 @@ void main() {
       expect(header.fortranOrder, true);
       expect(header.shape, [2, 3]);
     });
-    test('<f8, True, (2, 3) with extra space', () {
+    test('<f8, True, (2, 3) with extra whitespace', () {
       final header = NpyHeader.fromString("{' descr' :  '<f8 ' ,  ' fortran_order ':  True ,  ' shape' :  ( 2 , 3 ) }");
+      expect(header.dtype.byteOrder, NpyByteOrder.littleEndian);
+      expect(header.dtype.kind, NpyType.float);
+      expect(header.dtype.itemSize, 8);
+      expect(header.fortranOrder, true);
+      expect(header.shape, [2, 3]);
+    });
+    test('<f8, True, (2, 3) with whitespace and trailing comma', () {
+      final header = NpyHeader.fromString("{'descr' :'<f8 ' , ' fortran_order ':  True ,  ' shape' :  ( 2 , 3 ) , }");
       expect(header.dtype.byteOrder, NpyByteOrder.littleEndian);
       expect(header.dtype.kind, NpyType.float);
       expect(header.dtype.itemSize, 8);
@@ -284,15 +292,14 @@ void main() {
     });
     // test('Header 1', () async {
     //   const filename = 'header_1.tmp';
-    //   const majorVersion = 1;
+    //   const version = NpyVersion();
     //   const header = "{'descr': '<f8', 'fortran_order': True, 'shape': (3,)}";
     //   final tmpFile = File(filename)
     //     ..writeAsBytesSync(
     //       [
     //         ...magicString.codeUnits,
-    //         majorVersion,
-    //         0,
-    //         ...NpyHeader.getSizeFromString(header, majorVersion),
+    //         ...version.toBytes(),
+    //         ...NpyHeader.getSizeFromString(header, version.major),
     //         ...header.codeUnits,
     //       ],
     //     );

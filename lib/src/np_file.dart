@@ -88,7 +88,7 @@ class NpyHeader {
 
     final inputString = headerString.trim().substring(1, headerString.length - 1);
     final Map<String, dynamic> header = {};
-    final entryPattern = RegExp(r"'([^']+)'\s*:\s*(.+?)(?=\s*,\s*'|$)", multiLine: true, dotAll: true);
+    final entryPattern = RegExp(r"'([^']+)'\s*:\s*(.+?)(?=\s*,\s*'|$|\s*,\s*$)", multiLine: true, dotAll: true);
 
     for (final match in entryPattern.allMatches(inputString)) {
       final key = match.group(1)!.trim();
