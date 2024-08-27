@@ -15,6 +15,22 @@ class NDArray<T> {
   final int headerLength;
   final NpyHeader header;
   final List<T> data;
+
+  T getElement(List<int> indices) => data[_getIndex(indices)];
+
+  int _getIndex(List<int> indices) {
+    int index = 0;
+    int stride = 1;
+    final shape = header.shape;
+    final order = header.fortranOrder;
+
+    for (int i = 0; i < indices.length; i++) {
+      final idx = order ? i : indices.length - 1 - i;
+      index += indices[idx] * stride;
+      stride *= shape[idx];
+    }
+    return index;
+  }
 }
 
 // class NpzFile {
@@ -146,15 +162,13 @@ class NpyHeader {
 /// Converts the given [bytes] to a 16-bit unsigned integer in little-endian byte order.
 int littleEndian16ToInt(List<int> bytes) {
   assert(bytes.length == 2);
-  final byteData = ByteData.sublistView(Uint8List.fromList(bytes));
-  return byteData.getUint16(0, Endian.little);
+  return ByteData.sublistView(Uint8List.fromList(bytes)).getUint16(0, Endian.little);
 }
 
 /// Converts the given [bytes] to a 32-bit unsigned integer in little-endian byte order.
 int littleEndian32ToInt(List<int> bytes) {
   assert(bytes.length == 4);
-  final byteData = ByteData.sublistView(Uint8List.fromList(bytes));
-  return byteData.getUint32(0, Endian.little);
+  return ByteData.sublistView(Uint8List.fromList(bytes)).getUint32(0, Endian.little);
 }
 
 class NpyDType {
@@ -170,6 +184,7 @@ class NpyDType {
 
   factory NpyDType.fromString(String string) {
     if (string.length < 3) throw NpyInvalidDTypeException(message: "Invalid 'descr' field: '$string'");
+
     try {
       final byteOrder = NpyByteOrder.fromChar(string[0]);
       final kind = NpyType.fromChar(string[1]);
@@ -194,12 +209,10 @@ enum NpyByteOrder {
 
   final String char;
 
-  factory NpyByteOrder.fromChar(String char) {
-    return NpyByteOrder.values.firstWhere(
-      (order) => order.char == char,
-      orElse: () => throw NpyUnsupportedByteOrderException(message: 'Unsupported byte order: $char'),
-    );
-  }
+  factory NpyByteOrder.fromChar(String char) => NpyByteOrder.values.firstWhere(
+        (order) => order.char == char,
+        orElse: () => throw NpyUnsupportedByteOrderException(message: 'Unsupported byte order: $char'),
+      );
 }
 
 enum NpyType {
@@ -216,10 +229,8 @@ enum NpyType {
 
   final String char;
 
-  factory NpyType.fromChar(String char) {
-    return NpyType.values.firstWhere(
-      (type) => type.char == char,
-      orElse: () => throw NpyUnsupportedNpyTypeException(message: 'Unsupported data type: $char'),
-    );
-  }
+  factory NpyType.fromChar(String char) => NpyType.values.firstWhere(
+        (type) => type.char == char,
+        orElse: () => throw NpyUnsupportedNpyTypeException(message: 'Unsupported data type: $char'),
+      );
 }

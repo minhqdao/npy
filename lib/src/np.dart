@@ -74,8 +74,10 @@ Future<NDArray<T>> load<T>(String path) async {
       }
 
       if (header != null && headerLength != null && version != null) {
+        final totalElements = header.shape.reduce((a, b) => a * b);
+
         while (dataOffset < buffer.length) {
-          final remainingElements = header.shape.reduce((a, b) => a * b) - dataRead;
+          final remainingElements = totalElements - dataRead;
           final elementsInBuffer = (buffer.length - dataOffset) ~/ header.dtype.itemSize;
           final elementsToProcess = min(remainingElements, elementsInBuffer);
 
@@ -89,7 +91,7 @@ Future<NDArray<T>> load<T>(String path) async {
           dataRead += elementsToProcess;
           dataOffset += elementsToProcess * header.dtype.itemSize;
 
-          if (dataRead == header.shape.reduce((a, b) => a * b)) {
+          if (dataRead == totalElements) {
             return NDArray<T>(version: version, headerLength: headerLength, header: header, data: data);
           }
 
@@ -116,20 +118,35 @@ bool isMagicString(Iterable<int> bytes) => const IterableEquality().equals(bytes
 const magicString = '\x93NUMPY';
 
 List<T> _parseData<T>(List<int> bytes, NpyDType dtype, int count) {
-  final Uint8List uint8List = Uint8List.fromList(bytes);
-  final ByteData byteData = ByteData.view(uint8List.buffer);
-  final List<T> result = List.filled(count, null as T);
+  final byteData = ByteData.view(Uint8List.fromList(bytes).buffer);
+  final result = List<T>.filled(count, null as T);
 
   for (int i = 0; i < count; i++) {
     switch (dtype.toString()) {
       case '<f4':
         result[i] = byteData.getFloat32(i * 4, Endian.little) as T;
+      case '>f4':
+        result[i] = byteData.getFloat32(i * 4) as T;
       case '<f8':
         result[i] = byteData.getFloat64(i * 8, Endian.little) as T;
+      case '>f8':
+        result[i] = byteData.getFloat64(i * 8) as T;
       case '<i4':
         result[i] = byteData.getInt32(i * 4, Endian.little) as T;
+      case '>i4':
+        result[i] = byteData.getInt32(i * 4) as T;
       case '<i8':
         result[i] = byteData.getInt64(i * 8, Endian.little) as T;
+      case '>i8':
+        result[i] = byteData.getInt64(i * 8) as T;
+      case '<u4':
+        result[i] = byteData.getUint32(i * 4, Endian.little) as T;
+      case '>u4':
+        result[i] = byteData.getUint32(i * 4) as T;
+      case '<u8':
+        result[i] = byteData.getUint64(i * 8, Endian.little) as T;
+      case '>u8':
+        result[i] = byteData.getUint64(i * 8) as T;
       default:
         throw NpyUnsupportedDTypeException(message: 'Unsupported dtype: $dtype');
     }
