@@ -25,10 +25,7 @@ Future<NDArray<T>> load<T>(String path) async {
   final stream = File(path).openRead();
 
   List<int> buffer = [];
-  final headerBlock = NpyHeaderBlock();
-  NpyVersion? version;
-  int? headerLength;
-  NpyHeader? header;
+  final headerSection = NpyHeaderSection();
   int dataOffset = 0;
   int dataRead = 0;
   final List<T> data = [];
@@ -37,54 +34,46 @@ Future<NDArray<T>> load<T>(String path) async {
     await for (final chunk in stream) {
       buffer.addAll(chunk);
 
-      headerBlock.checkMagicString(buffer);
+      headerSection
+        ..checkMagicString(buffer)
+        ..parseVersion(buffer)
+        ..parseHeaderLength(buffer)
+        ..parseHeader(buffer);
 
-      if (version == null && buffer.length >= magicString.length + NpyVersion.reservedBytes) {
-        version = NpyVersion.fromBytes(buffer.skip(magicString.length).take(NpyVersion.reservedBytes));
-      }
+      if (headerSection.header != null && headerSection.headerLength != null && headerSection.version != null) {
+        if (headerSection.header!.shape.isEmpty) {
+          return NDArray<T>(
+            header: headerSection.header!,
+          );
+        }
 
-      if (headerLength == null &&
-          version != null &&
-          buffer.length >= magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes) {
-        headerLength = version.getHeaderLengthFromBytes(
-          buffer.skip(magicString.length + NpyVersion.reservedBytes).take(version.numberOfHeaderBytes).toList(),
-        );
-      }
+        dataOffset = magicString.length +
+            NpyVersion.numberOfReservedBytes +
+            headerSection.numberOfHeaderBytes +
+            headerSection.headerLength!;
 
-      if (header == null &&
-          headerLength != null &&
-          version != null &&
-          buffer.length >= magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes + headerLength) {
-        final headerBytes = buffer
-            .skip(magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes)
-            .take(headerLength)
-            .toList();
-        header = NpyHeader.fromString(String.fromCharCodes(headerBytes));
-        dataOffset = magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes + headerLength;
-      }
-
-      if (header != null && headerLength != null && version != null) {
-        if (header.shape.isEmpty) return NDArray<T>(version: version, headerLength: headerLength, header: header);
-
-        final totalElements = header.shape.reduce((a, b) => a * b);
+        final totalElements = headerSection.header!.shape.reduce((a, b) => a * b);
 
         while (dataOffset < buffer.length) {
           final remainingElements = totalElements - dataRead;
-          final elementsInBuffer = (buffer.length - dataOffset) ~/ header.dtype.itemSize;
+          final elementsInBuffer = (buffer.length - dataOffset) ~/ headerSection.header!.dtype.itemSize;
           final elementsToProcess = min(remainingElements, elementsInBuffer);
 
           final newData = _parseData<T>(
-            buffer.sublist(dataOffset, dataOffset + elementsToProcess * header.dtype.itemSize),
-            header.dtype,
+            buffer.sublist(dataOffset, dataOffset + elementsToProcess * headerSection.header!.dtype.itemSize),
+            headerSection.header!.dtype,
             elementsToProcess,
           );
 
           data.addAll(newData);
           dataRead += elementsToProcess;
-          dataOffset += elementsToProcess * header.dtype.itemSize;
+          dataOffset += elementsToProcess * headerSection.header!.dtype.itemSize;
 
           if (dataRead == totalElements) {
-            return NDArray<T>(version: version, headerLength: headerLength, header: header, data: data);
+            return NDArray<T>(
+              header: headerSection.header!,
+              data: data,
+            );
           }
         }
 

@@ -64,3 +64,7 @@ class NpyUnsupportedDTypeException extends NpyParseException {
 class NpyUnsupportedTypeException extends NpyParseException {
   const NpyUnsupportedTypeException({required super.message});
 }
+
+class NpyParseOrderException extends NpyParseException {
+  const NpyParseOrderException({required super.message});
+}

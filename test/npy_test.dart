@@ -9,51 +9,66 @@ void main() {
   group('Check magic string:', () {
     test(
       'Valid code units',
-      () => expect(() => NpyHeaderBlock().checkMagicString([147, 78, 85, 77, 80, 89]), returnsNormally),
+      () => expect(() => NpyHeaderSection().checkMagicString([147, 78, 85, 77, 80, 89]), returnsNormally),
     );
     test(
       'Invalid first byte',
       () => expect(
-        () => NpyHeaderBlock().checkMagicString([146, 78, 85, 77, 80, 89]),
+        () => NpyHeaderSection().checkMagicString([146, 78, 85, 77, 80, 89]),
         throwsA(const TypeMatcher<NpyInvalidMagicStringException>()),
       ),
     );
     test(
       'Invalid last byte',
       () => expect(
-        () => NpyHeaderBlock().checkMagicString([147, 78, 85, 77, 80, 87]),
+        () => NpyHeaderSection().checkMagicString([147, 78, 85, 77, 80, 87]),
         throwsA(const TypeMatcher<NpyInvalidMagicStringException>()),
       ),
     );
-    test('Too short', () => expect(() => NpyHeaderBlock().checkMagicString([147, 78, 85, 77, 80]), returnsNormally));
+    test('Too short', () => expect(() => NpyHeaderSection().checkMagicString([147, 78, 85, 77, 80]), returnsNormally));
     test(
       'Too long',
-      () => expect(() => NpyHeaderBlock().checkMagicString([147, 78, 85, 77, 80, 89, 90]), returnsNormally),
+      () => expect(() => NpyHeaderSection().checkMagicString([147, 78, 85, 77, 80, 89, 90]), returnsNormally),
     );
     test(
       'From valid text',
-      () => expect(() => NpyHeaderBlock().checkMagicString('\x93NUMPY'.codeUnits), returnsNormally),
+      () => expect(() => NpyHeaderSection().checkMagicString('\x93NUMPY'.codeUnits), returnsNormally),
     );
   });
 
   group('Parse NpyVersion:', () {
+    test('Major: 1, Minor: 0 in header section', () {
+      final headerSection = NpyHeaderSection(version: NpyVersion.fromBytes([1, 0]));
+      expect(headerSection.version!.major, 1);
+      expect(headerSection.version!.minor, 0);
+      expect(headerSection.numberOfHeaderBytes, 2);
+    });
+    test('Major: 2, Minor: 0 in header section', () {
+      final headerSection = NpyHeaderSection(version: NpyVersion.fromBytes([2, 0]));
+      expect(headerSection.version!.major, 2);
+      expect(headerSection.version!.minor, 0);
+      expect(headerSection.numberOfHeaderBytes, 4);
+    });
+    test('Major: 3, Minor: 0 in header section', () {
+      final headerSection = NpyHeaderSection(version: NpyVersion.fromBytes([3, 0]));
+      expect(headerSection.version!.major, 3);
+      expect(headerSection.version!.minor, 0);
+      expect(headerSection.numberOfHeaderBytes, 4);
+    });
     test('Major: 1, Minor: 0', () {
       final version = NpyVersion.fromBytes([1, 0]);
       expect(version.major, 1);
       expect(version.minor, 0);
-      expect(version.numberOfHeaderBytes, 2);
     });
     test('Major: 2, Minor: 0', () {
       final version = NpyVersion.fromBytes([2, 0]);
       expect(version.major, 2);
       expect(version.minor, 0);
-      expect(version.numberOfHeaderBytes, 4);
     });
     test('Major: 3, Minor: 0', () {
       final version = NpyVersion.fromBytes([3, 0]);
       expect(version.major, 3);
       expect(version.minor, 0);
-      expect(version.numberOfHeaderBytes, 4);
     });
     test('Unsupported major version', () {
       expect(() => NpyVersion.fromBytes([4, 0]), throwsA(const TypeMatcher<NpyUnsupportedVersionException>()));
@@ -68,15 +83,21 @@ void main() {
     test('[1, 2]', () => expect(littleEndian16ToInt([1, 2]), 513));
     test('[4, 3, 2, 1]', () => expect(littleEndian32ToInt([4, 3, 2, 1]), 16909060));
     test('[1, 2, 3, 4]', () => expect(littleEndian32ToInt([1, 2, 3, 4]), 67305985));
-    test('[2, 1] from getLength', () => expect(const NpyVersion().getHeaderLengthFromBytes([2, 1]), 258));
-    test('[1, 2] from getLength', () => expect(const NpyVersion().getHeaderLengthFromBytes([1, 2]), 513));
+    test(
+      '[2, 1] from getLength',
+      () => expect(NpyHeaderSection(version: const NpyVersion()).headerLengthFromBytes([2, 1]), 258),
+    );
+    test(
+      '[1, 2] from getLength',
+      () => expect(NpyHeaderSection(version: const NpyVersion()).headerLengthFromBytes([1, 2]), 513),
+    );
     test(
       '[4, 3, 2, 1] from getLength',
-      () => expect(const NpyVersion(major: 2).getHeaderLengthFromBytes([4, 3, 2, 1]), 16909060),
+      () => expect(NpyHeaderSection(version: const NpyVersion(major: 2)).headerLengthFromBytes([4, 3, 2, 1]), 16909060),
     );
     test(
       '[1, 2, 3, 4] from getLength',
-      () => expect(const NpyVersion(major: 2).getHeaderLengthFromBytes([1, 2, 3, 4]), 67305985),
+      () => expect(NpyHeaderSection(version: const NpyVersion(major: 2)).headerLengthFromBytes([1, 2, 3, 4]), 67305985),
     );
     test('[0x56, 0x78]', () {
       final bytes = [0x56, 0x78];
@@ -313,13 +334,12 @@ void main() {
     });
     test('Header 1', () async {
       const filename = 'header_1.tmp';
-      const version = NpyVersion();
-      final header = NpyHeader.fromString("{'descr': '<f8', 'fortran_order': True, 'shape': ()}");
-      final tmpFile = File(filename)..writeAsBytesSync(header.getHeaderSection(version: version));
+      final headerSection = NpyHeaderSection(
+        version: const NpyVersion(),
+        header: NpyHeader.fromString("{'descr': '<f8', 'fortran_order': True, 'shape': ()}"),
+      );
+      final tmpFile = File(filename)..writeAsBytesSync(headerSection.asBytes);
       final npyFile = await load(filename);
-      expect(npyFile.version.major, 1);
-      expect(npyFile.version.minor, 0);
-      expect(npyFile.headerLength, 52);
       expect(npyFile.header.dtype.byteOrder, NpyByteOrder.littleEndian);
       expect(npyFile.header.dtype.kind, NpyType.float);
       expect(npyFile.header.dtype.itemSize, 8);
@@ -329,13 +349,12 @@ void main() {
     });
     test('Header 2', () async {
       const filename = 'header_2.tmp';
-      const version = NpyVersion();
-      final header = NpyHeader.fromString("{'descr': '<f8', 'fortran_order': True, 'shape': (3,)}");
-      final tmpFile = File(filename)..writeAsBytesSync(header.getHeaderSection(version: version));
+      final headerSection = NpyHeaderSection(
+        version: const NpyVersion(),
+        header: NpyHeader.fromString("{'descr': '<f8', 'fortran_order': True, 'shape': (3,)}"),
+      );
+      final tmpFile = File(filename)..writeAsBytesSync(headerSection.asBytes);
       final npyFile = await load(filename);
-      expect(npyFile.version.major, 1);
-      expect(npyFile.version.minor, 0);
-      expect(npyFile.headerLength, 54);
       expect(npyFile.header.dtype.byteOrder, NpyByteOrder.littleEndian);
       expect(npyFile.header.dtype.kind, NpyType.float);
       expect(npyFile.header.dtype.itemSize, 8);
