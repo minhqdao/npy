@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:collection/collection.dart';
 import 'package:npy/src/np_exception.dart';
 import 'package:npy/src/np_file.dart';
 
@@ -32,11 +31,11 @@ Future<NDArray<T>> load<T>(String path) async {
   NpyHeader? header;
   int dataOffset = 0;
   int dataRead = 0;
-  final List<T> data = [];
+  List<T> data = [];
 
   try {
     await for (final chunk in stream) {
-      buffer.addAll(chunk);
+      buffer = [...buffer, ...chunk];
 
       if (!isMagicStringChecked && buffer.length >= magicString.length) {
         if (!isMagicString(buffer.take(magicString.length))) {
@@ -52,9 +51,8 @@ Future<NDArray<T>> load<T>(String path) async {
       if (headerLength == null &&
           version != null &&
           buffer.length >= magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes) {
-        headerLength = NpyHeader.getLength(
-          bytes: buffer.skip(magicString.length + NpyVersion.reservedBytes).take(version.numberOfHeaderBytes).toList(),
-          version: version,
+        headerLength = version.getHeaderLengthFromBytes(
+          buffer.skip(magicString.length + NpyVersion.reservedBytes).take(version.numberOfHeaderBytes).toList(),
         );
       }
 
@@ -62,14 +60,11 @@ Future<NDArray<T>> load<T>(String path) async {
           headerLength != null &&
           version != null &&
           buffer.length >= magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes + headerLength) {
-        header = NpyHeader.fromString(
-          String.fromCharCodes(
-            buffer
-                .skip(magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes)
-                .take(headerLength)
-                .toList(),
-          ),
-        );
+        final bytes = buffer
+            .skip(magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes)
+            .take(headerLength)
+            .toList();
+        header = NpyHeader.fromString(String.fromCharCodes(bytes));
         dataOffset = magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes + headerLength;
       }
 
@@ -87,7 +82,7 @@ Future<NDArray<T>> load<T>(String path) async {
             elementsToProcess,
           );
 
-          data.addAll(newData);
+          data = [...data, ...newData];
           dataRead += elementsToProcess;
           dataOffset += elementsToProcess * header.dtype.itemSize;
 
@@ -110,12 +105,6 @@ Future<NDArray<T>> load<T>(String path) async {
   }
   throw NpyParseException(message: "Error parsing '$path' as an NPY file.");
 }
-
-/// Whether the given bytes represent the magic string that NPY files start with.
-bool isMagicString(Iterable<int> bytes) => const IterableEquality().equals(bytes, magicString.codeUnits);
-
-/// Marks the beginning of an NPY file.
-const magicString = '\x93NUMPY';
 
 List<T> _parseData<T>(List<int> bytes, NpyDType dtype, int count) {
   final byteData = ByteData.view(Uint8List.fromList(bytes).buffer);

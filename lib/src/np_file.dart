@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
 import 'package:npy/src/np_exception.dart';
 
 class NDArray<T> {
@@ -66,22 +67,27 @@ class NpyVersion {
     return NpyVersion(major: bytes.elementAt(0), minor: bytes.elementAt(1));
   }
 
-  List<int> toBytes() => [major, minor];
+  List<int> get asBytes => [major, minor];
 
   /// Returns the number of bytes used to store the header length depending on the version.
   int get numberOfHeaderBytes => major == 1 ? 2 : 4;
+
+  /// Returns the length of the header depending on the given [bytes].
+  int getHeaderLengthFromBytes(List<int> bytes) => major == 1 ? littleEndian16ToInt(bytes) : littleEndian32ToInt(bytes);
 }
 
 class NpyHeader {
-  final NpyDType dtype;
-  final bool fortranOrder;
-  final List<int> shape;
-
   const NpyHeader({
     required this.dtype,
     required this.fortranOrder,
     required this.shape,
+    required this.string,
   });
+
+  final NpyDType dtype;
+  final bool fortranOrder;
+  final List<int> shape;
+  final String string;
 
   factory NpyHeader.fromString(String headerString) {
     if (headerString.length < 2) throw const NpyInvalidHeaderException(message: 'Header string is too short.');
@@ -129,16 +135,13 @@ class NpyHeader {
       dtype: NpyDType.fromString(descr),
       fortranOrder: fortranOrder,
       shape: shape,
+      string: headerString,
     );
   }
 
-  /// Returns the length of the header depending on the version and the given [bytes].
-  static int getLength({required List<int> bytes, NpyVersion version = const NpyVersion()}) =>
-      version.major == 1 ? littleEndian16ToInt(bytes) : littleEndian32ToInt(bytes);
-
-  /// Returns the size of the given [header] as a List<int> for the given NPY file [version].
-  static List<int> getSizeFromString(String header, int version) {
-    final headerLength = utf8.encode(header).length;
+  /// Returns the size of the given header string as a List<int> for the given NPY file [version].
+  List<int> getSizeAsBytes(int version) {
+    final headerLength = utf8.encode(string).length;
     List<int> headerSizeBytes;
 
     if (version == 1) {
@@ -157,7 +160,36 @@ class NpyHeader {
 
     return headerSizeBytes;
   }
+
+  /// Returns entire header section represented by a List of bytes that includes the the magic string, the version,
+  /// the number of bytes describing the header length, the header length, and the header, padded with spaces and
+  /// terminated with a newline character to be a multiple of 64 bytes. It takes the header
+  /// as a String and leaves it unchanged.
+  List<int> getHeaderSection({required NpyVersion version}) {
+    final sizeWithoutPadding =
+        magicString.length + NpyVersion.reservedBytes + version.numberOfHeaderBytes + string.length + 1;
+    return [
+      ...magicString.codeUnits,
+      ...version.asBytes,
+      ...getSizeAsBytes(version.major),
+      ...utf8.encode(string),
+      ...List.filled((64 - (sizeWithoutPadding % 64)) % 64, _blankSpaceInt),
+      _newLineInt,
+    ];
+  }
 }
+
+/// The ASCII code for a space character.
+const _blankSpaceInt = 32;
+
+/// The ASCII code for a newline character.
+const _newLineInt = 10;
+
+/// Marks the beginning of an NPY file.
+const magicString = '\x93NUMPY';
+
+/// Whether the given bytes represent the magic string that NPY files start with.
+bool isMagicString(Iterable<int> bytes) => const IterableEquality().equals(bytes, magicString.codeUnits);
 
 /// Converts the given [bytes] to a 16-bit unsigned integer in little-endian byte order.
 int littleEndian16ToInt(List<int> bytes) {
