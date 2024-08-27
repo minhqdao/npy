@@ -6,13 +6,13 @@ import 'package:npy/src/np_file.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('Check magic number:', () {
-    test('Valid code units', () => expect(isMagicString([147, 78, 85, 77, 80, 89]), true));
-    test('Invalid first byte', () => expect(isMagicString([146, 78, 85, 77, 80, 89]), false));
-    test('Invalid last byte', () => expect(isMagicString([147, 78, 85, 77, 80, 87]), false));
-    test('Too short', () => expect(isMagicString([147, 78, 85, 77, 80]), false));
-    test('Too long', () => expect(isMagicString([147, 78, 85, 77, 80, 89, 90]), false));
-    test('From valid text', () => expect(isMagicString('\x93NUMPY'.codeUnits), true));
+  group('Check magic string:', () {
+    test('Valid code units', () => expect(NpyHeaderBlock().hasInvalidMagicString([147, 78, 85, 77, 80, 89]), false));
+    test('Invalid first byte', () => expect(NpyHeaderBlock().hasInvalidMagicString([146, 78, 85, 77, 80, 89]), true));
+    test('Invalid last byte', () => expect(NpyHeaderBlock().hasInvalidMagicString([147, 78, 85, 77, 80, 87]), true));
+    test('Too short', () => expect(NpyHeaderBlock().hasInvalidMagicString([147, 78, 85, 77, 80]), false));
+    test('Too long', () => expect(NpyHeaderBlock().hasInvalidMagicString([147, 78, 85, 77, 80, 89, 90]), false));
+    test('From valid text', () => expect(NpyHeaderBlock().hasInvalidMagicString('\x93NUMPY'.codeUnits), false));
   });
 
   group('Parse NpyVersion:', () {
@@ -272,8 +272,8 @@ void main() {
       expect(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
       tmpFile.deleteSync();
     });
-    test('Invalid magic number', () {
-      const filename = 'invalid_magic_number.tmp';
+    test('Invalid magic string', () {
+      const filename = 'invalid_magic_string.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([1, 2, 3, 4, 5, 6]);
       expect(load(filename), throwsA(const TypeMatcher<NpyInvalidMagicNumberException>()));
       tmpFile.deleteSync();
@@ -322,20 +322,20 @@ void main() {
       expect(npyFile.header.shape, [3]);
       tmpFile.deleteSync();
     });
-    // test('Header 2', () async {
-    //   const filename = 'header_2.tmp';
+    // test('Header 3', () async {
+    //   const filename = 'header_3.tmp';
     //   const version = NpyVersion();
-    //   final header = NpyHeader.fromString("{'descr': '<f8', 'fortran_order': True, 'shape': (3, 4, 5), }");
+    //   final header = NpyHeader.fromString("{'descr': '<f8', 'fortran_order': True, 'shape': (3, 4)}");
     //   final tmpFile = File(filename)..writeAsBytesSync(header.getHeaderSection(version: version));
     //   final npyFile = await load(filename);
     //   expect(npyFile.version.major, 1);
     //   expect(npyFile.version.minor, 0);
-    //   expect(npyFile.headerLength, 54);
+    //   expect(npyFile.headerLength, 56);
     //   expect(npyFile.header.dtype.byteOrder, NpyByteOrder.littleEndian);
     //   expect(npyFile.header.dtype.kind, NpyType.float);
     //   expect(npyFile.header.dtype.itemSize, 8);
     //   expect(npyFile.header.fortranOrder, true);
-    //   expect(npyFile.header.shape, [3, 4, 5]);
+    //   expect(npyFile.header.shape, [3, 4]);
     //   tmpFile.deleteSync();
     // });
     // test('Header 3', () async {

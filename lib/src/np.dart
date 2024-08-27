@@ -25,7 +25,7 @@ Future<NDArray<T>> load<T>(String path) async {
   final stream = File(path).openRead();
 
   List<int> buffer = [];
-  bool isMagicStringChecked = false;
+  final headerBlock = NpyHeaderBlock();
   NpyVersion? version;
   int? headerLength;
   NpyHeader? header;
@@ -37,11 +37,8 @@ Future<NDArray<T>> load<T>(String path) async {
     await for (final chunk in stream) {
       buffer.addAll(chunk);
 
-      if (!isMagicStringChecked && buffer.length >= magicString.length) {
-        if (!isMagicString(buffer.take(magicString.length))) {
-          throw NpyInvalidMagicNumberException(message: "Invalid magic number in '$path'.");
-        }
-        isMagicStringChecked = true;
+      if (!headerBlock.isMagicStringChecked && headerBlock.hasInvalidMagicString(buffer)) {
+        throw NpyInvalidMagicNumberException(message: "Invalid magic string in '$path'.");
       }
 
       if (version == null && buffer.length >= magicString.length + NpyVersion.reservedBytes) {
@@ -69,11 +66,9 @@ Future<NDArray<T>> load<T>(String path) async {
       }
 
       if (header != null && headerLength != null && version != null) {
-        final totalElements = header.shape.isEmpty ? 0 : header.shape.reduce((a, b) => a * b);
+        if (header.shape.isEmpty) return NDArray<T>(version: version, headerLength: headerLength, header: header);
 
-        if (totalElements == 0) {
-          return NDArray<T>(version: version, headerLength: headerLength, header: header, data: []);
-        }
+        final totalElements = header.shape.reduce((a, b) => a * b);
 
         while (dataOffset < buffer.length) {
           final remainingElements = totalElements - dataRead;

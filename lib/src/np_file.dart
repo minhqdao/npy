@@ -6,10 +6,10 @@ import 'package:npy/src/np_exception.dart';
 
 class NDArray<T> {
   const NDArray({
-    required this.version,
+    this.version = const NpyVersion(),
     required this.headerLength,
     required this.header,
-    required this.data,
+    this.data = const [],
   });
 
   final NpyVersion version;
@@ -74,6 +74,26 @@ class NpyVersion {
 
   /// Returns the length of the header depending on the given [bytes].
   int getHeaderLengthFromBytes(List<int> bytes) => major == 1 ? littleEndian16ToInt(bytes) : littleEndian32ToInt(bytes);
+}
+
+class NpyHeaderBlock {
+  NpyHeaderBlock({
+    this.isMagicStringChecked = false,
+    this.version,
+    this.headerLength,
+    this.header,
+  });
+
+  bool isMagicStringChecked;
+  NpyVersion? version;
+  int? headerLength;
+  NpyHeader? header;
+
+  bool hasInvalidMagicString(List<int> bytes) {
+    if (bytes.length < magicString.length) return false;
+    isMagicStringChecked = true;
+    return !const IterableEquality().equals(magicString.codeUnits, bytes.take(magicString.length));
+  }
 }
 
 class NpyHeader {
@@ -187,9 +207,6 @@ const _newLineInt = 10;
 
 /// Marks the beginning of an NPY file.
 const magicString = '\x93NUMPY';
-
-/// Whether the given bytes represent the magic string that NPY files start with.
-bool isMagicString(Iterable<int> bytes) => const IterableEquality().equals(bytes, magicString.codeUnits);
 
 /// Converts the given [bytes] to a 16-bit unsigned integer in little-endian byte order.
 int littleEndian16ToInt(List<int> bytes) {
