@@ -46,6 +46,9 @@ class NpyHeaderSection {
     this.header,
   });
 
+  factory NpyHeaderSection.fromString(String headerString) =>
+      NpyHeaderSection(version: NpyVersion.fromString(headerString), header: NpyHeader.fromString(headerString));
+
   bool isMagicStringChecked;
   NpyVersion? version;
   int? headerLength;
@@ -107,9 +110,10 @@ class NpyHeaderSection {
     }
 
     final headerBytes = header!.asBytes;
-    final sizeWithoutPadding = magicString.length + numberOfVersionBytes + numberOfHeaderBytes + headerBytes.length + 1;
+    final sizeWithoutPadding =
+        magicString.length + numberOfVersionBytes + numberOfHeaderBytes + headerBytes.length + _newLineOffset;
     final paddingSize = (64 - (sizeWithoutPadding % 64)) % 64;
-    final headerSize = headerBytes.length + paddingSize + 1;
+    final headerSize = headerBytes.length + paddingSize + _newLineOffset;
 
     List<int> headerSizeBytes;
 
@@ -158,6 +162,26 @@ class NpyVersion {
     return NpyVersion(major: bytes.elementAt(0), minor: bytes.elementAt(1));
   }
 
+  /// Returns a version instance depending on the given [string].
+  factory NpyVersion.fromString(String string) => NpyVersion(
+        major: !_canBeAsciiEncoded(string)
+            ? 3
+            : string.length < 65536
+                ? 1
+                : 2,
+      );
+
+  /// Whether the given [string] can be ASCII encoded.
+  static bool _canBeAsciiEncoded(String string) {
+    for (int i = 0; i < string.length; i++) {
+      if (string.codeUnitAt(i) > 127) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Returns the version as a List<int> of bytes.
   List<int> get asBytes => [major, minor];
 }
 
@@ -233,6 +257,9 @@ const _blankSpaceInt = 32;
 
 /// The ASCII code for a newline character.
 const _newLineInt = 10;
+
+/// The header section is terminated with a single byte that is a newline character.
+const _newLineOffset = 1;
 
 /// Marks the beginning of an NPY file.
 const magicString = '\x93NUMPY';

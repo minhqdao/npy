@@ -376,10 +376,7 @@ void main() {
     // });
     test('Header 3', () async {
       const filename = 'header_3.tmp';
-      final headerSection = NpyHeaderSection(
-        version: const NpyVersion(),
-        header: NpyHeader.fromString("{'descr': '<f8', 'fortran_order': False, 'shape': (3,), }"),
-      );
+      final headerSection = NpyHeaderSection.fromString("{'descr': '<f8', 'fortran_order': False, 'shape': (3,), }");
       File(filename).writeAsBytesSync(headerSection.asBytes);
     });
     // test('Header 3', () async {
