@@ -13,7 +13,10 @@ class NdArray<T> {
   final NpyHeaderSection headerSection;
   final List<T> data;
 
-  factory NdArray.fromList(List<T> data) => NdArray<T>(headerSection: NpyHeaderSection<T>.fromList(data), data: data);
+  factory NdArray.fromList(List<T> data, {bool? fortranOrder, NpyEndian? endian}) => NdArray<T>(
+        headerSection: NpyHeaderSection<T>.fromList(data, fortranOrder: fortranOrder, endian: endian),
+        data: data,
+      );
 
   T getElement(List<int> indices) => data[_getIndex(indices)];
 
@@ -45,13 +48,13 @@ class NdArray<T> {
     final dtype = headerSection.header!.dtype;
     late final Endian endian;
 
-    switch (dtype.byteOrder) {
-      case NpyByteOrder.littleEndian:
+    switch (dtype.endian) {
+      case NpyEndian.little:
         endian = Endian.little;
-      case NpyByteOrder.bigEndian:
+      case NpyEndian.big:
         endian = Endian.big;
       default:
-        throw NpyUnsupportedByteOrderException(message: 'Unsupported byte order: ${dtype.byteOrder}');
+        throw NpyUnsupportedEndianException(message: 'Unsupported endian: ${dtype.endian}');
     }
 
     for (final element in data) {
@@ -123,11 +126,11 @@ class NpyHeaderSection<T> {
     this.header,
   });
 
-  factory NpyHeaderSection.fromList(List<T> data) {
+  factory NpyHeaderSection.fromList(List<T> data, {bool? fortranOrder, NpyEndian? endian}) {
     if (data.isEmpty) {
       final header = NpyHeader.buildString(
-        dtype: const NpyDType(byteOrder: NpyByteOrder.littleEndian, kind: NpyType.float, itemSize: 8),
-        fortranOrder: false,
+        dtype: NpyDType(endian: endian ?? NpyEndian.little, kind: NpyType.float, itemSize: 8),
+        fortranOrder: fortranOrder ?? false,
         shape: [],
       );
       return NpyHeaderSection<T>(version: NpyVersion.fromString(header.string), header: header);
@@ -143,8 +146,8 @@ class NpyHeaderSection<T> {
     }
 
     final header = NpyHeader.buildString(
-      dtype: NpyDType(byteOrder: NpyByteOrder.littleEndian, kind: kind, itemSize: 8),
-      fortranOrder: false,
+      dtype: NpyDType(endian: endian ?? NpyEndian.little, kind: kind, itemSize: 8),
+      fortranOrder: fortranOrder ?? false,
       shape: [data.length],
     );
     return NpyHeaderSection(version: NpyVersion.fromString(header.string), header: header);
@@ -403,12 +406,12 @@ int littleEndian32ToInt(List<int> bytes) {
 
 class NpyDType {
   const NpyDType({
-    required this.byteOrder,
+    required this.endian,
     required this.kind,
     required this.itemSize,
   });
 
-  final NpyByteOrder byteOrder;
+  final NpyEndian endian;
   final NpyType kind;
   final int itemSize;
 
@@ -416,32 +419,32 @@ class NpyDType {
     if (string.length < 3) throw NpyInvalidDTypeException(message: "Invalid 'descr' field: '$string'");
 
     try {
-      final byteOrder = NpyByteOrder.fromChar(string[0]);
+      final endian = NpyEndian.fromChar(string[0]);
       final kind = NpyType.fromChar(string[1]);
       final itemSize = int.parse(string.substring(2));
-      return NpyDType(byteOrder: byteOrder, kind: kind, itemSize: itemSize);
+      return NpyDType(endian: endian, kind: kind, itemSize: itemSize);
     } catch (e) {
       throw NpyInvalidDTypeException(message: "Invalid 'descr' field: '$string': $e");
     }
   }
 
   @override
-  String toString() => '${byteOrder.char}${kind.char}$itemSize';
+  String toString() => '${endian.char}${kind.char}$itemSize';
 }
 
-enum NpyByteOrder {
-  littleEndian('<'),
-  bigEndian('>'),
-  nativeEndian('='),
+enum NpyEndian {
+  little('<'),
+  big('>'),
+  native('='),
   none('|');
 
-  const NpyByteOrder(this.char);
+  const NpyEndian(this.char);
 
   final String char;
 
-  factory NpyByteOrder.fromChar(String char) => NpyByteOrder.values.firstWhere(
+  factory NpyEndian.fromChar(String char) => NpyEndian.values.firstWhere(
         (order) => order.char == char,
-        orElse: () => throw NpyUnsupportedByteOrderException(message: 'Unsupported byte order: $char'),
+        orElse: () => throw NpyUnsupportedEndianException(message: 'Unsupported endian: $char'),
       );
 }
 

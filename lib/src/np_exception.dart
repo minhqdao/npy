@@ -49,8 +49,8 @@ class NpyInvalidDTypeException extends NpyInvalidHeaderException {
   const NpyInvalidDTypeException({required super.message});
 }
 
-class NpyUnsupportedByteOrderException extends NpyInvalidDTypeException {
-  const NpyUnsupportedByteOrderException({required super.message});
+class NpyUnsupportedEndianException extends NpyInvalidDTypeException {
+  const NpyUnsupportedEndianException({required super.message});
 }
 
 class NpyUnsupportedNpyTypeException extends NpyInvalidDTypeException {

@@ -127,7 +127,8 @@ List<T> _parseData<T>(List<int> bytes, NpyDType dtype, int count) {
 }
 
 /// Saves the given [List] to the given [path] in NPY format.
-Future<void> saveList<T>(String path, List<T> data) async => save(path, NdArray<T>.fromList(data));
+Future<void> saveList<T>(String path, List<T> data, {bool? fortranOrder, NpyEndian? endian}) async =>
+    save(path, NdArray<T>.fromList(data, fortranOrder: fortranOrder, endian: endian));
 
 /// Saves the given [NdArray] to the given [path] in NPY format.
 Future<void> save(String path, NdArray ndarray) async => File(path).writeAsBytes(ndarray.asBytes);
