@@ -457,6 +457,16 @@ void main() {
     test('64', () => expect(getPaddingSize(64), 0));
     test('65', () => expect(getPaddingSize(65), 63));
   });
+  group('Cannot be ASCII endoded:', () {
+    test('Empty String', () => expect(NpyVersion.cannotBeAsciiEncoded(''), false));
+    test('Blank space', () => expect(NpyVersion.cannotBeAsciiEncoded(' '), false));
+    test('abc', () => expect(NpyVersion.cannotBeAsciiEncoded('abc'), false));
+    test('~', () => expect(NpyVersion.cannotBeAsciiEncoded('~'), false));
+    test('\x79', () => expect(NpyVersion.cannotBeAsciiEncoded('\x79'), false));
+    test('\x80', () => expect(NpyVersion.cannotBeAsciiEncoded('\x80'), true));
+    test('€', () => expect(NpyVersion.cannotBeAsciiEncoded('€'), true));
+    test('42.50 €', () => expect(NpyVersion.cannotBeAsciiEncoded('42.50 €'), true));
+  });
   group('Build header string:', () {
     test('<f8, False, ()', () {
       final header = NpyHeader.buildString(
