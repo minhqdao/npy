@@ -6,20 +6,20 @@ import 'dart:typed_data';
 import 'package:npy/src/np_exception.dart';
 import 'package:npy/src/np_file.dart';
 
-/// Loads an NPY file from the given [path] and returns an [NDArray] object.
+/// Loads an NPY file from the given [path] and returns an [NdArray] object.
 ///
 /// If you're expecting a specific type of data, you can use the generic type parameter [T] to specify it as such:
 ///
 /// ```dart
 /// void main() async {
-///  final NDArray<double> ndarray = await load<double>('example.npy');
+///  final NdArray<double> ndarray = await load<double>('example.npy');
 ///  final List<double> data = ndarray.data;
 ///  print(data);
 ///}
 /// ```
-Future<NDArray<T>> load<T>(String path) async {
+Future<NdArray<T>> load<T>(String path) async {
   if (T != dynamic && T != int && T != double) {
-    throw NpyUnsupportedTypeException(message: 'Unsupported NDArray type: $T');
+    throw NpyUnsupportedTypeException(message: 'Unsupported NdArray type: $T');
   }
 
   final stream = File(path).openRead();
@@ -41,7 +41,7 @@ Future<NDArray<T>> load<T>(String path) async {
         ..parseHeader(buffer);
 
       if (headerSection.header != null && headerSection.headerLength != null && headerSection.version != null) {
-        if (headerSection.header!.shape.isEmpty) return NDArray<T>(header: headerSection.header!);
+        if (headerSection.header!.shape.isEmpty) return NdArray<T>(headerSection: headerSection);
 
         dataOffset = magicString.length +
             NpyHeaderSection.numberOfVersionBytes +
@@ -66,8 +66,8 @@ Future<NDArray<T>> load<T>(String path) async {
           dataOffset += elementsToProcess * headerSection.header!.dtype.itemSize;
 
           if (dataRead == totalElements) {
-            return NDArray<T>(
-              header: headerSection.header!,
+            return NdArray<T>(
+              headerSection: headerSection,
               data: data,
             );
           }
@@ -125,3 +125,9 @@ List<T> _parseData<T>(List<int> bytes, NpyDType dtype, int count) {
 
   return result;
 }
+
+/// Saves the given [NdArray] to the given [path] in NPY format.
+Future<void> save(String path, NdArray ndarray) async => File(path).writeAsBytes(ndarray.asBytes);
+
+/// Saves the given [List] to the given [path] in NPY format.
+Future<void> saveList<T>(String path, List<T> data) async => save(path, NdArray<T>.fromList(data));

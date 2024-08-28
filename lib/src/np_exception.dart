@@ -68,3 +68,10 @@ class NpyUnsupportedTypeException extends NpyParseException {
 class NpyParseOrderException extends NpyParseException {
   const NpyParseOrderException({required super.message});
 }
+
+class NpyWriteException extends NpException {
+  const NpyWriteException({required this.message});
+
+  @override
+  final String message;
+}

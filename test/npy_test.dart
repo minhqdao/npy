@@ -374,11 +374,11 @@ void main() {
     //   expect(npyFile.header.shape, [3]);
     //   tmpFile.deleteSync();
     // });
-    test('Header 3', () async {
-      const filename = 'header_3.tmp';
-      final headerSection = NpyHeaderSection.fromString("{'descr': '<f8', 'fortran_order': False, 'shape': (3,), }");
-      File(filename).writeAsBytesSync(headerSection.asBytes);
-    });
+    // test('Header 3', () async {
+    //   const filename = 'header_3.tmp';
+    //   final headerSection = NpyHeaderSection.fromString("{'descr': '<f8', 'fortran_order': False, 'shape': (3,), }");
+    //   File(filename).writeAsBytesSync(headerSection.asBytes);
+    // });
     // test('Header 3', () async {
     //   const filename = 'header_3.tmp';
     //   const version = NpyVersion();
@@ -449,5 +449,53 @@ void main() {
     //   await load('test/files/array_0.npy');
     //   // expect(load('test/array_0.npy'), throwsA(const TypeMatcher<int>()));
     // });
+  });
+  group('Build header string:', () {
+    test('<f8, False, ()', () {
+      final header = NpyHeader.buildString(
+        dtype: const NpyDType(byteOrder: NpyByteOrder.littleEndian, kind: NpyType.float, itemSize: 8),
+        fortranOrder: false,
+        shape: [],
+      );
+      expect(header.string, "{'descr': '<f8', 'fortran_order': False, 'shape': (), }");
+    });
+    test('<f8, True, ()', () {
+      final header = NpyHeader.buildString(
+        dtype: const NpyDType(byteOrder: NpyByteOrder.littleEndian, kind: NpyType.float, itemSize: 8),
+        fortranOrder: true,
+        shape: [],
+      );
+      expect(header.string, "{'descr': '<f8', 'fortran_order': True, 'shape': (), }");
+    });
+    test('>i4, True, ()', () {
+      final header = NpyHeader.buildString(
+        dtype: const NpyDType(byteOrder: NpyByteOrder.bigEndian, kind: NpyType.int, itemSize: 4),
+        fortranOrder: true,
+        shape: [],
+      );
+      expect(header.string, "{'descr': '>i4', 'fortran_order': True, 'shape': (), }");
+    });
+    test('<i2, True, (3,)', () {
+      final header = NpyHeader.buildString(
+        dtype: const NpyDType(byteOrder: NpyByteOrder.littleEndian, kind: NpyType.int, itemSize: 2),
+        fortranOrder: true,
+        shape: [3],
+      );
+      expect(header.string, "{'descr': '<i2', 'fortran_order': True, 'shape': (3,), }");
+    });
+    test('>f4, True, (3, 4)', () {
+      final header = NpyHeader.buildString(
+        dtype: const NpyDType(byteOrder: NpyByteOrder.bigEndian, kind: NpyType.float, itemSize: 4),
+        fortranOrder: true,
+        shape: [3, 4],
+      );
+      expect(header.string, "{'descr': '>f4', 'fortran_order': True, 'shape': (3, 4), }");
+    });
+  });
+  group('Save npy:', () {
+    test('Save multiple ndarrays to the same file', () {
+      // save('save_multiple.tmp', [1, 2, 3]);
+      // saveList('save_multiple.tmp', [1, true]);
+    });
   });
 }
