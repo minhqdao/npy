@@ -4,5 +4,6 @@
 library;
 
 export 'src/np.dart';
+export 'src/np_file.dart';
 
 // TODO: Export any libraries intended for clients of this package.

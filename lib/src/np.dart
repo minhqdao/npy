@@ -121,9 +121,21 @@ List<T> _parseData<T>(List<int> bytes, NpyDType dtype, int count) {
   return result;
 }
 
-/// Saves the given [List] to the given [path] in NPY format.
-Future<void> saveList<T>(String path, List<T> data, {bool? fortranOrder, NpyEndian? endian}) async =>
-    save(path, NdArray<T>.fromList(data, fortranOrder: fortranOrder, endian: endian));
+/// Saves the [List] to the given [path] in NPY format.
+/// 
+/// The [List] has to be of a supported type, which are currently [int] and [double].
+Future<void> saveList<T>(String path, List<T> data, {NpyEndian? endian, bool? fortranOrder}) async =>
+    save(path, NdArray<T>.fromList(data, endian: endian, fortranOrder: fortranOrder));
 
-/// Saves the given [NdArray] to the given [path] in NPY format.
+/// Saves the [NdArray] to the given [path] in NPY format.
+/// 
+/// The [NdArray] can be conveniently created using the [NdArray.fromList] constructor.
+/// 
+/// Example:
+/// ```dart
+/// void main() async {
+/// final ndarray = NdArray.fromList([1.0, 2.0, 3.0]);
+/// await save('example.npy', ndarray);
+/// }
+/// ```
 Future<void> save(String path, NdArray ndarray) async => File(path).writeAsBytes(ndarray.asBytes);

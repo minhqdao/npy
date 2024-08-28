@@ -13,8 +13,8 @@ class NdArray<T> {
   final NpyHeader header;
   final List<T> data;
 
-  factory NdArray.fromList(List<T> data, {bool? fortranOrder, NpyEndian? endian}) =>
-      NdArray<T>(header: NpyHeader<T>.fromList(data, fortranOrder: fortranOrder, endian: endian), data: data);
+  factory NdArray.fromList(List<T> data, {NpyEndian? endian, bool? fortranOrder}) =>
+      NdArray<T>(header: NpyHeader<T>.fromList(data, endian: endian, fortranOrder: fortranOrder), data: data);
 
   T getElement(List<int> indices) => data[_getIndex(indices)];
 
@@ -282,7 +282,7 @@ class NpyHeader<T> {
     );
   }
 
-  factory NpyHeader.fromList(List<T> data, {bool? fortranOrder, NpyEndian? endian}) {
+  factory NpyHeader.fromList(List<T> data, {NpyEndian? endian, bool? fortranOrder}) {
     if (data.isEmpty) {
       return NpyHeader.buildString(
         dtype: NpyDType(endian: endian ?? NpyEndian.little, kind: NpyType.float, itemSize: 8),

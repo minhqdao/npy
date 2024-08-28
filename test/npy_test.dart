@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:npy/npy.dart';
 import 'package:npy/src/np_exception.dart';
-import 'package:npy/src/np_file.dart';
 import 'package:test/test.dart';
 
 void main() {
