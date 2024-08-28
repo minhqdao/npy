@@ -1,5 +1,5 @@
 import 'dart:convert';
-// import 'dart:io';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
@@ -21,7 +21,6 @@ class NdArray<T> {
 
   int _getIndex(List<int> indices) {
     assert(indices.length == header.shape.length);
-    print('hi');
     int index = 0;
     int stride = 1;
     final shape = header.shape;
