@@ -308,37 +308,35 @@ void main() {
     test('Non-existent file', () {
       expect(load('not_existent.npy'), throwsA(const TypeMatcher<NpFileNotExistsException>()));
     });
-    test('Pointing at current directory', () {
-      expect(load('.'), throwsA(const TypeMatcher<NpFileOpenException>()));
-    });
-    test('Empty file', () {
+    test('Pointing at current directory', () => expect(load('.'), throwsA(const TypeMatcher<NpFileOpenException>())));
+    test('Empty file', () async {
       const filename = 'empty_file.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([]);
-      expect(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
+      await expectLater(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
       tmpFile.deleteSync();
     });
-    test('Insufficient length', () {
+    test('Insufficient length', () async {
       const filename = 'insufficient_length.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([1, 2, 3]);
-      expect(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
+      await expectLater(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
       tmpFile.deleteSync();
     });
-    test('Invalid magic string', () {
+    test('Invalid magic string', () async {
       const filename = 'invalid_magic_string.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([1, 2, 3, 4, 5, 6]);
-      expect(load(filename), throwsA(const TypeMatcher<NpyInvalidMagicStringException>()));
+      await expectLater(load(filename), throwsA(const TypeMatcher<NpyInvalidMagicStringException>()));
       tmpFile.deleteSync();
     });
-    test('Unsupported major version', () {
+    test('Unsupported major version', () async {
       const filename = 'unsupported_major_version.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 4, 0]);
-      expect(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
+      await expectLater(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
       tmpFile.deleteSync();
     });
-    test('Unsupported minor version', () {
+    test('Unsupported minor version', () async {
       const filename = 'unsupported_minor_version.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 1, 1]);
-      expect(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
+      await expectLater(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
       tmpFile.deleteSync();
     });
     // test('Header 1', () async {
