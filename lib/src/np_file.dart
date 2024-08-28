@@ -255,6 +255,11 @@ class NpyVersion {
 
   final int major;
   final int minor;
+
+  static const numberOfBytesFirstVersion = 2;
+  static const numberOfBytesLaterVersions = 4;
+  static const maxSizeFirstVersion = 65536;
+  static const lastAsciiCodeUnit = 127;
   static const _supportedMajorVersions = {1, 2, 3};
   static const _supportedMinorVersions = {0};
 
@@ -271,19 +276,22 @@ class NpyVersion {
 
   /// Returns a version instance depending on the given [string].
   factory NpyVersion.fromString(String string) {
-    final firstVersionSizeWithoutPadding =
-        magicString.length + NpyHeaderSection.numberOfVersionBytes + 2 + _newLineOffset + string.length;
+    final firstVersionSizeWithoutPadding = magicString.length +
+        NpyHeaderSection.numberOfVersionBytes +
+        NpyVersion.numberOfBytesFirstVersion +
+        string.length +
+        _newLineOffset;
     return NpyVersion(
       major: cannotBeAsciiEncoded(string)
           ? 3
-          : firstVersionSizeWithoutPadding + getPaddingSize(firstVersionSizeWithoutPadding) < 65536
+          : firstVersionSizeWithoutPadding + getPaddingSize(firstVersionSizeWithoutPadding) < maxSizeFirstVersion
               ? 1
               : 2,
     );
   }
 
   /// True if [string] cannot be ASCII encoded.
-  static bool cannotBeAsciiEncoded(String string) => string.codeUnits.any((codeUnit) => codeUnit > 127);
+  static bool cannotBeAsciiEncoded(String string) => string.codeUnits.any((codeUnit) => codeUnit > lastAsciiCodeUnit);
 
   /// Returns the version as a List<int> of bytes.
   List<int> get asBytes => [major, minor];
