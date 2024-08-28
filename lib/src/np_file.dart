@@ -6,27 +6,25 @@ import 'package:npy/src/np_exception.dart';
 
 class NdArray<T> {
   const NdArray({
-    required this.headerSection,
+    required this.header,
     this.data = const [],
   });
 
-  final NpyHeaderSection headerSection;
+  final NpyHeader header;
   final List<T> data;
 
-  factory NdArray.fromList(List<T> data, {bool? fortranOrder, NpyEndian? endian}) => NdArray<T>(
-        headerSection: NpyHeaderSection<T>.fromList(data, fortranOrder: fortranOrder, endian: endian),
-        data: data,
-      );
+  factory NdArray.fromList(List<T> data, {bool? fortranOrder, NpyEndian? endian}) =>
+      NdArray<T>(header: NpyHeader<T>.fromList(data, fortranOrder: fortranOrder, endian: endian), data: data);
 
   T getElement(List<int> indices) => data[_getIndex(indices)];
 
   int _getIndex(List<int> indices) {
-    assert(indices.length == headerSection.header.shape.length);
+    assert(indices.length == header.shape.length);
 
     int index = 0;
     int stride = 1;
-    final shape = headerSection.header.shape;
-    final order = headerSection.header.fortranOrder;
+    final shape = header.shape;
+    final order = header.fortranOrder;
 
     for (int i = 0; i < indices.length; i++) {
       final idx = order ? i : indices.length - 1 - i;
@@ -38,7 +36,7 @@ class NdArray<T> {
 
   List<int> get asBytes {
     final List<int> dataBytes = [];
-    final dtype = headerSection.header.dtype;
+    final dtype = header.dtype;
     late final Endian endian;
 
     switch (dtype.endian) {
@@ -99,7 +97,7 @@ class NdArray<T> {
       dataBytes.addAll(Uint8List.fromList(byteData.buffer.asUint8List()));
     }
 
-    return [...headerSection.asBytes, ...dataBytes];
+    return [...header.buildSection(), ...dataBytes];
   }
 }
 
@@ -110,81 +108,6 @@ class NdArray<T> {
 
 //   final Map<String, NdArray> files;
 // }
-
-class NpyHeaderSection<T> {
-  const NpyHeaderSection({required this.header});
-
-  final NpyHeader header;
-
-  factory NpyHeaderSection.fromList(List<T> data, {bool? fortranOrder, NpyEndian? endian}) {
-    if (data.isEmpty) {
-      final header = NpyHeader.buildString(
-        dtype: NpyDType(endian: endian ?? NpyEndian.little, kind: NpyType.float, itemSize: 8),
-        fortranOrder: fortranOrder ?? false,
-        shape: [],
-      );
-      return NpyHeaderSection<T>(header: header);
-    }
-
-    late final NpyType kind;
-    if (T == int) {
-      kind = NpyType.int;
-    } else if (T == double) {
-      kind = NpyType.float;
-    } else {
-      throw NpyUnsupportedTypeException(message: 'Unsupported input type: $T');
-    }
-
-    final header = NpyHeader.buildString(
-      dtype: NpyDType(endian: endian ?? NpyEndian.little, kind: kind, itemSize: 8),
-      fortranOrder: fortranOrder ?? false,
-      shape: [data.length],
-    );
-    return NpyHeaderSection(header: header);
-  }
-
-  factory NpyHeaderSection.fromString(String headerString) =>
-      NpyHeaderSection(header: NpyHeader.fromString(headerString));
-
-  /// Returns entire header section represented by a List of bytes that includes the magic string, the version,
-  /// the number of bytes describing the header length, the header length, and the header, padded with spaces and
-  /// terminated with a newline character to be a multiple of 64 bytes. It takes the header
-  /// as a String and leaves it unchanged.
-  List<int> get asBytes {
-    final version = NpyVersion.fromString(header.string);
-    final headerBytes = header.asBytes;
-    final sizeWithoutPadding = magicString.length +
-        NpyVersion.numberOfReservedBytes +
-        version.numberOfHeaderBytes +
-        headerBytes.length +
-        _newLineOffset;
-    final paddingSize = getPaddingSize(sizeWithoutPadding);
-    final headerSize = headerBytes.length + paddingSize + _newLineOffset;
-
-    List<int> headerSizeBytes;
-
-    if (version.major == 1) {
-      assert(headerSize < 65536);
-      headerSizeBytes = [headerSize & 0xFF, (headerSize >> 8) & 0xFF];
-    } else {
-      headerSizeBytes = [
-        headerSize & 0xFF,
-        (headerSize >> 8) & 0xFF,
-        (headerSize >> 16) & 0xFF,
-        (headerSize >> 24) & 0xFF,
-      ];
-    }
-
-    return [
-      ...magicString.codeUnits,
-      ...version.asBytes,
-      ...headerSizeBytes,
-      ...header.asBytes,
-      ...List.filled(paddingSize, _blankSpaceInt),
-      _newLineInt,
-    ];
-  }
-}
 
 class NpyParser<T> {
   NpyParser({
@@ -286,7 +209,7 @@ class NpyVersion {
       major == 1 ? NpyVersion.numberOfHeaderSizeBytesFirstVersion : NpyVersion.numberOfHeaderSizeBytesLaterVersions;
 }
 
-class NpyHeader {
+class NpyHeader<T> {
   const NpyHeader({
     required this.dtype,
     required this.fortranOrder,
@@ -359,8 +282,71 @@ class NpyHeader {
     );
   }
 
+  factory NpyHeader.fromList(List<T> data, {bool? fortranOrder, NpyEndian? endian}) {
+    if (data.isEmpty) {
+      return NpyHeader.buildString(
+        dtype: NpyDType(endian: endian ?? NpyEndian.little, kind: NpyType.float, itemSize: 8),
+        fortranOrder: fortranOrder ?? false,
+        shape: [],
+      );
+    }
+
+    late final NpyType kind;
+    if (T == int) {
+      kind = NpyType.int;
+    } else if (T == double) {
+      kind = NpyType.float;
+    } else {
+      throw NpyUnsupportedTypeException(message: 'Unsupported input type: $T');
+    }
+
+    return NpyHeader.buildString(
+      dtype: NpyDType(endian: endian ?? NpyEndian.little, kind: kind, itemSize: 8),
+      fortranOrder: fortranOrder ?? false,
+      shape: [data.length],
+    );
+  }
+
   /// Returns the header string as a List<int> of bytes.
   List<int> get asBytes => utf8.encode(string);
+
+  /// Returns entire header section represented by a List of bytes that includes the magic string, the version, the
+  /// number of bytes describing the header length, the header length, and the header, padded with spaces and terminated
+  /// with a newline character to be a multiple of 64 bytes. It takes the header as a String and leaves it unchanged.
+  List<int> buildSection() {
+    final version = NpyVersion.fromString(string);
+    final headerBytes = asBytes;
+    final sizeWithoutPadding = magicString.length +
+        NpyVersion.numberOfReservedBytes +
+        version.numberOfHeaderBytes +
+        headerBytes.length +
+        _newLineOffset;
+    final paddingSize = getPaddingSize(sizeWithoutPadding);
+    final headerSize = headerBytes.length + paddingSize + _newLineOffset;
+
+    List<int> headerSizeBytes;
+
+    if (version.major == 1) {
+      assert(headerSize < 65536);
+      headerSizeBytes = [headerSize & 0xFF, (headerSize >> 8) & 0xFF];
+    } else {
+      headerSizeBytes = [
+        headerSize & 0xFF,
+        (headerSize >> 8) & 0xFF,
+        (headerSize >> 16) & 0xFF,
+        (headerSize >> 24) & 0xFF,
+      ];
+    }
+
+    return [
+      ...magicString.codeUnits,
+      ...version.asBytes,
+      ...headerSizeBytes,
+      ...headerBytes,
+      ...List.filled(paddingSize, _blankSpaceInt),
+      _newLineInt,
+    ];
+  }
 }
 
 /// The ASCII code for a space character.
