@@ -450,6 +450,13 @@ void main() {
     //   // expect(load('test/array_0.npy'), throwsA(const TypeMatcher<int>()));
     // });
   });
+  group('Get padding size:', () {
+    test('0', () => expect(getPaddingSize(0), 0));
+    test('1', () => expect(getPaddingSize(1), 63));
+    test('63', () => expect(getPaddingSize(63), 1));
+    test('64', () => expect(getPaddingSize(64), 0));
+    test('65', () => expect(getPaddingSize(65), 63));
+  });
   group('Build header string:', () {
     test('<f8, False, ()', () {
       final header = NpyHeader.buildString(
@@ -493,9 +500,14 @@ void main() {
     });
   });
   group('Save npy:', () {
-    test('Save multiple ndarrays to the same file', () {
-      // save('save_multiple.tmp', [1, 2, 3]);
-      // saveList('save_multiple.tmp', [1, true]);
+    test('Save empty list', () async {
+      const filename = 'save_empty_list.tmp';
+      await saveList(filename, []);
+      // final ndarray = await load(filename);
+      // expect(ndarray.headerSection.version?.major, 1);
+      // expect(ndarray.headerSection.version?.minor, 0);
+      // expect(ndarray.data, []);
+      File(filename).deleteSync();
     });
   });
 }

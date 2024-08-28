@@ -13,7 +13,7 @@ class NdArray<T> {
   final NpyHeaderSection headerSection;
   final List<T> data;
 
-  factory NdArray.fromList(List<T> data) => NdArray(headerSection: NpyHeaderSection<T>.fromList(data), data: data);
+  factory NdArray.fromList(List<T> data) => NdArray<T>(headerSection: NpyHeaderSection<T>.fromList(data), data: data);
 
   T getElement(List<int> indices) => data[_getIndex(indices)];
 
@@ -125,26 +125,29 @@ class NpyHeaderSection<T> {
 
   factory NpyHeaderSection.fromList(List<T> data) {
     if (data.isEmpty) {
-      return NpyHeaderSection(
-        version: const NpyVersion(),
-        headerLength: 0,
-        header: NpyHeader.buildString(
-          dtype: const NpyDType(byteOrder: NpyByteOrder.littleEndian, kind: NpyType.float, itemSize: 8),
-          fortranOrder: false,
-          shape: [],
-        ),
-      );
-    }
-    return NpyHeaderSection(
-      version: const NpyVersion(),
-      headerLength: 0,
-      header: NpyHeader(
-        dtype: const NpyDType(byteOrder: NpyByteOrder.littleEndian, kind: NpyType.int, itemSize: 8),
+      final header = NpyHeader.buildString(
+        dtype: const NpyDType(byteOrder: NpyByteOrder.littleEndian, kind: NpyType.float, itemSize: 8),
         fortranOrder: false,
-        shape: [data.length],
-        string: "{'descr': '<i8', 'fortran_order': False, 'shape': (${data.length},)}",
-      ),
+        shape: [],
+      );
+      return NpyHeaderSection<T>(version: NpyVersion.fromString(header.string), header: header);
+    }
+
+    late final NpyType kind;
+    if (T == int) {
+      kind = NpyType.int;
+    } else if (T == double) {
+      kind = NpyType.float;
+    } else {
+      throw NpyUnsupportedTypeException(message: 'Unsupported input type: $T');
+    }
+
+    final header = NpyHeader.buildString(
+      dtype: NpyDType(byteOrder: NpyByteOrder.littleEndian, kind: kind, itemSize: 8),
+      fortranOrder: false,
+      shape: [data.length],
     );
+    return NpyHeaderSection(version: NpyVersion.fromString(header.string), header: header);
   }
 
   factory NpyHeaderSection.fromString(String headerString) =>
@@ -213,7 +216,7 @@ class NpyHeaderSection<T> {
     final headerBytes = header!.asBytes;
     final sizeWithoutPadding =
         magicString.length + numberOfVersionBytes + numberOfHeaderBytes + headerBytes.length + _newLineOffset;
-    final paddingSize = (64 - (sizeWithoutPadding % 64)) % 64;
+    final paddingSize = getPaddingSize(sizeWithoutPadding);
     final headerSize = headerBytes.length + paddingSize + _newLineOffset;
 
     List<int> headerSizeBytes;
@@ -241,6 +244,9 @@ class NpyHeaderSection<T> {
   }
 }
 
+/// Returns the number of padding bytes needed to make the given [size] a multiple of 64.
+int getPaddingSize(int size) => (64 - (size % 64)) % 64;
+
 class NpyVersion {
   const NpyVersion({
     this.major = 1,
@@ -264,16 +270,20 @@ class NpyVersion {
   }
 
   /// Returns a version instance depending on the given [string].
-  factory NpyVersion.fromString(String string) => NpyVersion(
-        major: _cannotBeAsciiEncoded(string)
-            ? 3
-            : string.length < 65536
-                ? 1
-                : 2,
-      );
+  factory NpyVersion.fromString(String string) {
+    final firstVersionSizeWithoutPadding =
+        magicString.length + NpyHeaderSection.numberOfVersionBytes + 2 + _newLineOffset + string.length;
+    return NpyVersion(
+      major: cannotBeAsciiEncoded(string)
+          ? 3
+          : firstVersionSizeWithoutPadding + getPaddingSize(firstVersionSizeWithoutPadding) < 65536
+              ? 1
+              : 2,
+    );
+  }
 
   /// True if [string] cannot be ASCII encoded.
-  static bool _cannotBeAsciiEncoded(String string) => string.codeUnits.any((codeUnit) => codeUnit > 127);
+  static bool cannotBeAsciiEncoded(String string) => string.codeUnits.any((codeUnit) => codeUnit > 127);
 
   /// Returns the version as a List<int> of bytes.
   List<int> get asBytes => [major, minor];
