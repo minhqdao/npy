@@ -1,0 +1,14 @@
+name: CI
+on: push
+
+jobs:
+  test:
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub get
+      - run: dart format -o none --set-exit-if-changed -l 120 .
+      - run: dart analyze --fatal-infos
+      - run: dart test
