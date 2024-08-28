@@ -2,7 +2,7 @@ name: CI
 on: push
 
 jobs:
-  test:
+  format_analyze_test:
     timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
