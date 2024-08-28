@@ -21,15 +21,12 @@ class NdArray<T> {
   T getElement(List<int> indices) => data[_getIndex(indices)];
 
   int _getIndex(List<int> indices) {
-    if (headerSection.header == null) {
-      throw const NpyParseException(message: 'Header must be set before getting the index.');
-    }
-    assert(indices.length == headerSection.header!.shape.length);
+    assert(indices.length == headerSection.header.shape.length);
 
     int index = 0;
     int stride = 1;
-    final shape = headerSection.header!.shape;
-    final order = headerSection.header!.fortranOrder;
+    final shape = headerSection.header.shape;
+    final order = headerSection.header.fortranOrder;
 
     for (int i = 0; i < indices.length; i++) {
       final idx = order ? i : indices.length - 1 - i;
@@ -40,12 +37,8 @@ class NdArray<T> {
   }
 
   List<int> get asBytes {
-    if (headerSection.header == null) {
-      throw const NpyWriteException(message: 'Header must be set before ndarray can be written.');
-    }
-
     final List<int> dataBytes = [];
-    final dtype = headerSection.header!.dtype;
+    final dtype = headerSection.header.dtype;
     late final Endian endian;
 
     switch (dtype.endian) {
@@ -119,12 +112,9 @@ class NdArray<T> {
 // }
 
 class NpyHeaderSection<T> {
-  NpyHeaderSection({
-    this.isMagicStringChecked = false,
-    this.version,
-    this.headerLength,
-    this.header,
-  });
+  const NpyHeaderSection({required this.header});
+
+  final NpyHeader header;
 
   factory NpyHeaderSection.fromList(List<T> data, {bool? fortranOrder, NpyEndian? endian}) {
     if (data.isEmpty) {
@@ -133,7 +123,7 @@ class NpyHeaderSection<T> {
         fortranOrder: fortranOrder ?? false,
         shape: [],
       );
-      return NpyHeaderSection<T>(version: NpyVersion.fromString(header.string), header: header);
+      return NpyHeaderSection<T>(header: header);
     }
 
     late final NpyType kind;
@@ -150,11 +140,59 @@ class NpyHeaderSection<T> {
       fortranOrder: fortranOrder ?? false,
       shape: [data.length],
     );
-    return NpyHeaderSection(version: NpyVersion.fromString(header.string), header: header);
+    return NpyHeaderSection(header: header);
   }
 
   factory NpyHeaderSection.fromString(String headerString) =>
-      NpyHeaderSection(version: NpyVersion.fromString(headerString), header: NpyHeader.fromString(headerString));
+      NpyHeaderSection(header: NpyHeader.fromString(headerString));
+
+  /// Returns entire header section represented by a List of bytes that includes the magic string, the version,
+  /// the number of bytes describing the header length, the header length, and the header, padded with spaces and
+  /// terminated with a newline character to be a multiple of 64 bytes. It takes the header
+  /// as a String and leaves it unchanged.
+  List<int> get asBytes {
+    final version = NpyVersion.fromString(header.string);
+    final headerBytes = header.asBytes;
+    final sizeWithoutPadding = magicString.length +
+        NpyVersion.numberOfReservedBytes +
+        version.numberOfHeaderBytes +
+        headerBytes.length +
+        _newLineOffset;
+    final paddingSize = getPaddingSize(sizeWithoutPadding);
+    final headerSize = headerBytes.length + paddingSize + _newLineOffset;
+
+    List<int> headerSizeBytes;
+
+    if (version.major == 1) {
+      assert(headerSize < 65536);
+      headerSizeBytes = [headerSize & 0xFF, (headerSize >> 8) & 0xFF];
+    } else {
+      headerSizeBytes = [
+        headerSize & 0xFF,
+        (headerSize >> 8) & 0xFF,
+        (headerSize >> 16) & 0xFF,
+        (headerSize >> 24) & 0xFF,
+      ];
+    }
+
+    return [
+      ...magicString.codeUnits,
+      ...version.asBytes,
+      ...headerSizeBytes,
+      ...header.asBytes,
+      ...List.filled(paddingSize, _blankSpaceInt),
+      _newLineInt,
+    ];
+  }
+}
+
+class NpyParser<T> {
+  NpyParser({
+    this.isMagicStringChecked = false,
+    this.version,
+    this.headerLength,
+    this.header,
+  });
 
   bool isMagicStringChecked;
   NpyVersion? version;
@@ -169,81 +207,23 @@ class NpyHeaderSection<T> {
     isMagicStringChecked = true;
   }
 
-  void parseVersion(List<int> bytes) {
-    if (version != null || bytes.length < magicString.length + numberOfVersionBytes) return;
-    version = NpyVersion.fromBytes(bytes.skip(magicString.length).take(numberOfVersionBytes));
+  void getVersion(List<int> bytes) {
+    if (version != null || bytes.length < magicString.length + NpyVersion.numberOfReservedBytes) return;
+    version = NpyVersion.fromBytes(bytes.skip(magicString.length).take(NpyVersion.numberOfReservedBytes));
   }
 
-  void parseHeaderLength(List<int> bytes) {
-    const bytesTaken = magicString.length + numberOfVersionBytes;
-    if (headerLength != null || version == null || bytes.length < bytesTaken + numberOfHeaderBytes) return;
-    headerLength = getHeaderLength(bytes.skip(bytesTaken).take(numberOfHeaderBytes).toList());
+  void getHeaderLength(List<int> bytes) {
+    const bytesTaken = magicString.length + NpyVersion.numberOfReservedBytes;
+    if (headerLength != null || version == null || bytes.length < bytesTaken + version!.numberOfHeaderBytes) return;
+    final relevantBytes = bytes.skip(bytesTaken).take(version!.numberOfHeaderBytes).toList();
+    headerLength = version!.major == 1 ? littleEndian16ToInt(relevantBytes) : littleEndian32ToInt(relevantBytes);
   }
 
-  void parseHeader(List<int> bytes) {
-    final bytesTaken = magicString.length + numberOfVersionBytes + numberOfHeaderBytes;
-    if (header != null || version == null || headerLength == null || bytes.length < bytesTaken + headerLength!) return;
+  void getHeader(List<int> bytes) {
+    if (header != null || version == null || headerLength == null) return;
+    final bytesTaken = magicString.length + NpyVersion.numberOfReservedBytes + version!.numberOfHeaderBytes;
+    if (bytes.length < bytesTaken + headerLength!) return;
     header = NpyHeader.fromString(String.fromCharCodes(bytes.skip(bytesTaken).take(headerLength!)));
-  }
-
-  /// The number of bytes reserved in the header section to describe the version.
-  static const numberOfVersionBytes = 2;
-
-  /// Returns the length of the header depending on the given [bytes].
-  int getHeaderLength(List<int> bytes) {
-    if (version == null) {
-      throw const NpyParseOrderException(message: 'Version must be set before parsing header length.');
-    }
-    return version!.major == 1 ? littleEndian16ToInt(bytes) : littleEndian32ToInt(bytes);
-  }
-
-  /// Returns the number of bytes used to store the header length depending on the major version.
-  int get numberOfHeaderBytes {
-    if (version == null) {
-      throw const NpyParseOrderException(message: 'Version must be set before getting the number of header bytes.');
-    }
-    return version!.major == 1 ? 2 : 4;
-  }
-
-  /// Returns entire header section represented by a List of bytes that includes the magic string, the version,
-  /// the number of bytes describing the header length, the header length, and the header, padded with spaces and
-  /// terminated with a newline character to be a multiple of 64 bytes. It takes the header
-  /// as a String and leaves it unchanged.
-  List<int> get asBytes {
-    if (version == null) {
-      throw const NpyParseOrderException(message: 'Version must be set before header section can be obtained.');
-    } else if (header == null) {
-      throw const NpyParseOrderException(message: 'Header must be set before header section can be obtained.');
-    }
-
-    final headerBytes = header!.asBytes;
-    final sizeWithoutPadding =
-        magicString.length + numberOfVersionBytes + numberOfHeaderBytes + headerBytes.length + _newLineOffset;
-    final paddingSize = getPaddingSize(sizeWithoutPadding);
-    final headerSize = headerBytes.length + paddingSize + _newLineOffset;
-
-    List<int> headerSizeBytes;
-
-    if (version!.major == 1) {
-      assert(headerSize < 65536);
-      headerSizeBytes = [headerSize & 0xFF, (headerSize >> 8) & 0xFF];
-    } else {
-      headerSizeBytes = [
-        headerSize & 0xFF,
-        (headerSize >> 8) & 0xFF,
-        (headerSize >> 16) & 0xFF,
-        (headerSize >> 24) & 0xFF,
-      ];
-    }
-
-    return [
-      ...magicString.codeUnits,
-      ...version!.asBytes,
-      ...headerSizeBytes,
-      ...header!.asBytes,
-      ...List.filled(paddingSize, _blankSpaceInt),
-      _newLineInt,
-    ];
   }
 }
 
@@ -259,15 +239,17 @@ class NpyVersion {
   final int major;
   final int minor;
 
-  static const numberOfBytesFirstVersion = 2;
-  static const numberOfBytesLaterVersions = 4;
+  /// The number of bytes reserved in the header section to describe the version.
+  static const numberOfReservedBytes = 2;
+  static const numberOfHeaderSizeBytesFirstVersion = 2;
+  static const numberOfHeaderSizeBytesLaterVersions = 4;
   static const maxSizeFirstVersion = 65536;
   static const lastAsciiCodeUnit = 127;
   static const _supportedMajorVersions = {1, 2, 3};
   static const _supportedMinorVersions = {0};
 
   factory NpyVersion.fromBytes(Iterable<int> bytes) {
-    assert(bytes.length == NpyHeaderSection.numberOfVersionBytes);
+    assert(bytes.length == NpyVersion.numberOfReservedBytes);
     if (!_supportedMajorVersions.contains(bytes.elementAt(0))) {
       throw NpyUnsupportedVersionException(message: 'Unsupported major version: ${bytes.elementAt(0)}');
     }
@@ -280,8 +262,8 @@ class NpyVersion {
   /// Returns a version instance depending on the given [string].
   factory NpyVersion.fromString(String string) {
     final firstVersionSizeWithoutPadding = magicString.length +
-        NpyHeaderSection.numberOfVersionBytes +
-        NpyVersion.numberOfBytesFirstVersion +
+        NpyVersion.numberOfReservedBytes +
+        NpyVersion.numberOfHeaderSizeBytesFirstVersion +
         string.length +
         _newLineOffset;
     return NpyVersion(
@@ -298,6 +280,10 @@ class NpyVersion {
 
   /// Returns the version as a List<int> of bytes.
   List<int> get asBytes => [major, minor];
+
+  /// Returns the number of bytes used to store the header length depending on the major version.
+  int get numberOfHeaderBytes =>
+      major == 1 ? NpyVersion.numberOfHeaderSizeBytesFirstVersion : NpyVersion.numberOfHeaderSizeBytesLaterVersions;
 }
 
 class NpyHeader {

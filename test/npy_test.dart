@@ -9,31 +9,25 @@ void main() {
   group('Check magic string:', () {
     test(
       'Valid code units',
-      () => expect(() => NpyHeaderSection().checkMagicString([147, 78, 85, 77, 80, 89]), returnsNormally),
+      () => expect(() => NpyParser().checkMagicString([147, 78, 85, 77, 80, 89]), returnsNormally),
     );
     test(
       'Invalid first byte',
       () => expect(
-        () => NpyHeaderSection().checkMagicString([146, 78, 85, 77, 80, 89]),
+        () => NpyParser().checkMagicString([146, 78, 85, 77, 80, 89]),
         throwsA(const TypeMatcher<NpyInvalidMagicStringException>()),
       ),
     );
     test(
       'Invalid last byte',
       () => expect(
-        () => NpyHeaderSection().checkMagicString([147, 78, 85, 77, 80, 87]),
+        () => NpyParser().checkMagicString([147, 78, 85, 77, 80, 87]),
         throwsA(const TypeMatcher<NpyInvalidMagicStringException>()),
       ),
     );
-    test('Too short', () => expect(() => NpyHeaderSection().checkMagicString([147, 78, 85, 77, 80]), returnsNormally));
-    test(
-      'Too long',
-      () => expect(() => NpyHeaderSection().checkMagicString([147, 78, 85, 77, 80, 89, 90]), returnsNormally),
-    );
-    test(
-      'From valid text',
-      () => expect(() => NpyHeaderSection().checkMagicString('\x93NUMPY'.codeUnits), returnsNormally),
-    );
+    test('Too short', () => expect(() => NpyParser().checkMagicString([147, 78, 85, 77, 80]), returnsNormally));
+    test('Too long', () => expect(() => NpyParser().checkMagicString([147, 78, 85, 77, 80, 89, 90]), returnsNormally));
+    test('From valid text', () => expect(() => NpyParser().checkMagicString('\x93NUMPY'.codeUnits), returnsNormally));
   });
 
   group('Parse NpyVersion:', () {
@@ -59,32 +53,32 @@ void main() {
       expect(() => NpyVersion.fromBytes([1, 1]), throwsA(const TypeMatcher<NpyUnsupportedVersionException>()));
     });
     test('Major: 1, Minor: 0 in header section', () {
-      final headerSection = NpyHeaderSection(version: NpyVersion.fromBytes([1, 0]));
+      final headerSection = NpyParser(version: NpyVersion.fromBytes([1, 0]));
       expect(headerSection.version!.major, 1);
       expect(headerSection.version!.minor, 0);
-      expect(headerSection.numberOfHeaderBytes, 2);
+      expect(headerSection.version!.numberOfHeaderBytes, 2);
     });
     test('Major: 2, Minor: 0 in header section', () {
-      final headerSection = NpyHeaderSection(version: NpyVersion.fromBytes([2, 0]));
+      final headerSection = NpyParser(version: NpyVersion.fromBytes([2, 0]));
       expect(headerSection.version!.major, 2);
       expect(headerSection.version!.minor, 0);
-      expect(headerSection.numberOfHeaderBytes, 4);
+      expect(headerSection.version!.numberOfHeaderBytes, 4);
     });
     test('Major: 3, Minor: 0 in header section', () {
-      final headerSection = NpyHeaderSection(version: NpyVersion.fromBytes([3, 0]));
+      final headerSection = NpyParser(version: NpyVersion.fromBytes([3, 0]));
       expect(headerSection.version!.major, 3);
       expect(headerSection.version!.minor, 0);
-      expect(headerSection.numberOfHeaderBytes, 4);
+      expect(headerSection.version!.numberOfHeaderBytes, 4);
     });
     test('Unsupported major version in header', () {
       expect(
-        () => NpyHeaderSection(version: NpyVersion.fromBytes([4, 0])),
+        () => NpyParser(version: NpyVersion.fromBytes([4, 0])),
         throwsA(const TypeMatcher<NpyUnsupportedVersionException>()),
       );
     });
     test('Unsupported minor version in header', () {
       expect(
-        () => NpyHeaderSection(version: NpyVersion.fromBytes([1, 1])),
+        () => NpyParser(version: NpyVersion.fromBytes([1, 1])),
         throwsA(const TypeMatcher<NpyUnsupportedVersionException>()),
       );
     });
@@ -95,22 +89,26 @@ void main() {
     test('[1, 2]', () => expect(littleEndian16ToInt([1, 2]), 513));
     test('[4, 3, 2, 1]', () => expect(littleEndian32ToInt([4, 3, 2, 1]), 16909060));
     test('[1, 2, 3, 4]', () => expect(littleEndian32ToInt([1, 2, 3, 4]), 67305985));
-    test(
-      '[2, 1] from getLength',
-      () => expect(NpyHeaderSection(version: const NpyVersion()).getHeaderLength([2, 1]), 258),
-    );
-    test(
-      '[1, 2] from getLength',
-      () => expect(NpyHeaderSection(version: const NpyVersion()).getHeaderLength([1, 2]), 513),
-    );
-    test(
-      '[4, 3, 2, 1] from getLength',
-      () => expect(NpyHeaderSection(version: const NpyVersion(major: 2)).getHeaderLength([4, 3, 2, 1]), 16909060),
-    );
-    test(
-      '[1, 2, 3, 4] from getLength',
-      () => expect(NpyHeaderSection(version: const NpyVersion(major: 2)).getHeaderLength([1, 2, 3, 4]), 67305985),
-    );
+    test('[2, 1] from getLength', () {
+      final parser = NpyParser(version: const NpyVersion());
+      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 2, 1]);
+      expect(parser.headerLength, 258);
+    });
+    test('[1, 2] from getLength', () {
+      final parser = NpyParser(version: const NpyVersion());
+      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2]);
+      expect(parser.headerLength, 513);
+    });
+    test('[4, 3, 2, 1] from getLength', () {
+      final parser = NpyParser(version: const NpyVersion(major: 2));
+      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 4, 3, 2, 1]);
+      expect(parser.headerLength, 16909060);
+    });
+    test('[1, 2, 3, 4] from getLength', () {
+      final parser = NpyParser(version: const NpyVersion(major: 2));
+      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3, 4]);
+      expect(parser.headerLength, 67305985);
+    });
     test('[0x56, 0x78]', () {
       final bytes = [0x56, 0x78];
       expect(littleEndian16ToInt(bytes), 0x7856);

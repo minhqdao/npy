@@ -25,7 +25,7 @@ Future<NdArray<T>> load<T>(String path) async {
   final stream = File(path).openRead();
 
   List<int> buffer = [];
-  final headerSection = NpyHeaderSection();
+  final parser = NpyParser();
   int dataOffset = 0;
   int dataRead = 0;
   final List<T> data = [];
@@ -34,42 +34,41 @@ Future<NdArray<T>> load<T>(String path) async {
     await for (final chunk in stream) {
       buffer.addAll(chunk);
 
-      headerSection
+      parser
         ..checkMagicString(buffer)
-        ..parseVersion(buffer)
-        ..parseHeaderLength(buffer)
-        ..parseHeader(buffer);
+        ..getVersion(buffer)
+        ..getHeaderLength(buffer)
+        ..getHeader(buffer);
 
-      if (headerSection.header != null && headerSection.headerLength != null && headerSection.version != null) {
-        if (headerSection.header!.shape.isEmpty) return NdArray<T>(headerSection: headerSection);
+      if (parser.header != null && parser.headerLength != null && parser.version != null) {
+        if (parser.header!.shape.isEmpty) {
+          return NdArray<T>(headerSection: NpyHeaderSection(header: parser.header!));
+        }
 
         dataOffset = magicString.length +
-            NpyHeaderSection.numberOfVersionBytes +
-            headerSection.numberOfHeaderBytes +
-            headerSection.headerLength!;
+            NpyVersion.numberOfReservedBytes +
+            parser.version!.numberOfHeaderBytes +
+            parser.headerLength!;
 
-        final totalElements = headerSection.header!.shape.reduce((a, b) => a * b);
+        final totalElements = parser.header!.shape.reduce((a, b) => a * b);
 
         while (dataOffset < buffer.length) {
           final remainingElements = totalElements - dataRead;
-          final elementsInBuffer = (buffer.length - dataOffset) ~/ headerSection.header!.dtype.itemSize;
+          final elementsInBuffer = (buffer.length - dataOffset) ~/ parser.header!.dtype.itemSize;
           final elementsToProcess = min(remainingElements, elementsInBuffer);
 
           final newData = _parseData<T>(
-            buffer.sublist(dataOffset, dataOffset + elementsToProcess * headerSection.header!.dtype.itemSize),
-            headerSection.header!.dtype,
+            buffer.sublist(dataOffset, dataOffset + elementsToProcess * parser.header!.dtype.itemSize),
+            parser.header!.dtype,
             elementsToProcess,
           );
 
           data.addAll(newData);
           dataRead += elementsToProcess;
-          dataOffset += elementsToProcess * headerSection.header!.dtype.itemSize;
+          dataOffset += elementsToProcess * parser.header!.dtype.itemSize;
 
           if (dataRead == totalElements) {
-            return NdArray<T>(
-              headerSection: headerSection,
-              data: data,
-            );
+            return NdArray<T>(headerSection: NpyHeaderSection(header: parser.header!), data: data);
           }
         }
 
