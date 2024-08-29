@@ -776,9 +776,85 @@ void main() {
     });
   });
   group('NdArray to bytes:', () {
-    test('', () {
+    test('[]', () {
       final ndarray = NdArray.fromList([]);
+      expect(ndarray.data.length, 0);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.float);
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 0);
+    });
+    test('[1]', () {
+      final ndarray = NdArray.fromList([1]);
+      expect(ndarray.data.length, 1);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.int);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 8);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).first, 1);
+    });
+    test('[-1]', () {
+      final ndarray = NdArray.fromList([-1]);
+      expect(ndarray.data.length, 1);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.int);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 8);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).first, 255);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).last, 255);
+    });
+    test('[1, 200]', () {
+      final ndarray = NdArray.fromList([1, 200]);
+      expect(ndarray.data.length, 2);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.int);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 16);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(0), 1);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(1), 0);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(8), 200);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(9), 0);
+    });
+    test('[0.0]', () {
+      final ndarray = NdArray.fromList([0.0]);
+      expect(ndarray.data.length, 1);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.float);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 8);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).first, 0);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).last, 0);
+    });
+    test('[1.0]', () {
+      final ndarray = NdArray.fromList([1.0]);
+      expect(ndarray.data.length, 1);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.float);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 8);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).first, 0);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(5), 0);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(6), 0xf0);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).last, 0x3f);
+    });
+    test('[256], big endian', () {
+      final ndarray = NdArray.fromList([256], endian: NpyEndian.big);
+      expect(ndarray.data.length, 1);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.int);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 8);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).first, 0);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(6), 1);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).last, 0);
+    });
+    test('[1, 200], big endian', () {
+      final ndarray = NdArray.fromList([1, 200], endian: NpyEndian.big);
+      expect(ndarray.data.length, 2);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.int);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 16);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(7), 1);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(6), 0);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(15), 200);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(14), 0);
+    });
+    test('[1.0, 1.0], big endian', () {
+      final ndarray = NdArray.fromList([1.0, 1.0], endian: NpyEndian.big);
+      expect(ndarray.data.length, 2);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.float);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 16);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).first, 0x3f);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(1), 0xf0);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(2), 0);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(8), 0x3f);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(9), 0xf0);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).last, 0);
     });
   });
   group('Save npy:', () {
