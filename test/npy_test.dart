@@ -61,57 +61,89 @@ void main() {
     test('From valid text', () => expect(() => NpyParser().checkMagicString('\x93NUMPY'.codeUnits), returnsNormally));
   });
 
-  group('Parse NpyVersion:', () {
-    test('Major: 1, Minor: 0', () {
+  group('Parse version:', () {
+    test('Create instance with major: 1, minor: 0', () {
       final version = NpyVersion.fromBytes([1, 0]);
       expect(version.major, 1);
       expect(version.minor, 0);
+      expect(version.numberOfHeaderBytes, 2);
     });
-    test('Major: 2, Minor: 0', () {
+    test('Create instance with major: 2, minor: 0', () {
       final version = NpyVersion.fromBytes([2, 0]);
       expect(version.major, 2);
       expect(version.minor, 0);
+      expect(version.numberOfHeaderBytes, 4);
     });
-    test('Major: 3, Minor: 0', () {
+    test('Create instance with major: 3, minor: 0', () {
       final version = NpyVersion.fromBytes([3, 0]);
       expect(version.major, 3);
       expect(version.minor, 0);
+      expect(version.numberOfHeaderBytes, 4);
     });
-    test('Unsupported major version', () {
+    test('Create instance: Unsupported major version: 0', () {
+      expect(() => NpyVersion.fromBytes([0, 0]), throwsA(const TypeMatcher<NpyUnsupportedVersionException>()));
+    });
+    test('Create instance: Unsupported major version: 4', () {
       expect(() => NpyVersion.fromBytes([4, 0]), throwsA(const TypeMatcher<NpyUnsupportedVersionException>()));
     });
-    test('Unsupported minor version', () {
+    test('Create instance: Unsupported minor version', () {
       expect(() => NpyVersion.fromBytes([1, 1]), throwsA(const TypeMatcher<NpyUnsupportedVersionException>()));
     });
-    test('Major: 1, Minor: 0 in header section', () {
-      final headerSection = NpyParser(version: NpyVersion.fromBytes([1, 0]));
-      expect(headerSection.version!.major, 1);
-      expect(headerSection.version!.minor, 0);
-      expect(headerSection.version!.numberOfHeaderBytes, 2);
+    test('Parse major: 1, minor: 0', () {
+      final parser = NpyParser();
+      parser.getVersion([...magicString.codeUnits, 1, 0]);
+      expect(parser.version?.major, 1);
+      expect(parser.version?.minor, 0);
+      expect(parser.version?.numberOfHeaderBytes, 2);
     });
-    test('Major: 2, Minor: 0 in header section', () {
-      final headerSection = NpyParser(version: NpyVersion.fromBytes([2, 0]));
-      expect(headerSection.version!.major, 2);
-      expect(headerSection.version!.minor, 0);
-      expect(headerSection.version!.numberOfHeaderBytes, 4);
+    test('Parse major: 2, minor: 0', () {
+      final parser = NpyParser();
+      parser.getVersion([...magicString.codeUnits, 2, 0]);
+      expect(parser.version?.major, 2);
+      expect(parser.version?.minor, 0);
+      expect(parser.version?.numberOfHeaderBytes, 4);
     });
-    test('Major: 3, Minor: 0 in header section', () {
-      final headerSection = NpyParser(version: NpyVersion.fromBytes([3, 0]));
-      expect(headerSection.version!.major, 3);
-      expect(headerSection.version!.minor, 0);
-      expect(headerSection.version!.numberOfHeaderBytes, 4);
+    test('Parse major: 3, minor: 0', () {
+      final parser = NpyParser();
+      parser.getVersion([...magicString.codeUnits, 3, 0]);
+      expect(parser.version?.major, 3);
+      expect(parser.version?.minor, 0);
+      expect(parser.version?.numberOfHeaderBytes, 4);
     });
-    test('Unsupported major version in header', () {
+    test('Unsupported major version in parse', () {
       expect(
-        () => NpyParser(version: NpyVersion.fromBytes([4, 0])),
+        () => NpyParser().getVersion([...magicString.codeUnits, 4, 0]),
         throwsA(const TypeMatcher<NpyUnsupportedVersionException>()),
       );
     });
-    test('Unsupported minor version in header', () {
+    test('Unsupported minor version in parse', () {
       expect(
-        () => NpyParser(version: NpyVersion.fromBytes([1, 1])),
+        () => NpyParser().getVersion([...magicString.codeUnits, 1, 1]),
         throwsA(const TypeMatcher<NpyUnsupportedVersionException>()),
       );
+    });
+    test('Additional bytes', () {
+      final parser = NpyParser();
+      parser.getVersion([...magicString.codeUnits, 1, 0, 1, 2, 3]);
+      expect(parser.version?.major, 1);
+      expect(parser.version?.minor, 0);
+      expect(parser.version?.numberOfHeaderBytes, 2);
+    });
+    test('Insufficient bytes', () {
+      final parser = NpyParser();
+      parser.getVersion([...magicString.codeUnits, 1]);
+      expect(parser.version, null);
+    });
+    test('Second run gets ignored', () {
+      final parser = NpyParser();
+      parser.getVersion([...magicString.codeUnits, 1, 0]);
+      expect(parser.version?.major, 1);
+      expect(parser.version?.minor, 0);
+      expect(parser.version?.numberOfHeaderBytes, 2);
+      parser.getVersion([...magicString.codeUnits, 2, 0]);
+      expect(parser.version?.major, 1);
+      expect(parser.version?.minor, 0);
+      expect(parser.version?.numberOfHeaderBytes, 2);
     });
   });
 
@@ -120,22 +152,22 @@ void main() {
     test('[1, 2]', () => expect(littleEndian16ToInt([1, 2]), 513));
     test('[4, 3, 2, 1]', () => expect(littleEndian32ToInt([4, 3, 2, 1]), 16909060));
     test('[1, 2, 3, 4]', () => expect(littleEndian32ToInt([1, 2, 3, 4]), 67305985));
-    test('[2, 1] from getLength', () {
+    test('[2, 1] through parser', () {
       final parser = NpyParser(version: const NpyVersion());
       parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 2, 1]);
       expect(parser.headerLength, 258);
     });
-    test('[1, 2] from getLength', () {
+    test('[1, 2] through parser', () {
       final parser = NpyParser(version: const NpyVersion());
       parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2]);
       expect(parser.headerLength, 513);
     });
-    test('[4, 3, 2, 1] from getLength', () {
+    test('[4, 3, 2, 1] through parser', () {
       final parser = NpyParser(version: const NpyVersion(major: 2));
       parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 4, 3, 2, 1]);
       expect(parser.headerLength, 16909060);
     });
-    test('[1, 2, 3, 4] from getLength', () {
+    test('[1, 2, 3, 4] through parser', () {
       final parser = NpyParser(version: const NpyVersion(major: 2));
       parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3, 4]);
       expect(parser.headerLength, 67305985);
