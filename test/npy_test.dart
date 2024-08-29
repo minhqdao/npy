@@ -80,6 +80,8 @@ void main() {
       expect(version.minor, 0);
       expect(version.numberOfHeaderBytes, 4);
     });
+    test('Insufficient byte length', () => expect(() => NpyVersion.fromBytes([1]), throwsA(isA<AssertionError>())));
+    test('Exceeded byte length', () => expect(() => NpyVersion.fromBytes([1, 0, 0]), throwsA(isA<AssertionError>())));
     test('Create instance: Unsupported major version: 0', () {
       expect(() => NpyVersion.fromBytes([0, 0]), throwsA(const TypeMatcher<NpyUnsupportedVersionException>()));
     });
@@ -124,7 +126,7 @@ void main() {
     });
     test('Additional bytes', () {
       final parser = NpyParser();
-      parser.getVersion([...magicString.codeUnits, 1, 0, 1, 2, 3]);
+      parser.getVersion([...magicString.codeUnits, 1, 0, 0]);
       expect(parser.version?.major, 1);
       expect(parser.version?.minor, 0);
       expect(parser.version?.numberOfHeaderBytes, 2);
@@ -149,9 +151,12 @@ void main() {
 
   group('Parse header length', () {
     test('[2, 1]', () => expect(littleEndian16ToInt([2, 1]), 258));
-    test('[1, 2]', () => expect(littleEndian16ToInt([1, 2]), 513));
     test('[4, 3, 2, 1]', () => expect(littleEndian32ToInt([4, 3, 2, 1]), 16909060));
     test('[1, 2, 3, 4]', () => expect(littleEndian32ToInt([1, 2, 3, 4]), 67305985));
+    test('Less than 2 bytes', () => expect(() => littleEndian16ToInt([1]), throwsA(isA<AssertionError>())));
+    test('Exceed 2 bytes', () => expect(() => littleEndian16ToInt([1, 2, 3]), throwsA(isA<AssertionError>())));
+    test('Less than 4 bytes', () => expect(() => littleEndian32ToInt([1, 2, 3]), throwsA(isA<AssertionError>())));
+    test('Exceed 4 bytes', () => expect(() => littleEndian32ToInt([1, 2, 3, 3, 4]), throwsA(isA<AssertionError>())));
     test('[2, 1] through parser', () {
       final parser = NpyParser(version: const NpyVersion());
       parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 2, 1]);
@@ -160,6 +165,16 @@ void main() {
     test('[1, 2] through parser', () {
       final parser = NpyParser(version: const NpyVersion());
       parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2]);
+      expect(parser.headerLength, 513);
+    });
+    test('Ignore parsing less than 2 bytes', () {
+      final parser = NpyParser(version: const NpyVersion());
+      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1]);
+      expect(parser.headerLength, null);
+    });
+    test('Ignore additional bytes after 2', () {
+      final parser = NpyParser(version: const NpyVersion());
+      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3]);
       expect(parser.headerLength, 513);
     });
     test('[4, 3, 2, 1] through parser', () {
@@ -171,6 +186,28 @@ void main() {
       final parser = NpyParser(version: const NpyVersion(major: 2));
       parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3, 4]);
       expect(parser.headerLength, 67305985);
+    });
+    test('Ignore parsing less than 4 bytes', () {
+      final parser = NpyParser(version: const NpyVersion(major: 2));
+      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3]);
+      expect(parser.headerLength, null);
+    });
+    test('Ignore additional bytes after 4', () {
+      final parser = NpyParser(version: const NpyVersion(major: 2));
+      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3, 4, 5]);
+      expect(parser.headerLength, 67305985);
+    });
+    test('Ignore second run', () {
+      final parser = NpyParser(version: const NpyVersion());
+      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2]);
+      expect(parser.headerLength, 513);
+      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 3, 3]);
+      expect(parser.headerLength, 513);
+    });
+    test('Return early if version not set', () {
+      final parser = NpyParser();
+      parser.getHeaderLength([...magicString.codeUnits, ...'\x93NUMPY'.codeUnits, 1, 2]);
+      expect(parser.headerLength, null);
     });
     test('[0x56, 0x78]', () {
       final bytes = [0x56, 0x78];
