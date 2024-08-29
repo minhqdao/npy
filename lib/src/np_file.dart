@@ -282,27 +282,12 @@ class NpyHeader<T> {
   }
 
   factory NpyHeader.fromList(List<T> data, {NpyEndian? endian, bool? fortranOrder}) {
-    if (data.isEmpty) {
-      return NpyHeader.buildString(
-        dtype: NpyDType(endian: endian ?? NpyEndian.little, type: NpyType.float, itemSize: 8),
-        fortranOrder: fortranOrder ?? false,
-        shape: [],
-      );
-    }
-
-    late final NpyType type;
-    if (T == int) {
-      type = NpyType.int;
-    } else if (T == double) {
-      type = NpyType.float;
-    } else {
-      throw NpyUnsupportedTypeException(message: 'Unsupported input type: $T');
-    }
+    final listProperties = ListProperties()..getProperties(data);
 
     return NpyHeader.buildString(
-      dtype: NpyDType(endian: endian ?? NpyEndian.little, type: type, itemSize: 8),
+      dtype: NpyDType(endian: endian ?? NpyEndian.little, type: listProperties.type, itemSize: 8),
       fortranOrder: fortranOrder ?? false,
-      shape: [data.length],
+      shape: listProperties.shape,
     );
   }
 
@@ -345,6 +330,29 @@ class NpyHeader<T> {
       ...List.filled(paddingSize, _blankSpaceInt),
       _newLineInt,
     ];
+  }
+}
+
+class ListProperties {
+  ListProperties({this.shape = const [], this.type = NpyType.float});
+
+  List<int> shape;
+  NpyType type;
+
+  void getProperties(List list) {
+    if (list.isEmpty) return;
+    shape = [...shape, list.length];
+
+    final firstElement = list.first;
+    if (firstElement is int) {
+      type = NpyType.int;
+    } else if (firstElement is double) {
+      type = NpyType.float;
+    } else if (firstElement is List) {
+      getProperties(list.first as List);
+    } else {
+      throw NpyUnsupportedTypeException(message: 'Unsupported input type: ${firstElement.runtimeType}');
+    }
   }
 }
 

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:npy/npy.dart';
 import 'package:npy/src/np_exception.dart';
 import 'package:test/test.dart';
@@ -303,7 +304,62 @@ void main() {
       expect(() => NpyDType.fromString('>ff'), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
     });
   });
-
+  group('ListProperties:', () {
+    test('Empty list', () {
+      final properties = ListProperties()..getProperties([]);
+      expect(properties.shape, []);
+      expect(properties.type, NpyType.float);
+    });
+    test('One int', () {
+      final properties = ListProperties()..getProperties([42]);
+      expect(properties.shape, [1]);
+      expect(properties.type, NpyType.int);
+    });
+    test('Two ints', () {
+      final properties = ListProperties()..getProperties([42, 35]);
+      expect(properties.shape, [2]);
+      expect(properties.type, NpyType.int);
+    });
+    test('Two doubles', () {
+      final properties = ListProperties()..getProperties([0.1, 2.3]);
+      expect(properties.shape, [2]);
+      expect(properties.type, NpyType.float);
+    });
+    test('[2, 3]]', () {
+      final properties = ListProperties()
+        ..getProperties([
+          [1, 2, 3],
+          [4, 5, 6],
+        ]);
+      expect(const ListEquality().equals(properties.shape, [2, 3]), true);
+      expect(properties.type, NpyType.int);
+    });
+    test('[3, 2, 1]', () {
+      final properties = ListProperties()
+        ..getProperties([
+          [
+            [1.0],
+            [2.1],
+          ],
+          [
+            [3.2],
+            [4.3],
+          ],
+          [
+            [5.4],
+            [6.5],
+          ],
+        ]);
+      expect(const ListEquality().equals(properties.shape, [3, 2, 1]), true);
+      expect(properties.type, NpyType.float);
+    });
+    test('Bool throws error', () {
+      expect(() => ListProperties()..getProperties([true]), throwsA(const TypeMatcher<NpyUnsupportedTypeException>()));
+    });
+    test('String throws error', () {
+      expect(() => ListProperties()..getProperties(['hi']), throwsA(const TypeMatcher<NpyUnsupportedTypeException>()));
+    });
+  });
   group('Parse NpyHeader:', () {
     test('Empty header', () {
       expect(() => NpyHeader.fromString(''), throwsA(const TypeMatcher<NpyInvalidHeaderException>()));
