@@ -361,10 +361,10 @@ class NpyHeader<T> {
   factory NpyHeader.fromList(
     List list, {
     List<int> shape = const [],
-    NpyType? type,
     NpyEndian? endian,
     bool? fortranOrder,
     int? itemSize,
+    NpyType? type,
   }) {
     if (list.isEmpty) {
       return NpyHeader.buildString(
@@ -392,6 +392,8 @@ class NpyHeader<T> {
         shape: updatedShape,
         endian: endian,
         fortranOrder: fortranOrder,
+        itemSize: itemSize,
+        type: type,
       );
     } else {
       throw NpyUnsupportedTypeException(message: 'Unsupported input type: ${firstElement.runtimeType}');
