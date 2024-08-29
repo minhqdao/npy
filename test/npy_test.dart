@@ -850,8 +850,8 @@ void main() {
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(15), 200);
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(14), 0);
     });
-    test('[1.0, 1.0], big endian', () {
-      final ndarray = NdArray.fromList([1.0, 1.0], endian: NpyEndian.big);
+    test('[1.0, 1.9], big endian', () {
+      final ndarray = NdArray.fromList([1.0, 1.9], endian: NpyEndian.big);
       expect(ndarray.data.length, 2);
       expect(ndarray.headerSection.header.dtype.type, NpyType.float);
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 16);
@@ -859,8 +859,8 @@ void main() {
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(1), 0xf0);
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(2), 0);
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(8), 0x3f);
-      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(9), 0xf0);
-      expect(ndarray.asBytes.skip(ndarray.headerSection.length).last, 0);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(9), 0xfe);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).last, 0x66);
     });
   });
   group('Save npy:', () {
