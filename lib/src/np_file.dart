@@ -195,29 +195,30 @@ class NpyHeaderSection {
   List<int> get asBytes {
     final headerBytes = header.asBytes;
     final headerSize = headerBytes.length + paddingSize + _newLineOffset;
-    List<int> headerSizeBytes;
-
-    if (version.major == 1) {
-      assert(headerSize <= NpyVersion.maxFirstVersionSize);
-      headerSizeBytes = [headerSize & 0xFF, (headerSize >> 8) & 0xFF];
-    } else {
-      headerSizeBytes = [
-        headerSize & 0xFF,
-        (headerSize >> 8) & 0xFF,
-        (headerSize >> 16) & 0xFF,
-        (headerSize >> 24) & 0xFF,
-      ];
-    }
 
     return [
       ...magicString.codeUnits,
       ...version.asBytes,
-      ...headerSizeBytes,
+      ...headerSizeBytes(headerSize),
       ...headerBytes,
       ...List.filled(paddingSize, _blankSpaceInt),
       _newLineInt,
     ];
   }
+
+  /// Returns a list of bytes that encodes the [headerSize]. The list length depends on the major version.
+  List<int> headerSizeBytes(int headerSize) {
+    if (version.major == 1) {
+      assert(headerSize <= NpyVersion.maxFirstVersionSize);
+      return (ByteData(2)..setUint16(0, headerSize, Endian.little)).buffer.asUint8List();
+    }
+
+    assert(headerSize <= NpyVersion.maxHigherVersionSize);
+    return (ByteData(4)..setUint32(0, headerSize, Endian.little)).buffer.asUint8List();
+  }
+
+  /// Returns the length of the entire header section.
+  int get length => asBytes.length;
 }
 
 /// Returns the number of padding bytes needed to make the given [size] a multiple of 64.
@@ -235,8 +236,9 @@ class NpyVersion {
   /// The number of bytes reserved in the header section to describe the version.
   static const numberOfReservedBytes = 2;
   static const numberOfHeaderSizeBytesV1 = 2;
-  static const numberOfHeaderSizeBytesLaterVersions = 4;
+  static const numberOfHeaderSizeBytesHigherVersions = 4;
   static const maxFirstVersionSize = 65535;
+  static const maxHigherVersionSize = 4294967295;
   static const lastAsciiCodeUnit = 127;
   static const _supportedMajorVersions = {1, 2, 3};
   static const _supportedMinorVersions = {0};
@@ -271,7 +273,7 @@ class NpyVersion {
 
   /// Returns the number of bytes used to store the header length depending on the major version.
   int get numberOfHeaderBytes =>
-      major == 1 ? NpyVersion.numberOfHeaderSizeBytesV1 : NpyVersion.numberOfHeaderSizeBytesLaterVersions;
+      major == 1 ? NpyVersion.numberOfHeaderSizeBytesV1 : NpyVersion.numberOfHeaderSizeBytesHigherVersions;
 }
 
 class NpyHeader<T> {

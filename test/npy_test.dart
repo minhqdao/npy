@@ -686,20 +686,101 @@ void main() {
       expect(header.string, "{'descr': '>f4', 'fortran_order': True, 'shape': (3, 4), }");
     });
   });
-  // group('NdArray to bytes:', () {
-  //   test('', () {
-  //     final ndarray = NdArray.fromList([]);
-  //     print(ndarray.asBytes
-  //         .skip(
-  //           magicString.length +
-  //               NpyVersion.numberOfReservedBytes +
-  //               ndarray.header.version.numberOfHeaderBytes +
-  //               ndarray.header.asBytes.length,
-  //         )
-  //         .length);
-  //     save('abc.tmp', ndarray);
-  //   });
-  // });
+  group('Header size to bytes:', () {
+    test('0', () {
+      final bytes = NpyHeaderSection.fromList([]).headerSizeBytes(0);
+      expect(bytes.length, 2);
+      expect(bytes[0], 0);
+      expect(bytes[1], 0);
+    });
+    test('1', () {
+      final bytes = NpyHeaderSection.fromList([]).headerSizeBytes(1);
+      expect(bytes.length, 2);
+      expect(bytes[0], 1);
+      expect(bytes[1], 0);
+    });
+    test('First version maximum', () {
+      final bytes = NpyHeaderSection.fromList([]).headerSizeBytes(65535);
+      expect(bytes.length, 2);
+      expect(bytes[0], 255);
+      expect(bytes[1], 255);
+    });
+    test('Exceeds first version maximum', () {
+      expect(() => NpyHeaderSection.fromList([]).headerSizeBytes(65536), throwsA(isA<AssertionError>()));
+    });
+    test('0, V2', () {
+      final bytes = NpyHeaderSection(
+        version: const NpyVersion(major: 2),
+        numberOfHeaderBytes: 0,
+        header: NpyHeader.fromList([]),
+        headerLength: 0,
+        paddingSize: 0,
+      ).headerSizeBytes(0);
+      expect(bytes.length, 4);
+      expect(bytes[0], 0);
+      expect(bytes[1], 0);
+      expect(bytes[2], 0);
+      expect(bytes[3], 0);
+    });
+    test('100, V2', () {
+      final bytes = NpyHeaderSection(
+        version: const NpyVersion(major: 2),
+        numberOfHeaderBytes: 0,
+        header: NpyHeader.fromList([]),
+        headerLength: 0,
+        paddingSize: 0,
+      ).headerSizeBytes(100);
+      expect(bytes.length, 4);
+      expect(bytes[0], 100);
+      expect(bytes[1], 0);
+      expect(bytes[2], 0);
+      expect(bytes[3], 0);
+    });
+    test('65536, V2', () {
+      final bytes = NpyHeaderSection(
+        version: const NpyVersion(major: 2),
+        numberOfHeaderBytes: 0,
+        header: NpyHeader.fromList([]),
+        headerLength: 0,
+        paddingSize: 0,
+      ).headerSizeBytes(65536);
+      expect(bytes.length, 4);
+      expect(bytes[0], 0);
+      expect(bytes[1], 0);
+      expect(bytes[2], 1);
+      expect(bytes[3], 0);
+    });
+    test('V2 max', () {
+      final bytes = NpyHeaderSection(
+        version: const NpyVersion(major: 2),
+        numberOfHeaderBytes: 0,
+        header: NpyHeader.fromList([]),
+        headerLength: 0,
+        paddingSize: 0,
+      ).headerSizeBytes(4294967295);
+      expect(bytes.length, 4);
+      expect(bytes[0], 255);
+      expect(bytes[1], 255);
+      expect(bytes[2], 255);
+      expect(bytes[3], 255);
+    });
+    test('V2 exceeded', () {
+      final bytes = NpyHeaderSection(
+        version: const NpyVersion(major: 2),
+        numberOfHeaderBytes: 0,
+        header: NpyHeader.fromList([]),
+        headerLength: 0,
+        paddingSize: 0,
+      );
+      expect(() => bytes.headerSizeBytes(4294967296), throwsA(isA<AssertionError>()));
+    });
+  });
+  group('NdArray to bytes:', () {
+    test('', () {
+      final ndarray = NdArray.fromList([]);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 0);
+    });
+  });
   group('Save npy:', () {
     test('Save empty list', () async {
       const filename = 'save_empty_list.tmp';
