@@ -6,24 +6,26 @@ import 'package:npy/src/np_exception.dart';
 
 class NdArray<T> {
   const NdArray({
-    required this.header,
+    required this.headerSection,
     required this.data,
   });
 
-  final NpyHeader header;
+  final NpyHeaderSection headerSection;
   final List<T> data;
 
-  factory NdArray.fromList(List<T> list, {NpyEndian? endian, bool? fortranOrder}) =>
-      NdArray<T>(header: NpyHeader<T>.fromList(list, endian: endian, fortranOrder: fortranOrder), data: list);
+  factory NdArray.fromList(List<T> list, {NpyEndian? endian, bool? fortranOrder}) => NdArray<T>(
+        headerSection: NpyHeaderSection.fromList(list, endian: endian, fortranOrder: fortranOrder),
+        data: list,
+      );
 
   T getElement(List<int> indices) => data[_getIndex(indices)];
 
   int _getIndex(List<int> indices) {
-    assert(indices.length == header.shape.length);
+    assert(indices.length == headerSection.header.shape.length);
     int index = 0;
     int stride = 1;
-    final shape = header.shape;
-    final order = header.fortranOrder;
+    final shape = headerSection.header.shape;
+    final order = headerSection.header.fortranOrder;
 
     for (int i = 0; i < indices.length; i++) {
       final idx = order ? i : indices.length - 1 - i;
@@ -35,7 +37,7 @@ class NdArray<T> {
 
   List<int> get asBytes {
     final List<int> dataBytes = [];
-    final dtype = header.dtype;
+    final dtype = headerSection.header.dtype;
     late final Endian endian;
 
     switch (dtype.endian) {
@@ -96,7 +98,7 @@ class NdArray<T> {
       dataBytes.addAll(Uint8List.fromList(byteData.buffer.asUint8List()));
     }
 
-    return [...header.buildSection(), ...dataBytes];
+    return [...headerSection.asBytes, ...dataBytes];
   }
 }
 
@@ -149,6 +151,75 @@ class NpyParser<T> {
   }
 }
 
+class NpyHeaderSection {
+  const NpyHeaderSection({
+    required this.version,
+    required this.numberOfHeaderBytes,
+    required this.header,
+    required this.headerLength,
+    required this.paddingSize,
+  });
+
+  final NpyVersion version;
+  final int numberOfHeaderBytes;
+  final int headerLength;
+  final NpyHeader header;
+  final int paddingSize;
+
+  factory NpyHeaderSection.fromList(List list, {NpyEndian? endian, bool? fortranOrder}) {
+    return NpyHeaderSection.fromHeader(NpyHeader.fromList(list, endian: endian, fortranOrder: fortranOrder));
+  }
+
+  factory NpyHeaderSection.fromHeader(NpyHeader header) {
+    final headerLength = header.length;
+    final firstVersionSizeWithoutPadding = magicString.length +
+        NpyVersion.numberOfReservedBytes +
+        NpyVersion.numberOfHeaderSizeBytesV1 +
+        headerLength +
+        _newLineOffset;
+    final paddingSize = getPaddingSize(firstVersionSizeWithoutPadding);
+    final version = NpyVersion.fromString(header.string, headerLength + paddingSize + _newLineInt);
+
+    return NpyHeaderSection(
+      version: version,
+      numberOfHeaderBytes: version.numberOfHeaderBytes,
+      headerLength: headerLength,
+      header: header,
+      paddingSize: paddingSize,
+    );
+  }
+
+  /// Returns entire header section represented by a List of bytes that includes the magic string, the version, the
+  /// number of bytes describing the header length, the header length, and the header, padded with spaces and terminated
+  /// with a newline character to be a multiple of 64 bytes. It takes the header as a String and leaves it unchanged.
+  List<int> get asBytes {
+    final headerBytes = header.asBytes;
+    final headerSize = headerBytes.length + paddingSize + _newLineOffset;
+    List<int> headerSizeBytes;
+
+    if (version.major == 1) {
+      assert(headerSize <= NpyVersion.maxFirstVersionSize);
+      headerSizeBytes = [headerSize & 0xFF, (headerSize >> 8) & 0xFF];
+    } else {
+      headerSizeBytes = [
+        headerSize & 0xFF,
+        (headerSize >> 8) & 0xFF,
+        (headerSize >> 16) & 0xFF,
+        (headerSize >> 24) & 0xFF,
+      ];
+    }
+
+    return [
+      ...magicString.codeUnits,
+      ...version.asBytes,
+      ...headerSizeBytes,
+      ...headerBytes,
+      ...List.filled(paddingSize, _blankSpaceInt),
+      _newLineInt,
+    ];
+  }
+}
+
 /// Returns the number of padding bytes needed to make the given [size] a multiple of 64.
 int getPaddingSize(int size) => (64 - (size % 64)) % 64;
 
@@ -163,7 +234,7 @@ class NpyVersion {
 
   /// The number of bytes reserved in the header section to describe the version.
   static const numberOfReservedBytes = 2;
-  static const numberOfHeaderSizeBytesFirstVersion = 2;
+  static const numberOfHeaderSizeBytesV1 = 2;
   static const numberOfHeaderSizeBytesLaterVersions = 4;
   static const maxFirstVersionSize = 65535;
   static const lastAsciiCodeUnit = 127;
@@ -181,17 +252,12 @@ class NpyVersion {
     return NpyVersion(major: bytes.elementAt(0), minor: bytes.elementAt(1));
   }
 
-  /// Returns a version instance depending on the given [string].
-  factory NpyVersion.fromString(String string) {
-    final firstVersionSizeWithoutPadding = magicString.length +
-        NpyVersion.numberOfReservedBytes +
-        NpyVersion.numberOfHeaderSizeBytesFirstVersion +
-        string.length +
-        _newLineOffset;
+  /// Returns a version instance depending on the given [string] and the total header size.
+  factory NpyVersion.fromString(String string, int totalHeaderSize) {
     return NpyVersion(
       major: cannotBeAsciiEncoded(string)
           ? 3
-          : firstVersionSizeWithoutPadding + getPaddingSize(firstVersionSizeWithoutPadding) <= maxFirstVersionSize
+          : totalHeaderSize <= maxFirstVersionSize
               ? 1
               : 2,
     );
@@ -205,7 +271,7 @@ class NpyVersion {
 
   /// Returns the number of bytes used to store the header length depending on the major version.
   int get numberOfHeaderBytes =>
-      major == 1 ? NpyVersion.numberOfHeaderSizeBytesFirstVersion : NpyVersion.numberOfHeaderSizeBytesLaterVersions;
+      major == 1 ? NpyVersion.numberOfHeaderSizeBytesV1 : NpyVersion.numberOfHeaderSizeBytesLaterVersions;
 }
 
 class NpyHeader<T> {
@@ -325,43 +391,8 @@ class NpyHeader<T> {
   /// Returns the header string as a List<int> of bytes.
   List<int> get asBytes => utf8.encode(string);
 
-  /// Returns entire header section represented by a List of bytes that includes the magic string, the version, the
-  /// number of bytes describing the header length, the header length, and the header, padded with spaces and terminated
-  /// with a newline character to be a multiple of 64 bytes. It takes the header as a String and leaves it unchanged.
-  List<int> buildSection() {
-    final version = NpyVersion.fromString(string);
-    final headerBytes = asBytes;
-    final sizeWithoutPadding = magicString.length +
-        NpyVersion.numberOfReservedBytes +
-        version.numberOfHeaderBytes +
-        headerBytes.length +
-        _newLineOffset;
-    final paddingSize = getPaddingSize(sizeWithoutPadding);
-    final headerSize = headerBytes.length + paddingSize + _newLineOffset;
-
-    List<int> headerSizeBytes;
-
-    if (version.major == 1) {
-      assert(headerSize <= NpyVersion.maxFirstVersionSize);
-      headerSizeBytes = [headerSize & 0xFF, (headerSize >> 8) & 0xFF];
-    } else {
-      headerSizeBytes = [
-        headerSize & 0xFF,
-        (headerSize >> 8) & 0xFF,
-        (headerSize >> 16) & 0xFF,
-        (headerSize >> 24) & 0xFF,
-      ];
-    }
-
-    return [
-      ...magicString.codeUnits,
-      ...version.asBytes,
-      ...headerSizeBytes,
-      ...headerBytes,
-      ...List.filled(paddingSize, _blankSpaceInt),
-      _newLineInt,
-    ];
-  }
+  /// Returns the length of the header string.
+  int get length => asBytes.length;
 }
 
 /// The ASCII code for a space character.

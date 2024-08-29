@@ -686,6 +686,20 @@ void main() {
       expect(header.string, "{'descr': '>f4', 'fortran_order': True, 'shape': (3, 4), }");
     });
   });
+  // group('NdArray to bytes:', () {
+  //   test('', () {
+  //     final ndarray = NdArray.fromList([]);
+  //     print(ndarray.asBytes
+  //         .skip(
+  //           magicString.length +
+  //               NpyVersion.numberOfReservedBytes +
+  //               ndarray.header.version.numberOfHeaderBytes +
+  //               ndarray.header.asBytes.length,
+  //         )
+  //         .length);
+  //     save('abc.tmp', ndarray);
+  //   });
+  // });
   group('Save npy:', () {
     test('Save empty list', () async {
       const filename = 'save_empty_list.tmp';

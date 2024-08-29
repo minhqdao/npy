@@ -41,7 +41,9 @@ Future<NdArray<T>> load<T>(String path) async {
         ..getHeader(buffer);
 
       if (parser.header != null && parser.headerLength != null && parser.version != null) {
-        if (parser.header!.shape.isEmpty) return NdArray<T>(header: parser.header!, data: const []);
+        if (parser.header!.shape.isEmpty) {
+          return NdArray<T>(headerSection: NpyHeaderSection.fromHeader(parser.header!), data: const []);
+        }
 
         dataOffset = magicString.length +
             NpyVersion.numberOfReservedBytes +
@@ -65,7 +67,9 @@ Future<NdArray<T>> load<T>(String path) async {
           dataRead += elementsToProcess;
           dataOffset += elementsToProcess * parser.header!.dtype.itemSize;
 
-          if (dataRead == totalElements) return NdArray<T>(header: parser.header!, data: list);
+          if (dataRead == totalElements) {
+            return NdArray<T>(headerSection: NpyHeaderSection.fromHeader(parser.header!), data: list);
+          }
         }
 
         buffer = buffer.sublist(dataOffset);
