@@ -7,16 +7,16 @@ import 'package:npy/src/np_exception.dart';
 class NdArray<T> {
   const NdArray({
     required this.header,
-    this.list = const [],
+    required this.data,
   });
 
   final NpyHeader header;
-  final List<T> list;
+  final List<T> data;
 
   factory NdArray.fromList(List<T> list, {NpyEndian? endian, bool? fortranOrder}) =>
-      NdArray<T>(header: NpyHeader<T>.fromList(list, endian: endian, fortranOrder: fortranOrder), list: list);
+      NdArray<T>(header: NpyHeader<T>.fromList(list, endian: endian, fortranOrder: fortranOrder), data: list);
 
-  T getElement(List<int> indices) => list[_getIndex(indices)];
+  T getElement(List<int> indices) => data[_getIndex(indices)];
 
   int _getIndex(List<int> indices) {
     assert(indices.length == header.shape.length);
@@ -47,7 +47,7 @@ class NdArray<T> {
         throw NpyUnsupportedEndianException(message: 'Unsupported endian: ${dtype.endian}');
     }
 
-    for (final element in list) {
+    for (final element in data) {
       final byteData = ByteData(dtype.itemSize);
       if (element is int) {
         switch (dtype.type) {
