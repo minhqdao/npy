@@ -13,8 +13,15 @@ class NdArray<T> {
   final NpyHeaderSection headerSection;
   final List<T> data;
 
-  factory NdArray.fromList(List<T> list, {NpyEndian? endian, bool? fortranOrder}) => NdArray<T>(
-        headerSection: NpyHeaderSection.fromList(list, endian: endian, fortranOrder: fortranOrder),
+  factory NdArray.fromList(List<T> list, {NpyEndian? endian, bool? fortranOrder, int? itemSize, NpyType? type}) =>
+      NdArray<T>(
+        headerSection: NpyHeaderSection.fromList(
+          list,
+          endian: endian,
+          fortranOrder: fortranOrder,
+          itemSize: itemSize,
+          type: type,
+        ),
         data: list,
       );
 
@@ -166,8 +173,10 @@ class NpyHeaderSection {
   final NpyHeader header;
   final int paddingSize;
 
-  factory NpyHeaderSection.fromList(List list, {NpyEndian? endian, bool? fortranOrder}) {
-    return NpyHeaderSection.fromHeader(NpyHeader.fromList(list, endian: endian, fortranOrder: fortranOrder));
+  factory NpyHeaderSection.fromList(List list, {NpyEndian? endian, bool? fortranOrder, int? itemSize, NpyType? type}) {
+    return NpyHeaderSection.fromHeader(
+      NpyHeader.fromList(list, endian: endian, fortranOrder: fortranOrder, itemSize: itemSize, type: type),
+    );
   }
 
   factory NpyHeaderSection.fromHeader(NpyHeader header) {
@@ -352,13 +361,18 @@ class NpyHeader<T> {
   factory NpyHeader.fromList(
     List list, {
     List<int> shape = const [],
-    NpyType type = NpyType.float,
+    NpyType? type,
     NpyEndian? endian,
     bool? fortranOrder,
+    int? itemSize,
   }) {
     if (list.isEmpty) {
       return NpyHeader.buildString(
-        dtype: NpyDType(endian: endian ?? NpyEndian.little, type: type, itemSize: 8),
+        dtype: NpyDType(
+          endian: endian ?? NpyEndian.little,
+          type: type ?? NpyType.float,
+          itemSize: itemSize ?? NpyDType.defaultItemSize,
+        ),
         fortranOrder: fortranOrder ?? false,
         shape: shape.isEmpty ? const [] : [...shape, list.length],
       );
@@ -369,7 +383,7 @@ class NpyHeader<T> {
     final firstElement = list.first;
 
     if (firstElement is int) {
-      obtainedType = NpyType.int;
+      obtainedType = type == NpyType.uint ? NpyType.uint : NpyType.int;
     } else if (firstElement is double) {
       obtainedType = NpyType.float;
     } else if (firstElement is List) {
@@ -384,7 +398,11 @@ class NpyHeader<T> {
     }
 
     return NpyHeader.buildString(
-      dtype: NpyDType(endian: endian ?? NpyEndian.little, type: obtainedType, itemSize: 8),
+      dtype: NpyDType(
+        endian: endian ?? NpyEndian.little,
+        type: obtainedType,
+        itemSize: itemSize ?? NpyDType.defaultItemSize,
+      ),
       fortranOrder: fortranOrder ?? false,
       shape: updatedShape,
     );
@@ -434,6 +452,8 @@ class NpyDType {
   final NpyEndian endian;
   final NpyType type;
   final int itemSize;
+
+  static const defaultItemSize = 8;
 
   factory NpyDType.fromString(String string) {
     if (string.length < 3) throw NpyInvalidDTypeException(message: "'descr' field has insufficient length: '$string'");

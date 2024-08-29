@@ -782,6 +782,12 @@ void main() {
       expect(ndarray.headerSection.header.dtype.type, NpyType.float);
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 0);
     });
+    test('[], uint', () {
+      final ndarray = NdArray.fromList([], type: NpyType.uint);
+      expect(ndarray.data.length, 0);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.uint);
+      expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 0);
+    });
     test('[1]', () {
       final ndarray = NdArray.fromList([1]);
       expect(ndarray.data.length, 1);

@@ -128,8 +128,15 @@ List<T> _parseData<T>(List<int> bytes, NpyDType dtype, int count) {
 /// Saves the [List] to the given [path] in NPY format.
 ///
 /// The [List] has to be of a supported type, which are currently [int] and [double].
-Future<void> saveList(String path, List list, {NpyEndian? endian, bool? fortranOrder}) async =>
-    save(path, NdArray.fromList(list, endian: endian, fortranOrder: fortranOrder));
+Future<void> saveList(
+  String path,
+  List list, {
+  NpyEndian? endian,
+  bool? fortranOrder,
+  int? itemSize,
+  NpyType? type,
+}) async =>
+    save(path, NdArray.fromList(list, endian: endian, fortranOrder: fortranOrder, itemSize: itemSize, type: type));
 
 /// Saves the [NdArray] to the given [path] in NPY format.
 ///
