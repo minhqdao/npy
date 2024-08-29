@@ -693,7 +693,7 @@ void main() {
       // final ndarray = await load(filename);
       // expect(ndarray.headerSection.version?.major, 1);
       // expect(ndarray.headerSection.version?.minor, 0);
-      // expect(ndarray.data, []);
+      // expect(ndarray.list, []);
       File(filename).deleteSync();
     });
   });

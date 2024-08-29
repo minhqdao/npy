@@ -8,13 +8,13 @@ import 'package:npy/src/np_file.dart';
 
 /// Loads an NPY file from the given [path] and returns an [NdArray] object.
 ///
-/// If you're expecting a specific type of data, you can use the generic type parameter [T] to specify it as such:
+/// If you're expecting a specific type of list, you can use the generic type parameter [T] to specify it as such:
 ///
 /// ```dart
 /// void main() async {
 ///  final NdArray<double> ndarray = await load<double>('example.npy');
-///  final List<double> data = ndarray.data;
-///  print(data);
+///  final List<double> list = ndarray.list;
+///  print(list);
 ///}
 /// ```
 Future<NdArray<T>> load<T>(String path) async {
@@ -28,7 +28,7 @@ Future<NdArray<T>> load<T>(String path) async {
   final parser = NpyParser();
   int dataOffset = 0;
   int dataRead = 0;
-  final List<T> data = [];
+  final List<T> list = [];
 
   try {
     await for (final chunk in stream) {
@@ -61,11 +61,11 @@ Future<NdArray<T>> load<T>(String path) async {
             elementsToProcess,
           );
 
-          data.addAll(newData);
+          list.addAll(newData);
           dataRead += elementsToProcess;
           dataOffset += elementsToProcess * parser.header!.dtype.itemSize;
 
-          if (dataRead == totalElements) return NdArray<T>(header: parser.header!, data: data);
+          if (dataRead == totalElements) return NdArray<T>(header: parser.header!, list: list);
         }
 
         buffer = buffer.sublist(dataOffset);
@@ -124,8 +124,8 @@ List<T> _parseData<T>(List<int> bytes, NpyDType dtype, int count) {
 /// Saves the [List] to the given [path] in NPY format.
 ///
 /// The [List] has to be of a supported type, which are currently [int] and [double].
-Future<void> saveList<T>(String path, List<T> data, {NpyEndian? endian, bool? fortranOrder}) async =>
-    save(path, NdArray<T>.fromList(data, endian: endian, fortranOrder: fortranOrder));
+Future<void> saveList(String path, List list, {NpyEndian? endian, bool? fortranOrder}) async =>
+    save(path, NdArray.fromList(list, endian: endian, fortranOrder: fortranOrder));
 
 /// Saves the [NdArray] to the given [path] in NPY format.
 ///

@@ -7,16 +7,16 @@ import 'package:npy/src/np_exception.dart';
 class NdArray<T> {
   const NdArray({
     required this.header,
-    this.data = const [],
+    this.list = const [],
   });
 
   final NpyHeader header;
-  final List<T> data;
+  final List<T> list;
 
-  factory NdArray.fromList(List<T> data, {NpyEndian? endian, bool? fortranOrder}) =>
-      NdArray<T>(header: NpyHeader<T>.fromList(data, endian: endian, fortranOrder: fortranOrder), data: data);
+  factory NdArray.fromList(List<T> list, {NpyEndian? endian, bool? fortranOrder}) =>
+      NdArray<T>(header: NpyHeader<T>.fromList(list, endian: endian, fortranOrder: fortranOrder), list: list);
 
-  T getElement(List<int> indices) => data[_getIndex(indices)];
+  T getElement(List<int> indices) => list[_getIndex(indices)];
 
   int _getIndex(List<int> indices) {
     assert(indices.length == header.shape.length);
@@ -47,7 +47,7 @@ class NdArray<T> {
         throw NpyUnsupportedEndianException(message: 'Unsupported endian: ${dtype.endian}');
     }
 
-    for (final element in data) {
+    for (final element in list) {
       final byteData = ByteData(dtype.itemSize);
       if (element is int) {
         switch (dtype.type) {
@@ -456,7 +456,7 @@ enum NpyType {
     assert(char.length == 1);
     return NpyType.values.firstWhere(
       (type) => type.char == char,
-      orElse: () => throw NpyUnsupportedNpyTypeException(message: 'Unsupported data type: $char'),
+      orElse: () => throw NpyUnsupportedNpyTypeException(message: 'Unsupported list type: $char'),
     );
   }
 }
