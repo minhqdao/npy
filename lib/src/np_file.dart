@@ -165,7 +165,7 @@ class NpyVersion {
   static const numberOfReservedBytes = 2;
   static const numberOfHeaderSizeBytesFirstVersion = 2;
   static const numberOfHeaderSizeBytesLaterVersions = 4;
-  static const maxSizeFirstVersion = 65536;
+  static const maxFirstVersionSize = 65535;
   static const lastAsciiCodeUnit = 127;
   static const _supportedMajorVersions = {1, 2, 3};
   static const _supportedMinorVersions = {0};
@@ -191,7 +191,7 @@ class NpyVersion {
     return NpyVersion(
       major: cannotBeAsciiEncoded(string)
           ? 3
-          : firstVersionSizeWithoutPadding + getPaddingSize(firstVersionSizeWithoutPadding) < maxSizeFirstVersion
+          : firstVersionSizeWithoutPadding + getPaddingSize(firstVersionSizeWithoutPadding) <= maxFirstVersionSize
               ? 1
               : 2,
     );
@@ -342,7 +342,7 @@ class NpyHeader<T> {
     List<int> headerSizeBytes;
 
     if (version.major == 1) {
-      assert(headerSize < 65536);
+      assert(headerSize <= NpyVersion.maxFirstVersionSize);
       headerSizeBytes = [headerSize & 0xFF, (headerSize >> 8) & 0xFF];
     } else {
       headerSizeBytes = [
