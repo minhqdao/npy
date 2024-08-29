@@ -110,23 +110,23 @@ class NdArray<T> {
 
 class NpyParser<T> {
   NpyParser({
-    this.isMagicStringChecked = false,
+    this.hasPassedMagicStringCheck = false,
     this.version,
     this.headerLength,
     this.header,
   });
 
-  bool isMagicStringChecked;
+  bool hasPassedMagicStringCheck;
   NpyVersion? version;
   int? headerLength;
   NpyHeader? header;
 
   void checkMagicString(List<int> bytes) {
-    if (isMagicStringChecked || bytes.length < magicString.length) return;
+    if (hasPassedMagicStringCheck || bytes.length < magicString.length) return;
     if (!const IterableEquality().equals(magicString.codeUnits, bytes.take(magicString.length))) {
       throw const NpyInvalidMagicStringException(message: 'Invalid magic string.');
     }
-    isMagicStringChecked = true;
+    hasPassedMagicStringCheck = true;
   }
 
   void getVersion(List<int> bytes) {

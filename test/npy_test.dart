@@ -6,23 +6,55 @@ import 'package:test/test.dart';
 
 void main() {
   group('Check magic string:', () {
-    test(
-      'Valid code units',
-      () => expect(() => NpyParser().checkMagicString([147, 78, 85, 77, 80, 89]), returnsNormally),
-    );
+    test('Valid code units', () {
+      final parser = NpyParser();
+      expect(parser.hasPassedMagicStringCheck, false);
+      expect(() => parser.checkMagicString([147, 78, 85, 77, 80, 89]), returnsNormally);
+      expect(parser.hasPassedMagicStringCheck, true);
+    });
+    test('Additional bytes', () {
+      final parser = NpyParser();
+      expect(parser.hasPassedMagicStringCheck, false);
+      expect(() => parser.checkMagicString([147, 78, 85, 77, 80, 89, 1, 2, 3]), returnsNormally);
+      expect(parser.hasPassedMagicStringCheck, true);
+    });
+    test('Insufficient bytes', () {
+      final parser = NpyParser();
+      expect(parser.hasPassedMagicStringCheck, false);
+      expect(() => parser.checkMagicString([147, 78, 85, 77, 80]), returnsNormally);
+      expect(parser.hasPassedMagicStringCheck, false);
+    });
+    test('Second run returns early with wrong magic string', () {
+      final parser = NpyParser();
+      expect(parser.hasPassedMagicStringCheck, false);
+      expect(() => parser.checkMagicString([147, 78, 85, 77, 80, 89]), returnsNormally);
+      expect(parser.hasPassedMagicStringCheck, true);
+      expect(() => parser.checkMagicString([147, 78, 85, 77, 80, 90]), returnsNormally);
+      expect(parser.hasPassedMagicStringCheck, true);
+    });
     test(
       'Invalid first byte',
-      () => expect(
-        () => NpyParser().checkMagicString([146, 78, 85, 77, 80, 89]),
-        throwsA(const TypeMatcher<NpyInvalidMagicStringException>()),
-      ),
+      () {
+        final parser = NpyParser();
+        expect(parser.hasPassedMagicStringCheck, false);
+        expect(
+          () => parser.checkMagicString([146, 78, 85, 77, 80, 89]),
+          throwsA(const TypeMatcher<NpyInvalidMagicStringException>()),
+        );
+        expect(parser.hasPassedMagicStringCheck, false);
+      },
     );
     test(
       'Invalid last byte',
-      () => expect(
-        () => NpyParser().checkMagicString([147, 78, 85, 77, 80, 87]),
-        throwsA(const TypeMatcher<NpyInvalidMagicStringException>()),
-      ),
+      () {
+        final parser = NpyParser();
+        expect(parser.hasPassedMagicStringCheck, false);
+        expect(
+          () => parser.checkMagicString([147, 78, 85, 77, 80, 87]),
+          throwsA(const TypeMatcher<NpyInvalidMagicStringException>()),
+        );
+        expect(parser.hasPassedMagicStringCheck, false);
+      },
     );
     test('Too short', () => expect(() => NpyParser().checkMagicString([147, 78, 85, 77, 80]), returnsNormally));
     test('Too long', () => expect(() => NpyParser().checkMagicString([147, 78, 85, 77, 80, 89, 90]), returnsNormally));
