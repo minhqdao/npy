@@ -239,6 +239,8 @@ void main() {
     test('Invalid endian', () {
       expect(() => NpyEndian.fromChar('!'), throwsA(const TypeMatcher<NpyUnsupportedEndianException>()));
     });
+    test('Empty string', () => expect(() => NpyEndian.fromChar(''), throwsA(isA<AssertionError>())));
+    test('Two characters', () => expect(() => NpyEndian.fromChar('<>'), throwsA(isA<AssertionError>())));
   });
 
   group('Parse NpyType:', () {
@@ -253,35 +255,52 @@ void main() {
     test('Invalid type', () {
       expect(() => NpyType.fromChar('a'), throwsA(const TypeMatcher<NpyUnsupportedNpyTypeException>()));
     });
+    test('Empty string', () => expect(() => NpyType.fromChar(''), throwsA(isA<AssertionError>())));
+    test('Two characters', () => expect(() => NpyType.fromChar('fc'), throwsA(isA<AssertionError>())));
   });
 
   group('Parse NpyDType:', () {
-    test('Empty string', () {
-      expect(() => NpyDType.fromString(''), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
-    });
-    test('String too short', () {
-      expect(() => NpyDType.fromString('<f'), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
-    });
-    test('Invalid descr', () {
-      expect(() => NpyDType.fromString('f>8'), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
-    });
     test('<f8', () {
       final dtype = NpyDType.fromString('<f8');
       expect(dtype.endian, NpyEndian.little);
-      expect(dtype.kind, NpyType.float);
+      expect(dtype.type, NpyType.float);
       expect(dtype.itemSize, 8);
     });
-    test('>f4', () {
-      final dtype = NpyDType.fromString('>f4');
+    test('>i4', () {
+      final dtype = NpyDType.fromString('>i4');
       expect(dtype.endian, NpyEndian.big);
-      expect(dtype.kind, NpyType.float);
+      expect(dtype.type, NpyType.int);
       expect(dtype.itemSize, 4);
     });
     test('|S10', () {
       final dtype = NpyDType.fromString('|S10');
       expect(dtype.endian, NpyEndian.none);
-      expect(dtype.kind, NpyType.string);
+      expect(dtype.type, NpyType.string);
       expect(dtype.itemSize, 10);
+    });
+    test('=u2', () {
+      final dtype = NpyDType.fromString('=u2');
+      expect(dtype.endian, NpyEndian.native);
+      expect(dtype.type, NpyType.uint);
+      expect(dtype.itemSize, 2);
+    });
+    test('Empty string', () {
+      expect(() => NpyDType.fromString(''), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
+    });
+    test('Unsufficient length', () {
+      expect(() => NpyDType.fromString('<f'), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
+    });
+    test('Invalid descr', () {
+      expect(() => NpyDType.fromString('f>8'), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
+    });
+    test('Invalid endian', () {
+      expect(() => NpyDType.fromString('!f8'), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
+    });
+    test('Invalid type', () {
+      expect(() => NpyDType.fromString('|X8'), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
+    });
+    test('Invalid digit', () {
+      expect(() => NpyDType.fromString('>ff'), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
     });
   });
 
@@ -298,7 +317,7 @@ void main() {
     test('<f8, False, (3,)', () {
       final header = NpyHeader.fromString("{'descr': '<f8', 'fortran_order': False, 'shape': (3,)}");
       expect(header.dtype.endian, NpyEndian.little);
-      expect(header.dtype.kind, NpyType.float);
+      expect(header.dtype.type, NpyType.float);
       expect(header.dtype.itemSize, 8);
       expect(header.fortranOrder, false);
       expect(header.shape, [3]);
@@ -306,7 +325,7 @@ void main() {
     test('<f8, True, (3,)', () {
       final header = NpyHeader.fromString("{'descr': '<f8', 'fortran_order': True, 'shape': (3,)}");
       expect(header.dtype.endian, NpyEndian.little);
-      expect(header.dtype.kind, NpyType.float);
+      expect(header.dtype.type, NpyType.float);
       expect(header.dtype.itemSize, 8);
       expect(header.fortranOrder, true);
       expect(header.shape, [3]);
@@ -320,7 +339,7 @@ void main() {
     test('>i4, True, (3,)', () {
       final header = NpyHeader.fromString("{'descr': '>i4', 'fortran_order': True, 'shape': (3,)}");
       expect(header.dtype.endian, NpyEndian.big);
-      expect(header.dtype.kind, NpyType.int);
+      expect(header.dtype.type, NpyType.int);
       expect(header.dtype.itemSize, 4);
       expect(header.fortranOrder, true);
       expect(header.shape, [3]);
@@ -328,7 +347,7 @@ void main() {
     test('|S200, True, (3,)', () {
       final header = NpyHeader.fromString("{'descr': '|S200', 'fortran_order': True, 'shape': (3,)}");
       expect(header.dtype.endian, NpyEndian.none);
-      expect(header.dtype.kind, NpyType.string);
+      expect(header.dtype.type, NpyType.string);
       expect(header.dtype.itemSize, 200);
       expect(header.fortranOrder, true);
       expect(header.shape, [3]);
@@ -360,7 +379,7 @@ void main() {
     test('<f8, True, ()', () {
       final header = NpyHeader.fromString("{'descr': '<f8', 'fortran_order': True, 'shape': ()}");
       expect(header.dtype.endian, NpyEndian.little);
-      expect(header.dtype.kind, NpyType.float);
+      expect(header.dtype.type, NpyType.float);
       expect(header.dtype.itemSize, 8);
       expect(header.fortranOrder, true);
       expect(header.shape, []);
@@ -368,7 +387,7 @@ void main() {
     test('<f8, True, (2, 3)', () {
       final header = NpyHeader.fromString("{'descr': '<f8', 'fortran_order': True, 'shape': (2, 3)}");
       expect(header.dtype.endian, NpyEndian.little);
-      expect(header.dtype.kind, NpyType.float);
+      expect(header.dtype.type, NpyType.float);
       expect(header.dtype.itemSize, 8);
       expect(header.fortranOrder, true);
       expect(header.shape, [2, 3]);
@@ -376,7 +395,7 @@ void main() {
     test('<f8, True, (2, 3) with extra whitespace', () {
       final header = NpyHeader.fromString("{' descr' :  '<f8 ' ,  ' fortran_order ':  True ,  ' shape' :  ( 2 , 3 ) }");
       expect(header.dtype.endian, NpyEndian.little);
-      expect(header.dtype.kind, NpyType.float);
+      expect(header.dtype.type, NpyType.float);
       expect(header.dtype.itemSize, 8);
       expect(header.fortranOrder, true);
       expect(header.shape, [2, 3]);
@@ -384,7 +403,7 @@ void main() {
     test('<f8, True, (2, 3) with whitespace and trailing comma', () {
       final header = NpyHeader.fromString("{'descr' :'<f8 ' , ' fortran_order ':  True ,  ' shape' :  ( 2 , 3 ) , }");
       expect(header.dtype.endian, NpyEndian.little);
-      expect(header.dtype.kind, NpyType.float);
+      expect(header.dtype.type, NpyType.float);
       expect(header.dtype.itemSize, 8);
       expect(header.fortranOrder, true);
       expect(header.shape, [2, 3]);
@@ -392,7 +411,7 @@ void main() {
     test('<f8, True, (2, 3, 4)', () {
       final header = NpyHeader.fromString("{'descr': '<f8', 'fortran_order': True, 'shape': (2, 3, 4)}");
       expect(header.dtype.endian, NpyEndian.little);
-      expect(header.dtype.kind, NpyType.float);
+      expect(header.dtype.type, NpyType.float);
       expect(header.dtype.itemSize, 8);
       expect(header.fortranOrder, true);
       expect(header.shape, [2, 3, 4]);
@@ -449,7 +468,7 @@ void main() {
     //   final tmpFile = File(filename)..writeAsBytesSync(headerSection.asBytes);
     //   final npyFile = await load(filename);
     //   expect(npyFile.header.dtype.endian, NpyEndian.little);
-    //   expect(npyFile.header.dtype.kind, NpyType.float);
+    //   expect(npyFile.header.dtype.type, NpyType.float);
     //   expect(npyFile.header.dtype.itemSize, 8);
     //   expect(npyFile.header.fortranOrder, true);
     //   expect(npyFile.header.shape, []);
@@ -464,7 +483,7 @@ void main() {
     //   final tmpFile = File(filename)..writeAsBytesSync(headerSection.asBytes);
     //   final npyFile = await load(filename);
     //   expect(npyFile.header.dtype.endian, NpyEndian.little);
-    //   expect(npyFile.header.dtype.kind, NpyType.float);
+    //   expect(npyFile.header.dtype.type, NpyType.float);
     //   expect(npyFile.header.dtype.itemSize, 8);
     //   expect(npyFile.header.fortranOrder, true);
     //   expect(npyFile.header.shape, [3]);
@@ -485,7 +504,7 @@ void main() {
     //   expect(npyFile.version.minor, 0);
     //   expect(npyFile.headerLength, 56);
     //   expect(npyFile.header.dtype.endian, NpyEndian.little);
-    //   expect(npyFile.header.dtype.kind, NpyType.float);
+    //   expect(npyFile.header.dtype.type, NpyType.float);
     //   expect(npyFile.header.dtype.itemSize, 8);
     //   expect(npyFile.header.fortranOrder, true);
     //   expect(npyFile.header.shape, [3, 4]);
@@ -510,7 +529,7 @@ void main() {
     //   expect(npyFile.version.minor, 0);
     //   expect(npyFile.headerLength, 58);
     //   expect(npyFile.header.dtype.endian, NpyEndian.big);
-    //   expect(npyFile.header.dtype.kind, NpyType.int);
+    //   expect(npyFile.header.dtype.type, NpyType.int);
     //   expect(npyFile.header.dtype.itemSize, 4);
     //   expect(npyFile.header.fortranOrder, false);
     //   expect(npyFile.header.shape, [3, 4, 5]);
@@ -535,7 +554,7 @@ void main() {
     //   expect(npyFile.version.minor, 0);
     //   expect(npyFile.headerLength, 53);
     //   expect(npyFile.header.dtype.endian, NpyEndian.big);
-    //   expect(npyFile.header.dtype.kind, NpyType.int);
+    //   expect(npyFile.header.dtype.type, NpyType.int);
     //   expect(npyFile.header.dtype.itemSize, 4);
     //   expect(npyFile.header.fortranOrder, false);
     //   expect(npyFile.header.shape, []);
@@ -566,7 +585,7 @@ void main() {
   group('Build header string:', () {
     test('<f8, False, ()', () {
       final header = NpyHeader.buildString(
-        dtype: const NpyDType(endian: NpyEndian.little, kind: NpyType.float, itemSize: 8),
+        dtype: const NpyDType(endian: NpyEndian.little, type: NpyType.float, itemSize: 8),
         fortranOrder: false,
         shape: [],
       );
@@ -574,7 +593,7 @@ void main() {
     });
     test('<f8, True, ()', () {
       final header = NpyHeader.buildString(
-        dtype: const NpyDType(endian: NpyEndian.little, kind: NpyType.float, itemSize: 8),
+        dtype: const NpyDType(endian: NpyEndian.little, type: NpyType.float, itemSize: 8),
         fortranOrder: true,
         shape: [],
       );
@@ -582,7 +601,7 @@ void main() {
     });
     test('>i4, True, ()', () {
       final header = NpyHeader.buildString(
-        dtype: const NpyDType(endian: NpyEndian.big, kind: NpyType.int, itemSize: 4),
+        dtype: const NpyDType(endian: NpyEndian.big, type: NpyType.int, itemSize: 4),
         fortranOrder: true,
         shape: [],
       );
@@ -590,7 +609,7 @@ void main() {
     });
     test('<i2, True, (3,)', () {
       final header = NpyHeader.buildString(
-        dtype: const NpyDType(endian: NpyEndian.little, kind: NpyType.int, itemSize: 2),
+        dtype: const NpyDType(endian: NpyEndian.little, type: NpyType.int, itemSize: 2),
         fortranOrder: true,
         shape: [3],
       );
@@ -598,7 +617,7 @@ void main() {
     });
     test('>f4, True, (3, 4)', () {
       final header = NpyHeader.buildString(
-        dtype: const NpyDType(endian: NpyEndian.big, kind: NpyType.float, itemSize: 4),
+        dtype: const NpyDType(endian: NpyEndian.big, type: NpyType.float, itemSize: 4),
         fortranOrder: true,
         shape: [3, 4],
       );

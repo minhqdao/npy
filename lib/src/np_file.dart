@@ -50,7 +50,7 @@ class NdArray<T> {
     for (final element in data) {
       final byteData = ByteData(dtype.itemSize);
       if (element is int) {
-        switch (dtype.kind) {
+        switch (dtype.type) {
           case NpyType.int:
             switch (dtype.itemSize) {
               case 1:
@@ -78,7 +78,7 @@ class NdArray<T> {
                 throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
             }
           default:
-            throw NpyUnsupportedNpyTypeException(message: 'Unsupported NpyType: ${dtype.kind}');
+            throw NpyUnsupportedNpyTypeException(message: 'Unsupported NpyType: ${dtype.type}');
         }
       } else if (element is double) {
         switch (dtype.itemSize) {
@@ -87,7 +87,7 @@ class NdArray<T> {
           case 8:
             byteData.setFloat64(0, element, endian);
           default:
-            throw NpyUnsupportedDTypeException(message: 'Unsupported NpyType: ${dtype.kind}');
+            throw NpyUnsupportedDTypeException(message: 'Unsupported NpyType: ${dtype.type}');
         }
       } else {
         throw NpyUnsupportedTypeException(message: 'Unsupported NdArray type: $T');
@@ -284,23 +284,23 @@ class NpyHeader<T> {
   factory NpyHeader.fromList(List<T> data, {NpyEndian? endian, bool? fortranOrder}) {
     if (data.isEmpty) {
       return NpyHeader.buildString(
-        dtype: NpyDType(endian: endian ?? NpyEndian.little, kind: NpyType.float, itemSize: 8),
+        dtype: NpyDType(endian: endian ?? NpyEndian.little, type: NpyType.float, itemSize: 8),
         fortranOrder: fortranOrder ?? false,
         shape: [],
       );
     }
 
-    late final NpyType kind;
+    late final NpyType type;
     if (T == int) {
-      kind = NpyType.int;
+      type = NpyType.int;
     } else if (T == double) {
-      kind = NpyType.float;
+      type = NpyType.float;
     } else {
       throw NpyUnsupportedTypeException(message: 'Unsupported input type: $T');
     }
 
     return NpyHeader.buildString(
-      dtype: NpyDType(endian: endian ?? NpyEndian.little, kind: kind, itemSize: 8),
+      dtype: NpyDType(endian: endian ?? NpyEndian.little, type: type, itemSize: 8),
       fortranOrder: fortranOrder ?? false,
       shape: [data.length],
     );
@@ -378,29 +378,29 @@ int littleEndian32ToInt(List<int> bytes) {
 class NpyDType {
   const NpyDType({
     required this.endian,
-    required this.kind,
+    required this.type,
     required this.itemSize,
   });
 
   final NpyEndian endian;
-  final NpyType kind;
+  final NpyType type;
   final int itemSize;
 
   factory NpyDType.fromString(String string) {
-    if (string.length < 3) throw NpyInvalidDTypeException(message: "Invalid 'descr' field: '$string'");
+    if (string.length < 3) throw NpyInvalidDTypeException(message: "'descr' field has insufficient length: '$string'");
 
     try {
       final endian = NpyEndian.fromChar(string[0]);
-      final kind = NpyType.fromChar(string[1]);
+      final type = NpyType.fromChar(string[1]);
       final itemSize = int.parse(string.substring(2));
-      return NpyDType(endian: endian, kind: kind, itemSize: itemSize);
+      return NpyDType(endian: endian, type: type, itemSize: itemSize);
     } catch (e) {
       throw NpyInvalidDTypeException(message: "Invalid 'descr' field: '$string': $e");
     }
   }
 
   @override
-  String toString() => '${endian.char}${kind.char}$itemSize';
+  String toString() => '${endian.char}${type.char}$itemSize';
 }
 
 enum NpyEndian {
@@ -413,10 +413,13 @@ enum NpyEndian {
 
   final String char;
 
-  factory NpyEndian.fromChar(String char) => NpyEndian.values.firstWhere(
-        (order) => order.char == char,
-        orElse: () => throw NpyUnsupportedEndianException(message: 'Unsupported endian: $char'),
-      );
+  factory NpyEndian.fromChar(String char) {
+    assert(char.length == 1);
+    return NpyEndian.values.firstWhere(
+      (order) => order.char == char,
+      orElse: () => throw NpyUnsupportedEndianException(message: 'Unsupported endian: $char'),
+    );
+  }
 }
 
 enum NpyType {
@@ -433,8 +436,11 @@ enum NpyType {
 
   final String char;
 
-  factory NpyType.fromChar(String char) => NpyType.values.firstWhere(
-        (type) => type.char == char,
-        orElse: () => throw NpyUnsupportedNpyTypeException(message: 'Unsupported data type: $char'),
-      );
+  factory NpyType.fromChar(String char) {
+    assert(char.length == 1);
+    return NpyType.values.firstWhere(
+      (type) => type.char == char,
+      orElse: () => throw NpyUnsupportedNpyTypeException(message: 'Unsupported data type: $char'),
+    );
+  }
 }
