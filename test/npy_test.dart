@@ -306,58 +306,64 @@ void main() {
   });
   group('ListProperties:', () {
     test('Empty list', () {
-      final properties = ListProperties()..getProperties([]);
-      expect(properties.shape, []);
-      expect(properties.type, NpyType.float);
+      final header = NpyHeader.fromList([]);
+      expect(const ListEquality().equals(header.shape, []), true);
+      expect(header.dtype.type, NpyType.float);
     });
     test('One int', () {
-      final properties = ListProperties()..getProperties([42]);
-      expect(properties.shape, [1]);
-      expect(properties.type, NpyType.int);
+      final header = NpyHeader.fromList([42]);
+      expect(const ListEquality().equals(header.shape, [1]), true);
+      expect(header.dtype.type, NpyType.int);
     });
     test('Two ints', () {
-      final properties = ListProperties()..getProperties([42, 35]);
-      expect(properties.shape, [2]);
-      expect(properties.type, NpyType.int);
+      final header = NpyHeader.fromList([42, 35]);
+      expect(const ListEquality().equals(header.shape, [2]), true);
+      expect(header.dtype.type, NpyType.int);
     });
     test('Two doubles', () {
-      final properties = ListProperties()..getProperties([0.1, 2.3]);
-      expect(properties.shape, [2]);
-      expect(properties.type, NpyType.float);
+      final header = NpyHeader.fromList([0.1, 2.3]);
+      expect(const ListEquality().equals(header.shape, [2]), true);
+      expect(header.dtype.type, NpyType.float);
     });
-    test('[2, 3]]', () {
-      final properties = ListProperties()
-        ..getProperties([
-          [1, 2, 3],
-          [4, 5, 6],
-        ]);
-      expect(const ListEquality().equals(properties.shape, [2, 3]), true);
-      expect(properties.type, NpyType.int);
+    test('[2, 3]', () {
+      final header = NpyHeader.fromList([
+        [1, 2, 3],
+        [4, 5, 6],
+      ]);
+      expect(const ListEquality().equals(header.shape, [2, 3]), true);
+      expect(header.dtype.type, NpyType.int);
     });
     test('[3, 2, 1]', () {
-      final properties = ListProperties()
-        ..getProperties([
-          [
-            [1.0],
-            [2.1],
-          ],
-          [
-            [3.2],
-            [4.3],
-          ],
-          [
-            [5.4],
-            [6.5],
-          ],
-        ]);
-      expect(const ListEquality().equals(properties.shape, [3, 2, 1]), true);
-      expect(properties.type, NpyType.float);
+      final header = NpyHeader.fromList([
+        [
+          [1.0],
+          [2.1],
+        ],
+        [
+          [3.2],
+          [4.3],
+        ],
+        [
+          [5.4],
+          [6.5],
+        ],
+      ]);
+      expect(const ListEquality().equals(header.shape, [3, 2, 1]), true);
+      expect(header.dtype.type, NpyType.float);
+    });
+    test('[2, 0]', () {
+      final header = NpyHeader.fromList([
+        [],
+        [],
+      ]);
+      expect(const ListEquality().equals(header.shape, [2, 0]), true);
+      expect(header.dtype.type, NpyType.float);
     });
     test('Bool throws error', () {
-      expect(() => ListProperties()..getProperties([true]), throwsA(const TypeMatcher<NpyUnsupportedTypeException>()));
+      expect(() => NpyHeader.fromList([true]), throwsA(const TypeMatcher<NpyUnsupportedTypeException>()));
     });
     test('String throws error', () {
-      expect(() => ListProperties()..getProperties(['hi']), throwsA(const TypeMatcher<NpyUnsupportedTypeException>()));
+      expect(() => NpyHeader.fromList(['hi']), throwsA(const TypeMatcher<NpyUnsupportedTypeException>()));
     });
   });
   group('Parse NpyHeader:', () {

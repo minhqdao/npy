@@ -281,13 +281,44 @@ class NpyHeader<T> {
     );
   }
 
-  factory NpyHeader.fromList(List<T> data, {NpyEndian? endian, bool? fortranOrder}) {
-    final listProperties = ListProperties()..getProperties(data);
+  factory NpyHeader.fromList(
+    List list, {
+    List<int> shape = const [],
+    NpyType type = NpyType.float,
+    NpyEndian? endian,
+    bool? fortranOrder,
+  }) {
+    if (list.isEmpty) {
+      return NpyHeader.buildString(
+        dtype: NpyDType(endian: endian ?? NpyEndian.little, type: type, itemSize: 8),
+        fortranOrder: fortranOrder ?? false,
+        shape: shape.isEmpty ? const [] : [...shape, list.length],
+      );
+    }
+
+    final updatedShape = [...shape, list.length];
+    late final NpyType obtainedType;
+    final firstElement = list.first;
+
+    if (firstElement is int) {
+      obtainedType = NpyType.int;
+    } else if (firstElement is double) {
+      obtainedType = NpyType.float;
+    } else if (firstElement is List) {
+      return NpyHeader.fromList(
+        list.first as List,
+        shape: updatedShape,
+        endian: endian,
+        fortranOrder: fortranOrder,
+      );
+    } else {
+      throw NpyUnsupportedTypeException(message: 'Unsupported input type: ${firstElement.runtimeType}');
+    }
 
     return NpyHeader.buildString(
-      dtype: NpyDType(endian: endian ?? NpyEndian.little, type: listProperties.type, itemSize: 8),
+      dtype: NpyDType(endian: endian ?? NpyEndian.little, type: obtainedType, itemSize: 8),
       fortranOrder: fortranOrder ?? false,
-      shape: listProperties.shape,
+      shape: updatedShape,
     );
   }
 
@@ -330,29 +361,6 @@ class NpyHeader<T> {
       ...List.filled(paddingSize, _blankSpaceInt),
       _newLineInt,
     ];
-  }
-}
-
-class ListProperties {
-  ListProperties({this.shape = const [], this.type = NpyType.float});
-
-  List<int> shape;
-  NpyType type;
-
-  void getProperties(List list) {
-    if (list.isEmpty) return;
-    shape = [...shape, list.length];
-
-    final firstElement = list.first;
-    if (firstElement is int) {
-      type = NpyType.int;
-    } else if (firstElement is double) {
-      type = NpyType.float;
-    } else if (firstElement is List) {
-      getProperties(list.first as List);
-    } else {
-      throw NpyUnsupportedTypeException(message: 'Unsupported input type: ${firstElement.runtimeType}');
-    }
   }
 }
 
