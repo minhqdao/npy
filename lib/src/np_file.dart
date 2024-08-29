@@ -52,6 +52,8 @@ class NdArray<T> {
         endian = Endian.little;
       case NpyEndian.big:
         endian = Endian.big;
+      case NpyEndian.native:
+        endian = Endian.host;
       default:
         throw NpyUnsupportedEndianException(message: 'Unsupported endian: ${dtype.endian}');
     }
@@ -173,11 +175,10 @@ class NpyHeaderSection {
   final NpyHeader header;
   final int paddingSize;
 
-  factory NpyHeaderSection.fromList(List list, {NpyEndian? endian, bool? fortranOrder, int? itemSize, NpyType? type}) {
-    return NpyHeaderSection.fromHeader(
-      NpyHeader.fromList(list, endian: endian, fortranOrder: fortranOrder, itemSize: itemSize, type: type),
-    );
-  }
+  factory NpyHeaderSection.fromList(List list, {NpyEndian? endian, bool? fortranOrder, int? itemSize, NpyType? type}) =>
+      NpyHeaderSection.fromHeader(
+        NpyHeader.fromList(list, endian: endian, fortranOrder: fortranOrder, itemSize: itemSize, type: type),
+      );
 
   factory NpyHeaderSection.fromHeader(NpyHeader header) {
     final headerLength = header.length;
