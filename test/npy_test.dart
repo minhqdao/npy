@@ -245,19 +245,44 @@ void main() {
   });
 
   group('Parse NpyType:', () {
-    test('Boolean type', () => expect(NpyType.fromChar('b'), NpyType.boolean));
+    test('Boolean type', () => expect(NpyType.fromChar('?'), NpyType.boolean));
+    test('Byte type', () => expect(NpyType.fromChar('b'), NpyType.byte));
+    test('Unsigned byte type', () => expect(NpyType.fromChar('B'), NpyType.uByte));
     test('Integer type', () => expect(NpyType.fromChar('i'), NpyType.int));
     test('Unsigned integer type', () => expect(NpyType.fromChar('u'), NpyType.uint));
     test('Float type', () => expect(NpyType.fromChar('f'), NpyType.float));
     test('Complex type', () => expect(NpyType.fromChar('c'), NpyType.complex));
-    test('String type', () => expect(NpyType.fromChar('S'), NpyType.string));
+    test('Time delta type', () => expect(NpyType.fromChar('m'), NpyType.timeDelta));
+    test('Date time type', () => expect(NpyType.fromChar('M'), NpyType.dateTime));
+    test('Object type', () => expect(NpyType.fromChar('O'), NpyType.object));
+    test("String type, 'S' representation", () => expect(NpyType.fromChar('S'), NpyType.string));
+    test("String type, 'a' representation", () => expect(NpyType.fromChar('a'), NpyType.string));
     test('Unicode type', () => expect(NpyType.fromChar('U'), NpyType.unicode));
     test('Void type', () => expect(NpyType.fromChar('V'), NpyType.voidType));
     test('Invalid type', () {
-      expect(() => NpyType.fromChar('a'), throwsA(const TypeMatcher<NpyUnsupportedNpyTypeException>()));
+      expect(() => NpyType.fromChar('x'), throwsA(const TypeMatcher<NpyUnsupportedNpyTypeException>()));
     });
     test('Empty string', () => expect(() => NpyType.fromChar(''), throwsA(isA<AssertionError>())));
     test('Two characters', () => expect(() => NpyType.fromChar('fc'), throwsA(isA<AssertionError>())));
+  });
+
+  group('Match NpyType:', () {
+    test('Boolean type', () {
+      const type = NpyType.boolean;
+      expect(type.matches('?'), true);
+      expect(type.matches('b'), false);
+    });
+    test('Float type', () {
+      const type = NpyType.float;
+      expect(type.matches('f'), true);
+      expect(type.matches('i'), false);
+    });
+    test('String type', () {
+      const type = NpyType.string;
+      expect(type.matches('S'), true);
+      expect(type.matches('a'), true);
+      expect(type.matches('U'), false);
+    });
   });
 
   group('Parse NpyDType:', () {
@@ -647,7 +672,7 @@ void main() {
   group('Build header string:', () {
     test('<f8, False, ()', () {
       final header = NpyHeader.buildString(
-        dtype: const NpyDType(endian: NpyEndian.little, type: NpyType.float, itemSize: 8),
+        dtype: const NpyDType.float64(endian: NpyEndian.little),
         fortranOrder: false,
         shape: [],
       );
@@ -655,7 +680,7 @@ void main() {
     });
     test('<f8, True, ()', () {
       final header = NpyHeader.buildString(
-        dtype: const NpyDType(endian: NpyEndian.little, type: NpyType.float, itemSize: 8),
+        dtype: const NpyDType.float64(endian: NpyEndian.little),
         fortranOrder: true,
         shape: [],
       );
@@ -663,7 +688,7 @@ void main() {
     });
     test('>i4, True, ()', () {
       final header = NpyHeader.buildString(
-        dtype: const NpyDType(endian: NpyEndian.big, type: NpyType.int, itemSize: 4),
+        dtype: const NpyDType.int32(endian: NpyEndian.big),
         fortranOrder: true,
         shape: [],
       );
@@ -671,7 +696,7 @@ void main() {
     });
     test('<i2, True, (3,)', () {
       final header = NpyHeader.buildString(
-        dtype: const NpyDType(endian: NpyEndian.little, type: NpyType.int, itemSize: 2),
+        dtype: const NpyDType.int16(endian: NpyEndian.little),
         fortranOrder: true,
         shape: [3],
       );
@@ -679,7 +704,7 @@ void main() {
     });
     test('>f4, True, (3, 4)', () {
       final header = NpyHeader.buildString(
-        dtype: const NpyDType(endian: NpyEndian.big, type: NpyType.float, itemSize: 4),
+        dtype: const NpyDType.float32(endian: NpyEndian.big),
         fortranOrder: true,
         shape: [3, 4],
       );
@@ -783,7 +808,7 @@ void main() {
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 0);
     });
     test('[], uint', () {
-      final ndarray = NdArray.fromList([], type: NpyType.uint);
+      final ndarray = NdArray.fromList([], dtype: const NpyDType.uint64());
       expect(ndarray.data.length, 0);
       expect(ndarray.headerSection.header.dtype.type, NpyType.uint);
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 0);
@@ -832,7 +857,7 @@ void main() {
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).last, 0x3f);
     });
     test('[256], big endian', () {
-      final ndarray = NdArray.fromList([256], endian: NpyEndian.big);
+      final ndarray = NdArray.fromList([256], dtype: const NpyDType.int64(endian: NpyEndian.big));
       expect(ndarray.data.length, 1);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 8);
@@ -841,7 +866,7 @@ void main() {
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).last, 0);
     });
     test('[1, 200], big endian', () {
-      final ndarray = NdArray.fromList([1, 200], endian: NpyEndian.big);
+      final ndarray = NdArray.fromList([1, 200], dtype: const NpyDType.int64(endian: NpyEndian.big));
       expect(ndarray.data.length, 2);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 16);
@@ -851,7 +876,7 @@ void main() {
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(14), 0);
     });
     test('[1.0, 1.9], big endian', () {
-      final ndarray = NdArray.fromList([1.0, 1.9], endian: NpyEndian.big);
+      final ndarray = NdArray.fromList([1.0, 1.9], dtype: const NpyDType.float64(endian: NpyEndian.big));
       expect(ndarray.data.length, 2);
       expect(ndarray.headerSection.header.dtype.type, NpyType.float);
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 16);
@@ -863,7 +888,7 @@ void main() {
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).last, 0x66);
     });
     test('[1, 200]', () {
-      final ndarray = NdArray.fromList([1, 200], itemSize: 4);
+      final ndarray = NdArray.fromList([1, 200], dtype: const NpyDType.int32());
       expect(ndarray.data.length, 2);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 8);
@@ -873,7 +898,7 @@ void main() {
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).elementAt(5), 000);
     });
     test('[1, 200], big endian', () {
-      final ndarray = NdArray.fromList([1, 200], itemSize: 4, endian: NpyEndian.big);
+      final ndarray = NdArray.fromList([1, 200], dtype: const NpyDType.int32(endian: NpyEndian.big));
       expect(ndarray.data.length, 2);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 8);
@@ -884,7 +909,7 @@ void main() {
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).last, 200);
     });
     test('[0.5, 2.0]', () {
-      final ndarray = NdArray.fromList([0.5, 2.0], itemSize: 4, endian: NpyEndian.little);
+      final ndarray = NdArray.fromList([0.5, 2.0], dtype: const NpyDType.float32(endian: NpyEndian.little));
       expect(ndarray.data.length, 2);
       expect(ndarray.headerSection.header.dtype.type, NpyType.float);
       expect(ndarray.asBytes.skip(ndarray.headerSection.length).length, 8);

@@ -13,15 +13,8 @@ class NdArray<T> {
   final NpyHeaderSection headerSection;
   final List<T> data;
 
-  factory NdArray.fromList(List<T> list, {NpyEndian? endian, bool? fortranOrder, int? itemSize, NpyType? type}) =>
-      NdArray<T>(
-        headerSection: NpyHeaderSection.fromList(
-          list,
-          endian: endian,
-          fortranOrder: fortranOrder,
-          itemSize: itemSize,
-          type: type,
-        ),
+  factory NdArray.fromList(List<T> list, {NpyDType? dtype, bool? fortranOrder}) => NdArray<T>(
+        headerSection: NpyHeaderSection.fromList(list, dtype: dtype, fortranOrder: fortranOrder),
         data: list,
       );
 
@@ -175,9 +168,8 @@ class NpyHeaderSection {
   final NpyHeader header;
   final int paddingSize;
 
-  factory NpyHeaderSection.fromList(List list, {NpyEndian? endian, bool? fortranOrder, int? itemSize, NpyType? type}) =>
-      NpyHeaderSection.fromHeader(
-        NpyHeader.fromList(list, endian: endian, fortranOrder: fortranOrder, itemSize: itemSize, type: type),
+  factory NpyHeaderSection.fromList(List list, {NpyDType? dtype, bool? fortranOrder}) => NpyHeaderSection.fromHeader(
+        NpyHeader.fromList(list, dtype: dtype, fortranOrder: fortranOrder),
       );
 
   factory NpyHeaderSection.fromHeader(NpyHeader header) {
@@ -359,23 +351,13 @@ class NpyHeader<T> {
     );
   }
 
-  factory NpyHeader.fromList(
-    List list, {
-    List<int> shape = const [],
-    NpyEndian? endian,
-    bool? fortranOrder,
-    int? itemSize,
-    NpyType? type,
-  }) {
+  factory NpyHeader.fromList(List list, {NpyDType? dtype, bool? fortranOrder, List<int> shape = const []}) {
     if (list.isEmpty) {
       return NpyHeader.buildString(
-        dtype: NpyDType(
-          endian: endian ?? NpyEndian.little,
-          type: type ?? NpyType.float,
-          itemSize: itemSize ?? NpyDType.defaultItemSize,
-        ),
+        dtype: dtype ??
+            NpyDType.fromArgs(endian: NpyEndian.little, type: NpyType.float, itemSize: NpyDType._defaultItemSize),
         fortranOrder: fortranOrder ?? false,
-        shape: shape.isEmpty ? const [] : [...shape, list.length],
+        shape: shape.isEmpty ? shape : [...shape, list.length],
       );
     }
 
@@ -384,27 +366,25 @@ class NpyHeader<T> {
     final firstElement = list.first;
 
     if (firstElement is int) {
-      obtainedType = type == NpyType.uint ? NpyType.uint : NpyType.int;
+      obtainedType = dtype?.type == NpyType.uint ? NpyType.uint : NpyType.int;
     } else if (firstElement is double) {
       obtainedType = NpyType.float;
     } else if (firstElement is List) {
       return NpyHeader.fromList(
         list.first as List,
-        shape: updatedShape,
-        endian: endian,
+        dtype: dtype,
         fortranOrder: fortranOrder,
-        itemSize: itemSize,
-        type: type,
+        shape: updatedShape,
       );
     } else {
       throw NpyUnsupportedTypeException(message: 'Unsupported input type: ${firstElement.runtimeType}');
     }
 
     return NpyHeader.buildString(
-      dtype: NpyDType(
-        endian: endian ?? NpyEndian.little,
+      dtype: NpyDType.fromArgs(
+        endian: dtype?.endian ?? NpyEndian.little,
         type: obtainedType,
-        itemSize: itemSize ?? NpyDType.defaultItemSize,
+        itemSize: dtype?.itemSize ?? NpyDType._defaultItemSize,
       ),
       fortranOrder: fortranOrder ?? false,
       shape: updatedShape,
@@ -446,17 +426,109 @@ int littleEndian32ToInt(List<int> bytes) {
 }
 
 class NpyDType {
-  const NpyDType({
-    required this.endian,
-    required this.type,
-    required this.itemSize,
-  });
+  const NpyDType.float64({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.native,
+        type = NpyType.float,
+        itemSize = 8;
+
+  const NpyDType.float32({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.native,
+        type = NpyType.float,
+        itemSize = 4;
+
+  const NpyDType.int64({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.native,
+        type = NpyType.int,
+        itemSize = 8;
+
+  const NpyDType.int32({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.native,
+        type = NpyType.int,
+        itemSize = 4;
+
+  const NpyDType.int16({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.native,
+        type = NpyType.int,
+        itemSize = 2;
+
+  const NpyDType.int8({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.native,
+        type = NpyType.int,
+        itemSize = 1;
+
+  const NpyDType.uint64({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.native,
+        type = NpyType.uint,
+        itemSize = 8;
+
+  const NpyDType.uint32({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.native,
+        type = NpyType.uint,
+        itemSize = 4;
+
+  const NpyDType.uint16({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.native,
+        type = NpyType.uint,
+        itemSize = 2;
+
+  const NpyDType.uint8({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.native,
+        type = NpyType.uint,
+        itemSize = 1;
+
+  const NpyDType.string({required this.itemSize, NpyEndian? endian})
+      : endian = endian ?? NpyEndian.native,
+        type = NpyType.string;
 
   final NpyEndian endian;
   final NpyType type;
   final int itemSize;
 
-  static const defaultItemSize = 8;
+  static const _defaultItemSize = 8;
+
+  factory NpyDType.fromArgs({required NpyType type, required int itemSize, NpyEndian? endian}) {
+    switch (type) {
+      case NpyType.float:
+        switch (itemSize) {
+          case 8:
+            return NpyDType.float64(endian: endian);
+          case 4:
+            return NpyDType.float32(endian: endian);
+          default:
+            throw NpyUnsupportedDTypeException(message: 'Unsupported float item size: $itemSize');
+        }
+      case NpyType.int:
+        switch (itemSize) {
+          case 8:
+            return NpyDType.int64(endian: endian);
+          case 4:
+            return NpyDType.int32(endian: endian);
+          case 2:
+            return NpyDType.int16(endian: endian);
+          case 1:
+            return NpyDType.int8(endian: endian);
+          default:
+            throw NpyUnsupportedDTypeException(message: 'Unsupported int item size: $itemSize');
+        }
+      case NpyType.uint:
+        switch (itemSize) {
+          case 8:
+            return NpyDType.uint64(endian: endian);
+          case 4:
+            return NpyDType.uint32(endian: endian);
+          case 2:
+            return NpyDType.uint16(endian: endian);
+          case 1:
+            return NpyDType.uint8(endian: endian);
+          default:
+            throw NpyUnsupportedDTypeException(message: 'Unsupported uint item size: $itemSize');
+        }
+      case NpyType.string:
+        return NpyDType.string(itemSize: itemSize, endian: endian);
+      default:
+        throw NpyUnsupportedNpyTypeException(message: 'Unsupported NpyType: $type');
+    }
+  }
 
   factory NpyDType.fromString(String string) {
     if (string.length < 3) throw NpyInvalidDTypeException(message: "'descr' field has insufficient length: '$string'");
@@ -465,14 +537,14 @@ class NpyDType {
       final endian = NpyEndian.fromChar(string[0]);
       final type = NpyType.fromChar(string[1]);
       final itemSize = int.parse(string.substring(2));
-      return NpyDType(endian: endian, type: type, itemSize: itemSize);
+      return NpyDType.fromArgs(endian: endian, type: type, itemSize: itemSize);
     } catch (e) {
       throw NpyInvalidDTypeException(message: "Invalid 'descr' field: '$string': $e");
     }
   }
 
   @override
-  String toString() => '${endian.char}${type.char}$itemSize';
+  String toString() => '${endian.char}${type.chars.first}$itemSize';
 }
 
 enum NpyEndian {
@@ -495,24 +567,31 @@ enum NpyEndian {
 }
 
 enum NpyType {
-  boolean('b'),
-  int('i'),
-  uint('u'),
-  float('f'),
-  complex('c'),
-  string('S'),
-  unicode('U'),
-  voidType('V');
+  boolean(['?']),
+  byte(['b']),
+  uByte(['B']),
+  int(['i']),
+  uint(['u']),
+  float(['f']),
+  complex(['c']),
+  timeDelta(['m']),
+  dateTime(['M']),
+  object(['O']),
+  string(['S', 'a']),
+  unicode(['U']),
+  voidType(['V']);
 
-  const NpyType(this.char);
+  const NpyType(this.chars);
 
-  final String char;
+  final List<String> chars;
 
   factory NpyType.fromChar(String char) {
     assert(char.length == 1);
     return NpyType.values.firstWhere(
-      (type) => type.char == char,
+      (type) => type.matches(char),
       orElse: () => throw NpyUnsupportedNpyTypeException(message: 'Unsupported list type: $char'),
     );
   }
+
+  bool matches(String char) => chars.contains(char);
 }
