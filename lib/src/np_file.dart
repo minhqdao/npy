@@ -150,30 +150,20 @@ class NpyParser<T> {
     if (header != null || version == null || headerSize == null) return;
     final bytesTaken = magicString.length + NpyVersion.numberOfReservedBytes + version!.numberOfHeaderBytes;
     if (bytes.length < bytesTaken + headerSize!) return;
-    header = NpyHeader.fromString(String.fromCharCodes(bytes.skip(bytesTaken).take(headerSize!)));
+    header = NpyHeader.fromBytes(bytes.skip(bytesTaken).take(headerSize!).toList());
+  }
+
+  void buildHeaderSection() {
+    if (headerSection != null || header == null || headerSize == null || version == null) return;
+    headerSection = NpyHeaderSection(
+      version: version!,
+      headerSize: headerSize!,
+      header: header!,
+    );
   }
 
   bool get isNotReadyForData =>
       headerSection == null || header == null || headerSize == null || version == null || !hasPassedMagicStringCheck;
-
-  void buildHeaderSection() {
-    if (headerSection != null || header == null || headerSize == null || version == null) return;
-
-    final paddingSize = getPaddingSize(
-      magicString.length +
-          NpyVersion.numberOfReservedBytes +
-          version!.numberOfHeaderBytes +
-          headerSize! +
-          newLineOffset,
-    );
-
-    headerSection = NpyHeaderSection(
-      version: version!,
-      headerSize: headerSize!,
-      paddingSize: paddingSize,
-      header: header!,
-    );
-  }
 }
 
 class NpyHeaderSection {
@@ -181,13 +171,11 @@ class NpyHeaderSection {
     required this.version,
     required this.header,
     required this.headerSize,
-    required this.paddingSize,
   });
 
   final NpyVersion version;
   final int headerSize;
   final NpyHeader header;
-  final int paddingSize;
 
   factory NpyHeaderSection.fromList(List list, {NpyDType? dtype, bool? fortranOrder}) => NpyHeaderSection.fromHeader(
         NpyHeader.fromList(list, dtype: dtype, fortranOrder: fortranOrder),
@@ -207,38 +195,19 @@ class NpyHeaderSection {
       version: version,
       headerSize: headerSize,
       header: header,
-      paddingSize: paddingSize,
     );
   }
 
   /// Returns the size of the entire header section.
-  int get size =>
-      magicString.length +
-      NpyVersion.numberOfReservedBytes +
-      version.numberOfHeaderBytes +
-      headerSize +
-      paddingSize +
-      newLineOffset;
+  int get size => magicString.length + NpyVersion.numberOfReservedBytes + version.numberOfHeaderBytes + headerSize;
 
   /// Returns entire header section represented by a List of bytes that includes the magic string, the version, the
   /// number of bytes describing the header length, the header length, and the header, padded with spaces and terminated
   /// with a newline character to be a multiple of 64 bytes. It takes the header as a String and leaves it unchanged.
-  List<int> get asBytes {
-    final headerBytes = header.asBytes;
-    final headerSize = headerBytes.length + paddingSize + newLineOffset;
-
-    return [
-      ...magicString.codeUnits,
-      ...version.asBytes,
-      ...headerSizeAsBytes(headerSize),
-      ...headerBytes,
-      ...List.filled(paddingSize, _blankSpaceInt),
-      _newLineInt,
-    ];
-  }
+  List<int> get asBytes => [...magicString.codeUnits, ...version.asBytes, ...headerSizeAsBytes, ...header.asBytes];
 
   /// Returns a list of bytes that encodes the [headerSize]. The list length depends on the major version.
-  List<int> headerSizeAsBytes(int headerSize) {
+  List<int> get headerSizeAsBytes {
     if (version.major == 1) {
       assert(headerSize <= NpyVersion.maxFirstVersionSize);
       return (ByteData(2)..setUint16(0, headerSize, Endian.little)).buffer.asUint8List();
@@ -310,12 +279,35 @@ class NpyHeader<T> {
     required this.fortranOrder,
     required this.shape,
     required this.string,
+    required this.paddingSize,
   });
 
   final NpyDType dtype;
   final bool fortranOrder;
   final List<int> shape;
   final String string;
+  final int paddingSize;
+
+  factory NpyHeader.buildPadding({
+    required NpyDType dtype,
+    required bool fortranOrder,
+    required List<int> shape,
+    required String string,
+  }) {
+    final sizeWithoutPadding = magicString.length +
+        NpyVersion.numberOfReservedBytes +
+        NpyVersion.numberOfHeaderSizeBytesV1 +
+        string.length +
+        newLineOffset;
+
+    return NpyHeader(
+      dtype: dtype,
+      fortranOrder: fortranOrder,
+      shape: shape,
+      string: string,
+      paddingSize: getPaddingSize(sizeWithoutPadding),
+    );
+  }
 
   factory NpyHeader.buildString({required NpyDType dtype, required bool fortranOrder, required List<int> shape}) {
     final shapeString = shape.isEmpty
@@ -324,56 +316,62 @@ class NpyHeader<T> {
             ? '(${shape.first},)'
             : '(${shape.join(', ')})';
     final string = "{'descr': '$dtype', 'fortran_order': ${fortranOrder ? 'True' : 'False'}, 'shape': $shapeString, }";
-    return NpyHeader(dtype: dtype, fortranOrder: fortranOrder, shape: shape, string: string);
+    return NpyHeader.buildPadding(dtype: dtype, fortranOrder: fortranOrder, shape: shape, string: string);
   }
 
-  factory NpyHeader.fromString(String headerString) {
-    if (headerString.length < 2) throw const NpyInvalidHeaderException(message: 'Header string is too short.');
+  static String getDictString(
+    String headerString,
+    String key, [
+    String openingDelimiter = "'",
+    String closingDelimiter = "'",
+  ]) {
+    final keyIndex = headerString.indexOf(key);
+    if (keyIndex == -1) throw NpyInvalidHeaderException(message: "Missing '$key' field.");
 
-    final inputString = headerString.trim().substring(1, headerString.length - 1);
-    final Map<String, dynamic> header = {};
-    final entryPattern = RegExp(r"'([^']+)'\s*:\s*(.+?)(?=\s*,\s*'|$|\s*,\s*$)", multiLine: true, dotAll: true);
-
-    for (final match in entryPattern.allMatches(inputString)) {
-      final key = match.group(1)!.trim();
-      final value = match.group(2)!.trim();
-
-      if (value == 'True') {
-        header[key] = true;
-      } else if (value == 'False') {
-        header[key] = false;
-      } else if (value.startsWith('(') && value.endsWith(')')) {
-        final shapeString = value.substring(1, value.length - 1).trim();
-        if (shapeString.isEmpty) {
-          header[key] = <int>[];
-        } else {
-          header[key] =
-              shapeString.split(',').where((s) => s.trim().isNotEmpty).map((s) => int.parse(s.trim())).toList();
-        }
-      } else if (RegExp(r"^\s*[0-9]+\s*$").hasMatch(value)) {
-        header[key] = int.parse(value.trim());
-      } else if (RegExp(r"^\s*[0-9.]+\s*$").hasMatch(value)) {
-        header[key] = double.parse(value.trim());
-      } else {
-        header[key] = value.replaceAll("'", "").trim();
-      }
+    final firstIndex = headerString.indexOf(openingDelimiter, keyIndex + key.length + 1);
+    if (firstIndex == -1) {
+      throw NpyInvalidHeaderException(message: "Missing opening delimiter '$openingDelimiter' of '$key' field.");
     }
 
-    final descr = header['descr'];
-    final fortranOrder = header['fortran_order'];
-    final shape = header['shape'];
-
-    if (descr is! String) throw const NpyInvalidHeaderException(message: "Missing or invalid 'descr' field.");
-    if (fortranOrder is! bool) {
-      throw const NpyInvalidHeaderException(message: "Missing or invalid 'fortran_order' field.");
+    final lastIndex = headerString.indexOf(closingDelimiter, firstIndex + 1);
+    if (lastIndex == -1) {
+      throw NpyInvalidHeaderException(message: "Missing closing delimiter '$closingDelimiter' of '$key' field.");
     }
-    if (shape is! List<int>) throw const NpyInvalidHeaderException(message: "Missing or invalid 'shape' field.");
+
+    return headerString.substring(firstIndex + 1, lastIndex);
+  }
+
+  factory NpyHeader.fromBytes(List<int> headerBytes) {
+    final lastCharIndex = headerBytes.lastIndexWhere((byte) => byte != _blankSpaceInt && byte != _newLineInt);
+    final headerString = String.fromCharCodes(headerBytes.sublist(0, lastCharIndex + 1));
+
+    final descr = getDictString(headerString, 'descr');
+    final fortranOrderString = getDictString(headerString, 'fortran_order', ':', ',');
+    final shapeString = getDictString(headerString, 'shape', '(', ')');
+
+    late final bool fortranOrder;
+    switch (fortranOrderString.trim()) {
+      case 'True':
+        fortranOrder = true;
+      case 'False':
+        fortranOrder = false;
+      default:
+        throw NpyInvalidHeaderException(message: "Invalid 'fortran_order' field: '$fortranOrderString'");
+    }
+
+    late final List<int> shape;
+    if (shapeString.isEmpty) {
+      shape = const [];
+    } else {
+      shape = shapeString.split(',').where((s) => s.trim().isNotEmpty).map((s) => int.parse(s.trim())).toList();
+    }
 
     return NpyHeader(
       dtype: NpyDType.fromString(descr),
       fortranOrder: fortranOrder,
       shape: shape,
       string: headerString,
+      paddingSize: headerBytes.length - lastCharIndex - 1 - newLineOffset,
     );
   }
 
@@ -381,7 +379,7 @@ class NpyHeader<T> {
     if (list.isEmpty) {
       return NpyHeader.buildString(
         dtype: dtype ??
-            NpyDType.fromArgs(endian: NpyEndian.little, type: NpyType.float, itemSize: NpyDType._defaultItemSize),
+            NpyDType.fromArgs(endian: NpyEndian.little, type: NpyType.float, itemSize: NpyDType.defaultItemSize),
         fortranOrder: fortranOrder ?? false,
         shape: shape.isEmpty ? shape : [...shape, list.length],
       );
@@ -410,7 +408,7 @@ class NpyHeader<T> {
       dtype: NpyDType.fromArgs(
         endian: dtype?.endian ?? NpyEndian.little,
         type: obtainedType,
-        itemSize: dtype?.itemSize ?? NpyDType._defaultItemSize,
+        itemSize: dtype?.itemSize ?? NpyDType.defaultItemSize,
       ),
       fortranOrder: fortranOrder ?? false,
       shape: updatedShape,
@@ -418,7 +416,7 @@ class NpyHeader<T> {
   }
 
   /// Returns the header string as a List<int> of bytes.
-  List<int> get asBytes => utf8.encode(string);
+  List<int> get asBytes => [...utf8.encode(string), ...List.filled(paddingSize, _blankSpaceInt), _newLineInt];
 
   /// Returns the length of the header string.
   int get length => asBytes.length;
@@ -510,7 +508,7 @@ class NpyDType {
   final NpyType type;
   final int itemSize;
 
-  static const _defaultItemSize = 8;
+  static const defaultItemSize = 8;
 
   factory NpyDType.fromArgs({required NpyType type, required int itemSize, NpyEndian? endian}) {
     switch (type) {
