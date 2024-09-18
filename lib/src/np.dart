@@ -24,10 +24,10 @@ Future<NdArray<T>> load<T>(String path) async {
 
   final stream = File(path).openRead();
 
-  List<int> buffer = [];
+  final List<int> buffer = [];
   final parser = NpyParser();
   int dataOffset = 0;
-  int dataRead = 0;
+  int elementsRead = 0;
   final List<T> list = [];
 
   try {
@@ -38,45 +38,30 @@ Future<NdArray<T>> load<T>(String path) async {
         ..checkMagicString(buffer)
         ..getVersion(buffer)
         ..getHeaderSize(buffer)
-        ..getHeader(buffer);
+        ..getHeader(buffer)
+        ..buildHeaderSection();
 
       if (parser.isNotReadyForData) continue;
 
-      final headerSection = NpyHeaderSection.buildPadding(
-        version: parser.version!,
-        headerLength: parser.headerSize!,
-        header: parser.header!,
+      if (parser.header!.shape.isEmpty) return NdArray<T>(headerSection: parser.headerSection!, data: const []);
+
+      dataOffset = parser.headerSection!.size + elementsRead * parser.header!.dtype.itemSize;
+      final totalElements = parser.header!.shape.reduce((a, b) => a * b);
+      final remainingElements = totalElements - elementsRead;
+      final elementsInBuffer = (buffer.length - dataOffset) ~/ parser.header!.dtype.itemSize;
+      final elementsToProcess = min(remainingElements, elementsInBuffer);
+
+      final newData = parseBytes<T>(
+        buffer.sublist(dataOffset, dataOffset + elementsToProcess * parser.header!.dtype.itemSize),
+        parser.header!.dtype,
+        elementsToProcess,
       );
 
-      if (parser.header!.shape.isEmpty) return NdArray<T>(headerSection: headerSection, data: const []);
+      list.addAll(newData);
+      elementsRead += elementsToProcess;
+      dataOffset += elementsToProcess * parser.header!.dtype.itemSize;
 
-      dataOffset = magicString.length +
-          NpyVersion.numberOfReservedBytes +
-          parser.version!.numberOfHeaderBytes +
-          parser.headerSize!;
-
-      final totalElements = parser.header!.shape.reduce((a, b) => a * b);
-
-      while (dataOffset < buffer.length) {
-        final remainingElements = totalElements - dataRead;
-        final elementsInBuffer = (buffer.length - dataOffset) ~/ parser.header!.dtype.itemSize;
-        final elementsToProcess = min(remainingElements, elementsInBuffer);
-
-        final newData = _parseData<T>(
-          buffer.sublist(dataOffset, dataOffset + elementsToProcess * parser.header!.dtype.itemSize),
-          parser.header!.dtype,
-          elementsToProcess,
-        );
-
-        list.addAll(newData);
-        dataRead += elementsToProcess;
-        dataOffset += elementsToProcess * parser.header!.dtype.itemSize;
-
-        if (dataRead == totalElements) return NdArray<T>(headerSection: headerSection, data: list);
-
-        buffer = buffer.sublist(dataOffset);
-        dataOffset = 0;
-      }
+      if (elementsRead == totalElements) return NdArray<T>(headerSection: parser.headerSection!, data: list);
     }
   } on FileSystemException catch (e) {
     if (e.osError?.errorCode == 2) throw NpFileNotExistsException(path: path);
@@ -89,36 +74,59 @@ Future<NdArray<T>> load<T>(String path) async {
   throw NpyParseException(message: "Error parsing '$path' as an NPY file.");
 }
 
-List<T> _parseData<T>(List<int> bytes, NpyDType dtype, int count) {
+List<T> parseBytes<T>(List<int> bytes, NpyDType dtype, int numberOfElements) {
   final byteData = ByteData.view(Uint8List.fromList(bytes).buffer);
-  final result = List<T>.filled(count, null as T);
+  final result = List<T>.filled(numberOfElements, null as T);
 
-  for (int i = 0; i < count; i++) {
-    switch (dtype.toString()) {
-      case '<f4':
-        result[i] = byteData.getFloat32(i * 4, Endian.little) as T;
-      case '>f4':
-        result[i] = byteData.getFloat32(i * 4) as T;
-      case '<f8':
-        result[i] = byteData.getFloat64(i * 8, Endian.little) as T;
-      case '>f8':
-        result[i] = byteData.getFloat64(i * 8) as T;
-      case '<i4':
-        result[i] = byteData.getInt32(i * 4, Endian.little) as T;
-      case '>i4':
-        result[i] = byteData.getInt32(i * 4) as T;
-      case '<i8':
-        result[i] = byteData.getInt64(i * 8, Endian.little) as T;
-      case '>i8':
-        result[i] = byteData.getInt64(i * 8) as T;
-      case '<u4':
-        result[i] = byteData.getUint32(i * 4, Endian.little) as T;
-      case '>u4':
-        result[i] = byteData.getUint32(i * 4) as T;
-      case '<u8':
-        result[i] = byteData.getUint64(i * 8, Endian.little) as T;
-      case '>u8':
-        result[i] = byteData.getUint64(i * 8) as T;
+  late final Endian endian;
+  switch (dtype.endian) {
+    case NpyEndian.little:
+      endian = Endian.little;
+    case NpyEndian.big:
+      endian = Endian.big;
+    case NpyEndian.native:
+      endian = Endian.host;
+    default:
+      throw NpyUnsupportedDTypeException(message: 'Unsupported endian: ${dtype.endian}');
+  }
+
+  for (int i = 0; i < numberOfElements; i++) {
+    switch (dtype.type) {
+      case NpyType.float:
+        switch (dtype.itemSize) {
+          case 8:
+            result[i] = byteData.getFloat64(i * 8, endian) as T;
+          case 4:
+            result[i] = byteData.getFloat32(i * 4, endian) as T;
+          default:
+            throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
+        }
+      case NpyType.int:
+        switch (dtype.itemSize) {
+          case 8:
+            result[i] = byteData.getInt64(i * 8, endian) as T;
+          case 4:
+            result[i] = byteData.getInt32(i * 4, endian) as T;
+          case 2:
+            result[i] = byteData.getInt16(i * 2, endian) as T;
+          case 1:
+            result[i] = byteData.getInt8(i) as T;
+          default:
+            throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
+        }
+      case NpyType.uint:
+        switch (dtype.itemSize) {
+          case 8:
+            result[i] = byteData.getUint64(i * 8, endian) as T;
+          case 4:
+            result[i] = byteData.getUint32(i * 4, endian) as T;
+          case 2:
+            result[i] = byteData.getUint16(i * 2, endian) as T;
+          case 1:
+            result[i] = byteData.getUint8(i) as T;
+          default:
+            throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
+        }
       default:
         throw NpyUnsupportedDTypeException(message: 'Unsupported dtype: $dtype');
     }
