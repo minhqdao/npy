@@ -116,13 +116,13 @@ class NpyParser<T> {
   NpyParser({
     this.hasPassedMagicStringCheck = false,
     this.version,
-    this.headerLength,
+    this.headerSize,
     this.header,
   });
 
   bool hasPassedMagicStringCheck;
   NpyVersion? version;
-  int? headerLength;
+  int? headerSize;
   NpyHeader? header;
 
   void checkMagicString(List<int> bytes) {
@@ -138,33 +138,33 @@ class NpyParser<T> {
     version = NpyVersion.fromBytes(bytes.skip(magicString.length).take(NpyVersion.numberOfReservedBytes));
   }
 
-  void getHeaderLength(List<int> bytes) {
+  void getHeaderSize(List<int> bytes) {
     const bytesTaken = magicString.length + NpyVersion.numberOfReservedBytes;
-    if (headerLength != null || version == null || bytes.length < bytesTaken + version!.numberOfHeaderBytes) return;
+    if (headerSize != null || version == null || bytes.length < bytesTaken + version!.numberOfHeaderBytes) return;
     final relevantBytes = bytes.skip(bytesTaken).take(version!.numberOfHeaderBytes).toList();
-    headerLength = version!.major == 1 ? littleEndian16ToInt(relevantBytes) : littleEndian32ToInt(relevantBytes);
+    headerSize = version!.major == 1 ? littleEndian16ToInt(relevantBytes) : littleEndian32ToInt(relevantBytes);
   }
 
   void getHeader(List<int> bytes) {
-    if (header != null || version == null || headerLength == null) return;
+    if (header != null || version == null || headerSize == null) return;
     final bytesTaken = magicString.length + NpyVersion.numberOfReservedBytes + version!.numberOfHeaderBytes;
-    if (bytes.length < bytesTaken + headerLength!) return;
-    header = NpyHeader.fromString(String.fromCharCodes(bytes.skip(bytesTaken).take(headerLength!)));
+    if (bytes.length < bytesTaken + headerSize!) return;
+    header = NpyHeader.fromString(String.fromCharCodes(bytes.skip(bytesTaken).take(headerSize!)));
   }
+
+  bool get isNotReadyForData => header == null || headerSize == null || version == null || !hasPassedMagicStringCheck;
 }
 
 class NpyHeaderSection {
   const NpyHeaderSection({
     required this.version,
-    required this.numberOfHeaderBytes,
     required this.header,
-    required this.headerLength,
+    required this.headerSize,
     required this.paddingSize,
   });
 
   final NpyVersion version;
-  final int numberOfHeaderBytes;
-  final int headerLength;
+  final int headerSize;
   final NpyHeader header;
   final int paddingSize;
 
@@ -172,20 +172,40 @@ class NpyHeaderSection {
         NpyHeader.fromList(list, dtype: dtype, fortranOrder: fortranOrder),
       );
 
-  factory NpyHeaderSection.fromHeader(NpyHeader header) {
-    final headerLength = header.length;
-    final firstVersionSizeWithoutPadding = magicString.length +
-        NpyVersion.numberOfReservedBytes +
-        NpyVersion.numberOfHeaderSizeBytesV1 +
-        headerLength +
-        _newLineOffset;
-    final paddingSize = getPaddingSize(firstVersionSizeWithoutPadding);
-    final version = NpyVersion.fromString(header.string, headerLength + paddingSize + _newLineInt);
+  factory NpyHeaderSection.buildPadding({
+    required NpyVersion version,
+    required int headerLength,
+    required NpyHeader header,
+  }) {
+    final paddingSize = getPaddingSize(
+      magicString.length +
+          NpyVersion.numberOfReservedBytes +
+          version.numberOfHeaderBytes +
+          headerLength +
+          _newLineOffset,
+    );
 
     return NpyHeaderSection(
       version: version,
-      numberOfHeaderBytes: version.numberOfHeaderBytes,
-      headerLength: headerLength,
+      headerSize: headerLength,
+      header: header,
+      paddingSize: paddingSize,
+    );
+  }
+
+  factory NpyHeaderSection.fromHeader(NpyHeader header) {
+    final headerSize = header.length;
+    final firstVersionSizeWithoutPadding = magicString.length +
+        NpyVersion.numberOfReservedBytes +
+        NpyVersion.numberOfHeaderSizeBytesV1 +
+        headerSize +
+        _newLineOffset;
+    final paddingSize = getPaddingSize(firstVersionSizeWithoutPadding);
+    final version = NpyVersion.fromString(header.string, headerSize + paddingSize + _newLineInt);
+
+    return NpyHeaderSection(
+      version: version,
+      headerSize: headerSize,
       header: header,
       paddingSize: paddingSize,
     );

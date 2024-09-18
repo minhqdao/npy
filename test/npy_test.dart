@@ -160,55 +160,55 @@ void main() {
     test('Exceed 4 bytes', () => expect(() => littleEndian32ToInt([1, 2, 3, 3, 4]), throwsA(isA<AssertionError>())));
     test('[2, 1] through parser', () {
       final parser = NpyParser(version: const NpyVersion());
-      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 2, 1]);
-      expect(parser.headerLength, 258);
+      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 2, 1]);
+      expect(parser.headerSize, 258);
     });
     test('[1, 2] through parser', () {
       final parser = NpyParser(version: const NpyVersion());
-      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2]);
-      expect(parser.headerLength, 513);
+      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2]);
+      expect(parser.headerSize, 513);
     });
     test('Ignore parsing less than 2 bytes', () {
       final parser = NpyParser(version: const NpyVersion());
-      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1]);
-      expect(parser.headerLength, null);
+      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 1]);
+      expect(parser.headerSize, null);
     });
     test('Ignore additional bytes after 2', () {
       final parser = NpyParser(version: const NpyVersion());
-      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3]);
-      expect(parser.headerLength, 513);
+      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3]);
+      expect(parser.headerSize, 513);
     });
     test('[4, 3, 2, 1] through parser', () {
       final parser = NpyParser(version: const NpyVersion(major: 2));
-      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 4, 3, 2, 1]);
-      expect(parser.headerLength, 16909060);
+      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 4, 3, 2, 1]);
+      expect(parser.headerSize, 16909060);
     });
     test('[1, 2, 3, 4] through parser', () {
       final parser = NpyParser(version: const NpyVersion(major: 2));
-      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3, 4]);
-      expect(parser.headerLength, 67305985);
+      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3, 4]);
+      expect(parser.headerSize, 67305985);
     });
     test('Ignore parsing less than 4 bytes', () {
       final parser = NpyParser(version: const NpyVersion(major: 2));
-      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3]);
-      expect(parser.headerLength, null);
+      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3]);
+      expect(parser.headerSize, null);
     });
     test('Ignore additional bytes after 4', () {
       final parser = NpyParser(version: const NpyVersion(major: 2));
-      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3, 4, 5]);
-      expect(parser.headerLength, 67305985);
+      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3, 4, 5]);
+      expect(parser.headerSize, 67305985);
     });
     test('Ignore second run', () {
       final parser = NpyParser(version: const NpyVersion());
-      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2]);
-      expect(parser.headerLength, 513);
-      parser.getHeaderLength([...magicString.codeUnits, ...parser.version!.asBytes, 3, 3]);
-      expect(parser.headerLength, 513);
+      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2]);
+      expect(parser.headerSize, 513);
+      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 3, 3]);
+      expect(parser.headerSize, 513);
     });
     test('Return early if version not set', () {
       final parser = NpyParser();
-      parser.getHeaderLength([...magicString.codeUnits, ...'\x93NUMPY'.codeUnits, 1, 2]);
-      expect(parser.headerLength, null);
+      parser.getHeaderSize([...magicString.codeUnits, ...'\x93NUMPY'.codeUnits, 1, 2]);
+      expect(parser.headerSize, null);
     });
     test('[0x56, 0x78]', () {
       final bytes = [0x56, 0x78];
@@ -589,7 +589,7 @@ void main() {
     //   final npyFile = await load(filename);
     //   expect(npyFile.version.major, 1);
     //   expect(npyFile.version.minor, 0);
-    //   expect(npyFile.headerLength, 56);
+    //   expect(npyFile.headerSize, 56);
     //   expect(npyFile.header.dtype.endian, NpyEndian.little);
     //   expect(npyFile.header.dtype.type, NpyType.float);
     //   expect(npyFile.header.dtype.itemSize, 8);
@@ -614,7 +614,7 @@ void main() {
     //   final npyFile = await load(filename);
     //   expect(npyFile.version.major, 2);
     //   expect(npyFile.version.minor, 0);
-    //   expect(npyFile.headerLength, 58);
+    //   expect(npyFile.headerSize, 58);
     //   expect(npyFile.header.dtype.endian, NpyEndian.big);
     //   expect(npyFile.header.dtype.type, NpyType.int);
     //   expect(npyFile.header.dtype.itemSize, 4);
@@ -639,7 +639,7 @@ void main() {
     //   final npyFile = await load(filename);
     //   expect(npyFile.version.major, 1);
     //   expect(npyFile.version.minor, 0);
-    //   expect(npyFile.headerLength, 53);
+    //   expect(npyFile.headerSize, 53);
     //   expect(npyFile.header.dtype.endian, NpyEndian.big);
     //   expect(npyFile.header.dtype.type, NpyType.int);
     //   expect(npyFile.header.dtype.itemSize, 4);
@@ -736,9 +736,8 @@ void main() {
     test('0, V2', () {
       final bytes = NpyHeaderSection(
         version: const NpyVersion(major: 2),
-        numberOfHeaderBytes: 0,
         header: NpyHeader.fromList([]),
-        headerLength: 0,
+        headerSize: 0,
         paddingSize: 0,
       ).headerSizeBytes(0);
       expect(bytes.length, 4);
@@ -750,9 +749,8 @@ void main() {
     test('100, V2', () {
       final bytes = NpyHeaderSection(
         version: const NpyVersion(major: 2),
-        numberOfHeaderBytes: 0,
         header: NpyHeader.fromList([]),
-        headerLength: 0,
+        headerSize: 0,
         paddingSize: 0,
       ).headerSizeBytes(100);
       expect(bytes.length, 4);
@@ -764,9 +762,8 @@ void main() {
     test('65536, V2', () {
       final bytes = NpyHeaderSection(
         version: const NpyVersion(major: 2),
-        numberOfHeaderBytes: 0,
         header: NpyHeader.fromList([]),
-        headerLength: 0,
+        headerSize: 0,
         paddingSize: 0,
       ).headerSizeBytes(65536);
       expect(bytes.length, 4);
@@ -778,9 +775,8 @@ void main() {
     test('V2 max', () {
       final bytes = NpyHeaderSection(
         version: const NpyVersion(major: 2),
-        numberOfHeaderBytes: 0,
         header: NpyHeader.fromList([]),
-        headerLength: 0,
+        headerSize: 0,
         paddingSize: 0,
       ).headerSizeBytes(4294967295);
       expect(bytes.length, 4);
@@ -792,9 +788,8 @@ void main() {
     test('V2 exceeded', () {
       final bytes = NpyHeaderSection(
         version: const NpyVersion(major: 2),
-        numberOfHeaderBytes: 0,
         header: NpyHeader.fromList([]),
-        headerLength: 0,
+        headerSize: 0,
         paddingSize: 0,
       );
       expect(() => bytes.headerSizeBytes(4294967296), throwsA(isA<AssertionError>()));
