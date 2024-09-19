@@ -51,7 +51,7 @@ class NdArray<T> {
         }
     }
 
-    for (final element in data) {
+    for (final element in flatten(data)) {
       final byteData = ByteData(dtype.itemSize);
       if (element is int) {
         switch (dtype.type) {
@@ -104,6 +104,18 @@ class NdArray<T> {
 
     return [...headerSection.asBytes, ...dataBytes];
   }
+}
+
+List flatten(List list) {
+  final List result = [];
+  for (final element in list) {
+    if (element is List) {
+      result.addAll(flatten(element));
+    } else {
+      result.add(element);
+    }
+  }
+  return result;
 }
 
 // class NpzFile {
