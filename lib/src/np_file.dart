@@ -13,10 +13,8 @@ class NdArray<T> {
   final NpyHeaderSection headerSection;
   final List<T> data;
 
-  factory NdArray.fromList(List<T> list, {NpyDType? dtype, bool? fortranOrder}) => NdArray<T>(
-        headerSection: NpyHeaderSection.fromList(list, dtype: dtype, fortranOrder: fortranOrder),
-        data: list,
-      );
+  factory NdArray.fromList(List<T> list, {NpyDType? dtype, bool? fortranOrder}) =>
+      NdArray<T>(headerSection: NpyHeaderSection.fromList(list, dtype: dtype, fortranOrder: fortranOrder), data: list);
 
   T getElement(List<int> indices) => data[_getIndex(indices)];
 
@@ -57,27 +55,27 @@ class NdArray<T> {
         switch (dtype.type) {
           case NpyType.int:
             switch (dtype.itemSize) {
-              case 1:
-                byteData.setInt8(0, element);
-              case 2:
-                byteData.setInt16(0, element, endian);
-              case 4:
-                byteData.setInt32(0, element, endian);
               case 8:
                 byteData.setInt64(0, element, endian);
+              case 4:
+                byteData.setInt32(0, element, endian);
+              case 2:
+                byteData.setInt16(0, element, endian);
+              case 1:
+                byteData.setInt8(0, element);
               default:
                 throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
             }
           case NpyType.uint:
             switch (dtype.itemSize) {
-              case 1:
-                byteData.setUint8(0, element);
-              case 2:
-                byteData.setUint16(0, element, endian);
-              case 4:
-                byteData.setUint32(0, element, endian);
               case 8:
                 byteData.setUint64(0, element, endian);
+              case 4:
+                byteData.setUint32(0, element, endian);
+              case 2:
+                byteData.setUint16(0, element, endian);
+              case 1:
+                byteData.setUint8(0, element);
               default:
                 throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
             }
@@ -86,10 +84,10 @@ class NdArray<T> {
         }
       } else if (element is double) {
         switch (dtype.itemSize) {
-          case 4:
-            byteData.setFloat32(0, element, endian);
           case 8:
             byteData.setFloat64(0, element, endian);
+          case 4:
+            byteData.setFloat32(0, element, endian);
           default:
             throw NpyUnsupportedDTypeException(message: 'Unsupported NpyType: ${dtype.type}');
         }
@@ -177,9 +175,8 @@ class NpyHeaderSection {
   final int headerSize;
   final NpyHeader header;
 
-  factory NpyHeaderSection.fromList(List list, {NpyDType? dtype, bool? fortranOrder}) => NpyHeaderSection.fromHeader(
-        NpyHeader.fromList(list, dtype: dtype, fortranOrder: fortranOrder),
-      );
+  factory NpyHeaderSection.fromList(List list, {NpyDType? dtype, bool? fortranOrder}) =>
+      NpyHeaderSection.fromHeader(NpyHeader.fromList(list, dtype: dtype, fortranOrder: fortranOrder));
 
   factory NpyHeaderSection.fromHeader(NpyHeader header) {
     final headerSize = header.length;
