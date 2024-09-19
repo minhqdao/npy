@@ -395,8 +395,16 @@ void main() {
       expect(const ListEquality().equals(header.shape, [2, 0]), true);
       expect(header.dtype.type, NpyType.float);
     });
-    test('Bool throws error', () {
-      expect(() => NpyHeader.fromList([true]), throwsA(const TypeMatcher<NpyUnsupportedTypeException>()));
+    test('[true, false, true]', () {
+      final header = NpyHeader.fromList([true, false, true]);
+      expect(header.shape, [3]);
+    });
+    test('[[true, false, true], [false, true, false]]', () {
+      final header = NpyHeader.fromList([
+        [true, false, true],
+        [false, true, false],
+      ]);
+      expect(header.shape, [2, 3]);
     });
     test('String throws error', () {
       expect(() => NpyHeader.fromList(['hi']), throwsA(const TypeMatcher<NpyUnsupportedTypeException>()));
@@ -630,6 +638,20 @@ void main() {
       final data = parseBytes([1, 255, 3], header);
       expect(data, [1, 255, 3]);
     });
+    test('1D bool', () {
+      final header = NpyHeader.fromList([true, false, true]);
+      expect(parseBytes([1, 0, 1], header), [true, false, true]);
+    });
+    test('2D bool', () {
+      final header = NpyHeader.fromList([
+        [true, false, true],
+        [false, true, false],
+      ]);
+      expect(parseBytes([1, 0, 1, 0, 1, 0], header), [
+        [true, false, true],
+        [false, true, false],
+      ]);
+    });
   });
 
   group('Reshape:', () {
@@ -789,6 +811,16 @@ void main() {
       ]);
       tmpFile.deleteSync();
     });
+    // test('bool list', () async {
+    //   const filename = 'bool_list.tmp';
+    //   final headerSection = NpyHeaderSection.fromList([true, false]);
+    //   final tmpFile = File(filename)
+    //     ..writeAsBytesSync([...headerSection.asBytes, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 0, 0, 0, 0]);
+    //   final ndarray = await load(filename);
+    //   expect(ndarray.headerSection.header.shape, [2]);
+    //   expect(ndarray.data, [-1, 1]);
+    //   tmpFile.deleteSync();
+    // });
     // test('np.array(0)', () async {
     //   await load('test/files/array_0.npy');
     //   // expect(load('test/array_0.npy'), throwsA(const TypeMatcher<int>()));
@@ -1064,14 +1096,47 @@ void main() {
   });
 
   group('Save npy:', () {
-    test('Save empty list', () async {
+    test('Empty list', () async {
       const filename = 'save_empty_list.tmp';
-      await saveList(filename, []);
-      // final ndarray = await load(filename);
-      // expect(ndarray.headerSection.version?.major, 1);
-      // expect(ndarray.headerSection.version?.minor, 0);
-      // expect(ndarray.list, []);
+      await saveList(filename, const []);
+      final ndarray = await load(filename);
+      expect(ndarray.headerSection.header.fortranOrder, false);
+      expect(ndarray.headerSection.header.dtype.endian, NpyEndian.little);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.float);
+      expect(ndarray.headerSection.header.dtype.itemSize, 8);
+      expect(ndarray.headerSection.header.shape, const []);
+      expect(ndarray.data, const []);
       File(filename).deleteSync();
     });
+    test('Bool list 1D', () async {
+      const filename = 'save_bool_list_1d.tmp';
+      await saveList(filename, [true, false]);
+      final ndarray = await load(filename);
+      expect(ndarray.headerSection.header.fortranOrder, false);
+      expect(ndarray.headerSection.header.dtype.endian, NpyEndian.none);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.boolean);
+      expect(ndarray.headerSection.header.dtype.itemSize, 1);
+      expect(ndarray.headerSection.header.shape, [2]);
+      expect(ndarray.data, [true, false]);
+      File(filename).deleteSync();
+    });
+    // test('Bool list 2D', () async {
+    //   const filename = 'save_bool_list_2d.tmp';
+    //   await saveList(filename, [
+    //     [true, false, true],
+    //     [false, true, false],
+    //   ]);
+    //   final ndarray = await load(filename);
+    //   expect(ndarray.headerSection.header.fortranOrder, false);
+    //   expect(ndarray.headerSection.header.dtype.endian, NpyEndian.none);
+    //   expect(ndarray.headerSection.header.dtype.type, NpyType.boolean);
+    //   expect(ndarray.headerSection.header.dtype.itemSize, 1);
+    //   expect(ndarray.headerSection.header.shape, [2, 3]);
+    //   expect(ndarray.data, [
+    //     [true, false, true],
+    //     [false, true, false],
+    //   ]);
+    //   File(filename).deleteSync();
+    // });
   });
 }

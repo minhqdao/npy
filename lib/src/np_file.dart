@@ -46,7 +46,9 @@ class NdArray<T> {
       case NpyEndian.native:
         endian = Endian.host;
       default:
-        throw NpyUnsupportedEndianException(message: 'Unsupported endian: ${dtype.endian}');
+        if (dtype.itemSize != 1) {
+          throw const NpyUnsupportedEndianException(message: 'Endian must be specified for item size > 1.');
+        }
     }
 
     for (final element in data) {
@@ -91,6 +93,8 @@ class NdArray<T> {
           default:
             throw NpyUnsupportedDTypeException(message: 'Unsupported NpyType: ${dtype.type}');
         }
+      } else if (element is bool) {
+        byteData.setUint8(0, element ? 1 : 0);
       } else {
         throw NpyUnsupportedTypeException(message: 'Unsupported NdArray type: $T');
       }
@@ -390,6 +394,8 @@ class NpyHeader<T> {
       obtainedType = dtype?.type == NpyType.uint ? NpyType.uint : NpyType.int;
     } else if (firstElement is double) {
       obtainedType = NpyType.float;
+    } else if (firstElement is bool) {
+      obtainedType = NpyType.boolean;
     } else if (firstElement is List) {
       return NpyHeader.fromList(
         list.first as List,
@@ -497,8 +503,13 @@ class NpyDType {
         type = NpyType.uint,
         itemSize = 1;
 
-  const NpyDType.string({required this.itemSize, NpyEndian? endian})
-      : endian = endian ?? NpyEndian.native,
+  const NpyDType.boolean()
+      : endian = NpyEndian.none,
+        type = NpyType.boolean,
+        itemSize = 1;
+
+  const NpyDType.string({required this.itemSize})
+      : endian = NpyEndian.none,
         type = NpyType.string;
 
   final NpyEndian endian;
@@ -544,8 +555,10 @@ class NpyDType {
           default:
             throw NpyUnsupportedDTypeException(message: 'Unsupported uint item size: $itemSize');
         }
+      case NpyType.boolean:
+        return const NpyDType.boolean();
       case NpyType.string:
-        return NpyDType.string(itemSize: itemSize, endian: endian);
+        return NpyDType.string(itemSize: itemSize);
       default:
         throw NpyUnsupportedNpyTypeException(message: 'Unsupported NpyType: $type');
     }

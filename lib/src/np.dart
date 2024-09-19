@@ -85,6 +85,8 @@ List<T> parseBytes<T>(List<int> bytes, NpyHeader header) {
     case NpyType.int:
     case NpyType.uint:
       result = List.filled(numberOfElements, 0 as T);
+    case NpyType.boolean:
+      result = List.filled(numberOfElements, false as T);
     default:
       throw NpyUnsupportedDTypeException(message: 'Unsupported dtype: $dtype');
   }
@@ -98,7 +100,9 @@ List<T> parseBytes<T>(List<int> bytes, NpyHeader header) {
     case NpyEndian.native:
       endian = Endian.host;
     default:
-      throw NpyUnsupportedDTypeException(message: 'Unsupported endian: ${dtype.endian}');
+      if (dtype.itemSize != 1) {
+        throw const NpyUnsupportedEndianException(message: 'Endian must be specified for item size > 1.');
+      }
   }
 
   final byteData = ByteData.view(Uint8List.fromList(bytes).buffer);
@@ -140,6 +144,8 @@ List<T> parseBytes<T>(List<int> bytes, NpyHeader header) {
           default:
             throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
         }
+      case NpyType.boolean:
+        result[i] = (byteData.getUint8(i) == 1) as T;
       default:
         throw NpyUnsupportedDTypeException(message: 'Unsupported dtype: $dtype');
     }
