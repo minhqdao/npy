@@ -54,14 +54,14 @@ Future<NdArray<T>> load<T>(String path) async {
       final newData = parseBytes<T>(
         buffer.sublist(dataOffset, dataOffset + elementsToProcess * parser.header!.dtype.itemSize),
         parser.header!.dtype,
-        elementsToProcess,
       );
 
       list.addAll(newData);
       elementsRead += elementsToProcess;
-      dataOffset += elementsToProcess * parser.header!.dtype.itemSize;
 
       if (elementsRead == totalElements) return NdArray<T>(headerSection: parser.headerSection!, data: list);
+
+      dataOffset += elementsToProcess * parser.header!.dtype.itemSize;
     }
   } on FileSystemException catch (e) {
     if (e.osError?.errorCode == 2) throw NpFileNotExistsException(path: path);
@@ -74,9 +74,20 @@ Future<NdArray<T>> load<T>(String path) async {
   throw NpyParseException(message: "Error parsing '$path' as an NPY file.");
 }
 
-List<T> parseBytes<T>(List<int> bytes, NpyDType dtype, int numberOfElements) {
+List<T> parseBytes<T>(List<int> bytes, NpyDType dtype) {
+  final numberOfElements = bytes.length ~/ dtype.itemSize;
   final byteData = ByteData.view(Uint8List.fromList(bytes).buffer);
-  final result = List<T>.filled(numberOfElements, null as T);
+
+  late final List<T> result;
+  switch (dtype.type) {
+    case NpyType.float:
+      result = List.filled(numberOfElements, .0 as T);
+    case NpyType.int:
+    case NpyType.uint:
+      result = List.filled(numberOfElements, 0 as T);
+    default:
+      throw NpyUnsupportedDTypeException(message: 'Unsupported dtype: $dtype');
+  }
 
   late final Endian endian;
   switch (dtype.endian) {

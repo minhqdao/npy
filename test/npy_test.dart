@@ -6,6 +6,16 @@ import 'package:npy/src/np_exception.dart';
 import 'package:test/test.dart';
 
 void main() {
+  const double epsilon = 1e-6;
+  bool almostEqual(double a, double b, [double tolerance = epsilon]) => (a - b).abs() < tolerance;
+  bool listAlmostEquals(List<double> a, List<double> b, [double tolerance = epsilon]) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (!almostEqual(a[i], b[i], tolerance)) return false;
+    }
+    return true;
+  }
+
   group('Check magic string:', () {
     test('Valid code units', () {
       final parser = NpyParser();
@@ -564,6 +574,53 @@ void main() {
         ..buildHeaderSection();
       expect(parser.header?.length, 118);
       expect(parser.headerSection?.size, 128);
+    });
+  });
+
+  group('Parse bytes:', () {
+    test('1 little endian float64', () {
+      final data = parseBytes([0, 0, 0, 0, 0, 0, 240, 63], const NpyDType.float64(endian: NpyEndian.little));
+      expect(data, [1.0]);
+    });
+    test('2 big endian float32', () {
+      final data =
+          parseBytes<double>([63, 102, 102, 102, 62, 76, 204, 205], const NpyDType.float32(endian: NpyEndian.big));
+      expect(listAlmostEquals(data, [0.9, 0.2]), true);
+    });
+    test('2 little endian int64', () {
+      final data = parseBytes(
+        [214, 255, 255, 255, 255, 255, 255, 255, 2, 0, 0, 0, 0, 0, 0, 0],
+        const NpyDType.int64(endian: NpyEndian.little),
+      );
+      expect(data, [-42, 2]);
+    });
+    test('1 big endian int32', () {
+      final data = parseBytes([0, 0, 0, 1], const NpyDType.int32(endian: NpyEndian.big));
+      expect(data, [1]);
+    });
+    test('2 little endian int16', () {
+      final data = parseBytes([1, 0, 2, 0], const NpyDType.int16(endian: NpyEndian.little));
+      expect(data, [1, 2]);
+    });
+    test('4 int8', () {
+      final data = parseBytes([1, 255, 3, 4], const NpyDType.int8());
+      expect(data, [1, -1, 3, 4]);
+    });
+    test('1 big endian uint64', () {
+      final data = parseBytes([0, 0, 0, 0, 0, 0, 0, 1], const NpyDType.uint64(endian: NpyEndian.big));
+      expect(data, [1]);
+    });
+    test('2 little endian uint32', () {
+      final data = parseBytes([1, 0, 0, 0, 2, 0, 0, 0], const NpyDType.uint32(endian: NpyEndian.little));
+      expect(data, [1, 2]);
+    });
+    test('1 big endian uint16', () {
+      final data = parseBytes([0, 1], const NpyDType.uint16(endian: NpyEndian.big));
+      expect(data, [1]);
+    });
+    test('3 uint8', () {
+      final data = parseBytes([1, 255, 3], const NpyDType.uint8());
+      expect(data, [1, 255, 3]);
     });
   });
 
