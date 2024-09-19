@@ -1169,5 +1169,35 @@ void main() {
       ]);
       File(filename).deleteSync();
     });
+    test('Bool list 3D', () async {
+      const filename = 'save_bool_list_3d.tmp';
+      await saveList(filename, [
+        [
+          [true, false, true],
+          [false, true, false],
+        ],
+        [
+          [true, false, true],
+          [false, true, false],
+        ],
+      ]);
+      final ndarray = await load(filename);
+      expect(ndarray.headerSection.header.fortranOrder, false);
+      expect(ndarray.headerSection.header.dtype.endian, NpyEndian.none);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.boolean);
+      expect(ndarray.headerSection.header.dtype.itemSize, 1);
+      expect(ndarray.headerSection.header.shape, [2, 2, 3]);
+      expect(ndarray.data, [
+        [
+          [true, false, true],
+          [false, true, false],
+        ],
+        [
+          [true, false, true],
+          [false, true, false],
+        ],
+      ]);
+      File(filename).deleteSync();
+    });
   });
 }
