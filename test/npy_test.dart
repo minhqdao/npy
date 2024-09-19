@@ -581,49 +581,110 @@ void main() {
 
   group('Parse bytes:', () {
     test('1 little endian float64', () {
-      final data = parseBytes([0, 0, 0, 0, 0, 0, 240, 63], const NpyDType.float64(endian: NpyEndian.little));
+      final header = NpyHeader.fromList([1.0], dtype: const NpyDType.float64(endian: NpyEndian.little));
+      final data = parseBytes([0, 0, 0, 0, 0, 0, 240, 63], header);
       expect(data, [1.0]);
     });
     test('2 big endian float32', () {
-      final data =
-          parseBytes<double>([63, 102, 102, 102, 190, 76, 204, 205], const NpyDType.float32(endian: NpyEndian.big));
+      final header = NpyHeader.fromList([0.9, -0.2], dtype: const NpyDType.float32(endian: NpyEndian.big));
+      final data = parseBytes<double>([63, 102, 102, 102, 190, 76, 204, 205], header);
       expect(listAlmostEquals(data, [0.9, -0.2]), true);
     });
     test('2 little endian int64', () {
-      final data = parseBytes(
-        [214, 255, 255, 255, 255, 255, 255, 255, 2, 0, 0, 0, 0, 0, 0, 0],
-        const NpyDType.int64(endian: NpyEndian.little),
-      );
+      final header = NpyHeader.fromList([-42, 2], dtype: const NpyDType.int64(endian: NpyEndian.little));
+      final data = parseBytes([214, 255, 255, 255, 255, 255, 255, 255, 2, 0, 0, 0, 0, 0, 0, 0], header);
       expect(data, [-42, 2]);
     });
     test('1 big endian int32', () {
-      final data = parseBytes([0, 0, 0, 1], const NpyDType.int32(endian: NpyEndian.big));
+      final header = NpyHeader.fromList([1], dtype: const NpyDType.int32(endian: NpyEndian.big));
+      final data = parseBytes([0, 0, 0, 1], header);
       expect(data, [1]);
     });
     test('2 little endian int16', () {
-      final data = parseBytes([1, 0, 2, 0], const NpyDType.int16(endian: NpyEndian.little));
+      final header = NpyHeader.fromList([1, 2], dtype: const NpyDType.int16(endian: NpyEndian.little));
+      final data = parseBytes([1, 0, 2, 0], header);
       expect(data, [1, 2]);
     });
     test('4 int8', () {
-      final data = parseBytes([1, 255, 3, 4], const NpyDType.int8());
+      final header = NpyHeader.fromList([1, -1, 3, 4], dtype: const NpyDType.int8());
+      final data = parseBytes([1, 255, 3, 4], header);
       expect(data, [1, -1, 3, 4]);
     });
     test('1 big endian uint64', () {
-      final data = parseBytes([0, 0, 0, 0, 0, 0, 0, 1], const NpyDType.uint64(endian: NpyEndian.big));
+      final header = NpyHeader.fromList([1], dtype: const NpyDType.uint64(endian: NpyEndian.big));
+      final data = parseBytes([0, 0, 0, 0, 0, 0, 0, 1], header);
       expect(data, [1]);
     });
     test('2 little endian uint32', () {
-      final data = parseBytes([1, 0, 0, 0, 2, 0, 0, 0], const NpyDType.uint32(endian: NpyEndian.little));
+      final header = NpyHeader.fromList([1, 2], dtype: const NpyDType.uint32(endian: NpyEndian.little));
+      final data = parseBytes([1, 0, 0, 0, 2, 0, 0, 0], header);
       expect(data, [1, 2]);
     });
     test('1 big endian uint16', () {
-      final data = parseBytes([0, 1], const NpyDType.uint16(endian: NpyEndian.big));
+      final header = NpyHeader.fromList([1], dtype: const NpyDType.uint16(endian: NpyEndian.big));
+      final data = parseBytes([0, 1], header);
       expect(data, [1]);
     });
     test('3 uint8', () {
-      final data = parseBytes([1, 255, 3], const NpyDType.uint8());
+      final header = NpyHeader.fromList([1, 255, 3], dtype: const NpyDType.uint8());
+      final data = parseBytes([1, 255, 3], header);
       expect(data, [1, 255, 3]);
     });
+  });
+
+  group('Reshape:', () {
+    test('Empty list', () => expect(reshape([], []), []));
+    test(
+      'Empty shape',
+      () => expect(() => reshape([1, 2, 3, 4, 5, 6], []), throwsA(const TypeMatcher<NpyParseException>())),
+    );
+    test('1D int', () => expect(reshape([1, 2, 3, 4, 5, 6], [6]), [1, 2, 3, 4, 5, 6]));
+    test('2D int', () {
+      expect(reshape([1, 2, 3, 4, 5, 6], [2, 3]), [
+        [1, 2, 3],
+        [4, 5, 6],
+      ]);
+    });
+    test('2D int reverse', () {
+      expect(reshape([1, 2, 3, 4, 5, 6], [3, 2]), [
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ]);
+    });
+    test('2D int, single row', () {
+      expect(reshape([1, 2, 3, 4, 5, 6], [1, 6]), [
+        [1, 2, 3, 4, 5, 6],
+      ]);
+    });
+    test('2D int, single column', () {
+      expect(reshape([1, 2, 3, 4, 5, 6], [6, 1]), [
+        [1],
+        [2],
+        [3],
+        [4],
+        [5],
+        [6],
+      ]);
+    });
+    test('3D int', () {
+      expect(reshape([1, 2, 3, 4, 5, 6], [1, 2, 3]), [
+        [
+          [1, 2, 3],
+          [4, 5, 6],
+        ],
+      ]);
+    });
+    test('2D float', () {
+      expect(reshape([1.0, 2.1, 3.2, 4.3, 5.4, 6.5], [2, 3]), [
+        [1.0, 2.1, 3.2],
+        [4.3, 5.4, 6.5],
+      ]);
+    });
+    test(
+      'List length does not match shape',
+      () => expect(() => reshape([1, 2, 3, 4], [5]), throwsA(const TypeMatcher<NpyParseException>())),
+    );
   });
 
   group('Load npy:', () {
@@ -728,31 +789,6 @@ void main() {
       ]);
       tmpFile.deleteSync();
     });
-    // test('Header 4', () async {
-    //   const filename = 'header_4.tmp';
-    //   const majorVersion = 1;
-    //   const header = "{'descr': '>i4', 'fortran_order': False, 'shape': ()}";
-    //   final tmpFile = File(filename)
-    //     ..writeAsBytesSync(
-    //       [
-    //         ...magicString.codeUnits,
-    //         majorVersion,
-    //         0,
-    //         ...NpyHeader.getSizeFromString(header, majorVersion),
-    //         ...header.codeUnits,
-    //       ],
-    //     );
-    //   final npyFile = await load(filename);
-    //   expect(npyFile.version.major, 1);
-    //   expect(npyFile.version.minor, 0);
-    //   expect(npyFile.headerSize, 53);
-    //   expect(npyFile.header.dtype.endian, NpyEndian.big);
-    //   expect(npyFile.header.dtype.type, NpyType.int);
-    //   expect(npyFile.header.dtype.itemSize, 4);
-    //   expect(npyFile.header.fortranOrder, false);
-    //   expect(npyFile.header.shape, []);
-    //   tmpFile.deleteSync();
-    // });
     // test('np.array(0)', () async {
     //   await load('test/files/array_0.npy');
     //   // expect(load('test/array_0.npy'), throwsA(const TypeMatcher<int>()));

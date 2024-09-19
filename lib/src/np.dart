@@ -53,7 +53,7 @@ Future<NdArray<T>> load<T>(String path) async {
 
       final newData = parseBytes<T>(
         buffer.sublist(dataOffset, dataOffset + elementsToProcess * parser.header!.dtype.itemSize),
-        parser.header!.dtype,
+        parser.header!,
       );
 
       list.addAll(newData);
@@ -74,9 +74,9 @@ Future<NdArray<T>> load<T>(String path) async {
   throw NpyParseException(message: "Error parsing '$path' as an NPY file.");
 }
 
-List<T> parseBytes<T>(List<int> bytes, NpyDType dtype) {
+List<T> parseBytes<T>(List<int> bytes, NpyHeader header) {
+  final dtype = header.dtype;
   final numberOfElements = bytes.length ~/ dtype.itemSize;
-  final byteData = ByteData.view(Uint8List.fromList(bytes).buffer);
 
   late final List<T> result;
   switch (dtype.type) {
@@ -100,6 +100,8 @@ List<T> parseBytes<T>(List<int> bytes, NpyDType dtype) {
     default:
       throw NpyUnsupportedDTypeException(message: 'Unsupported endian: ${dtype.endian}');
   }
+
+  final byteData = ByteData.view(Uint8List.fromList(bytes).buffer);
 
   for (int i = 0; i < numberOfElements; i++) {
     switch (dtype.type) {
@@ -143,7 +145,33 @@ List<T> parseBytes<T>(List<int> bytes, NpyDType dtype) {
     }
   }
 
-  return result;
+  return reshape(result, header.shape).cast<T>();
+}
+
+List<dynamic> reshape<T>(List<T> oneDimensionalList, List<int> shape) {
+  if (oneDimensionalList.isEmpty) return const [];
+  if (shape.isEmpty) throw const NpyParseException(message: 'Shape must not be empty.');
+
+  if (oneDimensionalList.length != shape.reduce((a, b) => a * b)) {
+    throw const NpyParseException(
+      message: 'The total number of elements does not equal the product of the shape dimensions.',
+    );
+  }
+
+  return _reshapeRecursive(oneDimensionalList, shape);
+}
+
+List _reshapeRecursive<T>(List<T> oneDimensionalList, List<int> shape) {
+  if (shape.length == 1) return oneDimensionalList.sublist(0, shape[0]);
+
+  final step = shape.skip(1).reduce((a, b) => a * b);
+  final reshapedList = [];
+
+  for (int i = 0; i < shape[0]; i++) {
+    reshapedList.add(_reshapeRecursive<T>(oneDimensionalList.sublist(i * step, (i + 1) * step), shape.sublist(1)));
+  }
+
+  return reshapedList;
 }
 
 /// Saves the [List] to the given [path] in NPY format.
