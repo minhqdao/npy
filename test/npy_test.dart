@@ -8,10 +8,11 @@ import 'package:test/test.dart';
 void main() {
   const double epsilon = 1e-6;
   bool almostEqual(double a, double b, [double tolerance = epsilon]) => (a - b).abs() < tolerance;
-  bool listAlmostEquals(List<double> a, List<double> b, [double tolerance = epsilon]) {
+  bool listAlmostEquals(List a, List<double> b, [double tolerance = epsilon]) {
     if (a.length != b.length) return false;
+    final mappedList = List<double>.from(a.map((e) => e is double ? e : throw 'Not a double'));
     for (int i = 0; i < a.length; i++) {
-      if (!almostEqual(a[i], b[i], tolerance)) return false;
+      if (!almostEqual(mappedList[i], b[i], tolerance)) return false;
     }
     return true;
   }

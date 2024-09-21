@@ -11,27 +11,10 @@ class NdArray<T> {
   });
 
   final NpyHeaderSection headerSection;
-  final List<T> data;
+  final List data;
 
-  factory NdArray.fromList(List<T> list, {NpyDType? dtype, bool? fortranOrder}) =>
+  factory NdArray.fromList(List list, {NpyDType? dtype, bool? fortranOrder}) =>
       NdArray<T>(headerSection: NpyHeaderSection.fromList(list, dtype: dtype, fortranOrder: fortranOrder), data: list);
-
-  T getElement(List<int> indices) => data[_getIndex(indices)];
-
-  int _getIndex(List<int> indices) {
-    assert(indices.length == headerSection.header.shape.length);
-    int index = 0;
-    int stride = 1;
-    final shape = headerSection.header.shape;
-    final order = headerSection.header.fortranOrder;
-
-    for (int i = 0; i < indices.length; i++) {
-      final idx = order ? i : indices.length - 1 - i;
-      index += indices[idx] * stride;
-      stride *= shape[idx];
-    }
-    return index;
-  }
 
   List<int> get asBytes {
     final List<int> dataBytes = [];

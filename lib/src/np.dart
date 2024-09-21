@@ -18,7 +18,7 @@ import 'package:npy/src/np_file.dart';
 ///}
 /// ```
 Future<NdArray<T>> load<T>(String path) async {
-  if (T != dynamic && T != int && T != double) {
+  if (T != dynamic && T != int && T != double && T != bool) {
     throw NpyUnsupportedTypeException(message: 'Unsupported NdArray type: $T');
   }
 
@@ -28,7 +28,7 @@ Future<NdArray<T>> load<T>(String path) async {
   final parser = NpyParser();
   int dataOffset = 0;
   int elementsRead = 0;
-  final List<T> list = [];
+  final List list = [];
 
   try {
     await for (final chunk in stream) {
@@ -74,11 +74,11 @@ Future<NdArray<T>> load<T>(String path) async {
   throw NpyParseException(message: "Error parsing '$path' as an NPY file.");
 }
 
-List<T> parseBytes<T>(List<int> bytes, NpyHeader header) {
+List parseBytes<T>(List<int> bytes, NpyHeader header) {
   final dtype = header.dtype;
   final numberOfElements = bytes.length ~/ dtype.itemSize;
 
-  late final List<T> result;
+  late final List result;
   switch (dtype.type) {
     case NpyType.float:
       result = List.filled(numberOfElements, .0 as T);
@@ -151,7 +151,7 @@ List<T> parseBytes<T>(List<int> bytes, NpyHeader header) {
     }
   }
 
-  return reshape(result, header.shape).cast<T>();
+  return reshape(result, header.shape);
 }
 
 List<dynamic> reshape<T>(List<T> oneDimensionalList, List<int> shape) {
