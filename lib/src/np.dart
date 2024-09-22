@@ -151,33 +151,57 @@ List parseBytes<T>(List<int> bytes, NpyHeader header) {
     }
   }
 
-  return reshape(result, header.shape);
+  return reshape(result, header.shape, fortranOrder: header.fortranOrder);
 }
 
-List<dynamic> reshape<T>(List<T> oneDimensionalList, List<int> shape) {
+List<dynamic> reshape<T>(List<T> oneDimensionalList, List<int> shape, {bool fortranOrder = false}) {
   if (oneDimensionalList.isEmpty) return const [];
   if (shape.isEmpty) throw const NpyParseException(message: 'Shape must not be empty.');
-
   if (oneDimensionalList.length != shape.reduce((a, b) => a * b)) {
     throw const NpyParseException(
       message: 'The total number of elements does not equal the product of the shape dimensions.',
     );
   }
 
-  return _reshapeRecursive(oneDimensionalList, shape);
-}
+  if (shape.length == 1) return oneDimensionalList;
 
-List _reshapeRecursive<T>(List<T> oneDimensionalList, List<int> shape) {
-  if (shape.length == 1) return oneDimensionalList.sublist(0, shape[0]);
-
-  final step = shape.skip(1).reduce((a, b) => a * b);
-  final reshapedList = [];
-
-  for (int i = 0; i < shape[0]; i++) {
-    reshapedList.add(_reshapeRecursive<T>(oneDimensionalList.sublist(i * step, (i + 1) * step), shape.sublist(1)));
+  int getIndex(List<int> indices) {
+    int index = 0;
+    int stride = 1;
+    if (fortranOrder) {
+      for (int i = 0; i < shape.length; i++) {
+        index += indices[i] * stride;
+        stride *= shape[i];
+      }
+    } else {
+      for (int i = shape.length - 1; i >= 0; i--) {
+        index += indices[i] * stride;
+        stride *= shape[i];
+      }
+    }
+    return index;
   }
 
-  return reshapedList;
+  List result = oneDimensionalList;
+  final indices = List.filled(shape.length, 0);
+
+  void reshapeRecursive(int dimension) {
+    if (dimension == shape.length - 1) {
+      result = List.generate(shape[dimension], (i) {
+        indices[dimension] = i;
+        return oneDimensionalList[getIndex(indices)];
+      });
+    } else {
+      result = List.generate(shape[dimension], (i) {
+        indices[dimension] = i;
+        reshapeRecursive(dimension + 1);
+        return result;
+      });
+    }
+  }
+
+  reshapeRecursive(0);
+  return result;
 }
 
 /// Saves the [List] to the given [path] in NPY format.

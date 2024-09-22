@@ -708,6 +708,76 @@ void main() {
       'List length does not match shape',
       () => expect(() => reshape([1, 2, 3, 4], [5]), throwsA(const TypeMatcher<NpyParseException>())),
     );
+    test('Empty list, fortran oder', () => expect(reshape([], [], fortranOrder: true), []));
+    test(
+      'Empty shape, fortran order',
+      () => expect(
+        () => reshape([1, 2, 3, 4, 5, 6], [], fortranOrder: true),
+        throwsA(const TypeMatcher<NpyParseException>()),
+      ),
+    );
+    test(
+      '1D int, fortran order',
+      () => expect(reshape([1, 2, 3, 4, 5, 6], [6], fortranOrder: true), [1, 2, 3, 4, 5, 6]),
+    );
+    test('2D int, fortran order', () {
+      expect(reshape([1, 4, 2, 5, 3, 6], [2, 3], fortranOrder: true), [
+        [1, 2, 3],
+        [4, 5, 6],
+      ]);
+    });
+    test('2D int reverse, fortran order', () {
+      expect(reshape([1, 3, 5, 2, 4, 6], fortranOrder: true, [3, 2]), [
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ]);
+    });
+    test('2D int, single row, fortran order', () {
+      expect(reshape([1, 2, 3, 4, 5, 6], fortranOrder: true, [1, 6]), [
+        [1, 2, 3, 4, 5, 6],
+      ]);
+    });
+    test('2D int, single column, fortran order', () {
+      expect(reshape([1, 2, 3, 4, 5, 6], fortranOrder: true, [6, 1]), [
+        [1],
+        [2],
+        [3],
+        [4],
+        [5],
+        [6],
+      ]);
+    });
+    test('3D int, fortran order', () {
+      expect(
+          reshape(
+            [1, 13, 5, 17, 9, 21, 2, 14, 6, 18, 10, 22, 3, 15, 7, 19, 11, 23, 4, 16, 8, 20, 12, 24],
+            [2, 3, 4],
+            fortranOrder: true,
+          ),
+          [
+            [
+              [1, 2, 3, 4],
+              [5, 6, 7, 8],
+              [9, 10, 11, 12],
+            ],
+            [
+              [13, 14, 15, 16],
+              [17, 18, 19, 20],
+              [21, 22, 23, 24],
+            ],
+          ]);
+    });
+    test('2D float, fortran order', () {
+      expect(reshape([1.0, 4.3, 2.1, 5.4, 3.2, 6.5], fortranOrder: true, [2, 3]), [
+        [1.0, 2.1, 3.2],
+        [4.3, 5.4, 6.5],
+      ]);
+    });
+    test(
+      'List length does not match shape',
+      () => expect(() => reshape([1, 2, 3, 4], [5]), throwsA(const TypeMatcher<NpyParseException>())),
+    );
   });
 
   group('Load npy:', () {
