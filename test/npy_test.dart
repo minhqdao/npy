@@ -882,16 +882,15 @@ void main() {
       ]);
       tmpFile.deleteSync();
     });
-    // test('bool list', () async {
-    //   const filename = 'bool_list.tmp';
-    //   final headerSection = NpyHeaderSection.fromList([true, false]);
-    //   final tmpFile = File(filename)
-    //     ..writeAsBytesSync([...headerSection.asBytes, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 0, 0, 0, 0]);
-    //   final ndarray = await load(filename);
-    //   expect(ndarray.headerSection.header.shape, [2]);
-    //   expect(ndarray.data, [-1, 1]);
-    //   tmpFile.deleteSync();
-    // });
+    test('bool list', () async {
+      const filename = 'bool_list.tmp';
+      final headerSection = NpyHeaderSection.fromList([true, false]);
+      final tmpFile = File(filename)..writeAsBytesSync([...headerSection.asBytes, 1, 0]);
+      final ndarray = await load(filename);
+      expect(ndarray.headerSection.header.shape, [2]);
+      expect(ndarray.data, [true, false]);
+      tmpFile.deleteSync();
+    });
     // test('np.array(0)', () async {
     //   await load('test/files/array_0.npy');
     //   // expect(load('test/array_0.npy'), throwsA(const TypeMatcher<int>()));
@@ -961,40 +960,12 @@ void main() {
   });
 
   group('Header size to bytes:', () {
-    // test('0', () {
-    //   final bytes = NpyHeaderSection.fromList([]).headerSizeAsBytes;
-    //   expect(bytes.length, 2);
-    //   expect(bytes[0], 0);
-    //   expect(bytes[1], 0);
-    // });
-    // test('1', () {
-    //   final bytes = NpyHeaderSection.fromList([]).headerSizeAsBytes;
-    //   expect(bytes.length, 2);
-    //   expect(bytes[0], 1);
-    //   expect(bytes[1], 0);
-    // });
-    // test('First version maximum', () {
-    //   final bytes = NpyHeaderSection.fromList([]).headerSizeAsBytes(65535);
-    //   expect(bytes.length, 2);
-    //   expect(bytes[0], 255);
-    //   expect(bytes[1], 255);
-    // });
-    // test('Exceeds first version maximum', () {
-    //   expect(() => NpyHeaderSection.fromList([]).headerSizeAsBytes(65536), throwsA(isA<AssertionError>()));
-    // });
-    // test('0, V2', () {
-    //   final bytes = NpyHeaderSection(
-    //     version: const NpyVersion(major: 2),
-    //     header: NpyHeader.fromList([]),
-    //     headerSize: 0,
-    //     paddingSize: 0,
-    //   ).headerSizeAsBytes(0);
-    //   expect(bytes.length, 4);
-    //   expect(bytes[0], 0);
-    //   expect(bytes[1], 0);
-    //   expect(bytes[2], 0);
-    //   expect(bytes[3], 0);
-    // });
+    test('Empty list', () {
+      final bytes = NpyHeaderSection.fromList([]).headerSizeAsBytes;
+      expect(bytes.length, 2);
+      expect(bytes[0], 118);
+      expect(bytes[1], 0);
+    });
     // test('100, V2', () {
     //   final bytes = NpyHeaderSection(
     //     version: const NpyVersion(major: 2),
@@ -1167,12 +1138,12 @@ void main() {
   });
 
   group('Flatten:', () {
-    test('Empty list', () => expect(flatten([]), []));
-    test('1D list', () => expect(flatten([1, 2, 3, 4, 5, 6]), [1, 2, 3, 4, 5, 6]));
+    test('Empty list, C order', () => expect(flattenCOrder([]), []));
+    test('1D list, C order', () => expect(flattenCOrder([1, 2, 3, 4, 5, 6]), [1, 2, 3, 4, 5, 6]));
     test(
-      '2D list',
+      '2D list, C order',
       () => expect(
-        flatten([
+        flattenCOrder([
           [1, 2, 3],
           [4, 5, 6],
         ]),
@@ -1180,9 +1151,9 @@ void main() {
       ),
     );
     test(
-      '3D list',
+      '3D list, C order',
       () => expect(
-        flatten([
+        flattenCOrder([
           [
             [1, 2],
             [3, 4],
@@ -1195,6 +1166,41 @@ void main() {
         [1, 2, 3, 4, 5, 6, 7, 8],
       ),
     );
+    test('Empty list, Fortran order', () => expect(flattenFortranOrder([], []), []));
+    test('1D list, Fortran order', () => expect(flattenFortranOrder([1, 2, 3, 4, 5, 6], [6]), [1, 2, 3, 4, 5, 6]));
+    test(
+      '2D list, Fortran order',
+      () => expect(
+        flattenFortranOrder(
+          [
+            [1, 2, 3],
+            [4, 5, 6],
+          ],
+          [2, 3],
+        ),
+        [1, 4, 2, 5, 3, 6],
+      ),
+    );
+    test('3D int, fortran order', () {
+      expect(
+        flattenFortranOrder(
+          [
+            [
+              [1, 2, 3, 4],
+              [5, 6, 7, 8],
+              [9, 10, 11, 12],
+            ],
+            [
+              [13, 14, 15, 16],
+              [17, 18, 19, 20],
+              [21, 22, 23, 24],
+            ],
+          ],
+          [2, 3, 4],
+        ),
+        [1, 13, 5, 17, 9, 21, 2, 14, 6, 18, 10, 22, 3, 15, 7, 19, 11, 23, 4, 16, 8, 20, 12, 24],
+      );
+    });
   });
 
   group('Save npy:', () {

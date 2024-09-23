@@ -75,3 +75,10 @@ class NpyWriteException extends NpException {
   @override
   final String message;
 }
+
+class NpyInternalStateException extends NpException {
+  const NpyInternalStateException({required this.message});
+
+  @override
+  final String message;
+}

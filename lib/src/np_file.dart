@@ -34,7 +34,10 @@ class NdArray<T> {
         }
     }
 
-    for (final element in flatten(data)) {
+    final flattenedData =
+        headerSection.header.fortranOrder ? flattenFortranOrder(data, headerSection.header.shape) : flattenCOrder(data);
+
+    for (final element in flattenedData) {
       final byteData = ByteData(dtype.itemSize);
       if (element is int) {
         switch (dtype.type) {
@@ -79,26 +82,66 @@ class NdArray<T> {
       } else if (element is bool) {
         byteData.setUint8(0, element ? 1 : 0);
       } else {
-        throw NpyUnsupportedTypeException(message: 'Unsupported NdArray type: $T');
+        throw NpyUnsupportedTypeException(message: 'Unsupported NdArray type: ${element.runtimeType}');
       }
-
       dataBytes.addAll(Uint8List.fromList(byteData.buffer.asUint8List()));
     }
-
     return [...headerSection.asBytes, ...dataBytes];
   }
 }
 
-List flatten(List list) {
-  final List result = [];
+List<T> flattenCOrder<T>(List list) {
+  final result = <T>[];
   for (final element in list) {
-    if (element is List) {
-      result.addAll(flatten(element));
-    } else {
-      result.add(element);
-    }
+    element is List ? result.addAll(flattenCOrder<T>(element)) : result.add(element as T);
   }
   return result;
+}
+
+List<T> flattenFortranOrder<T>(List<dynamic> list, List<int> shape) {
+  final result = <T>[];
+  if (shape.isNotEmpty) {
+    _flattenFortranOrderRecursive(
+      list,
+      shape,
+      List.filled(shape.length, 0),
+      shape.length - 1,
+      (item) => result.add(item as T),
+    );
+  }
+  return result;
+}
+
+void _flattenFortranOrderRecursive(
+  List<dynamic> list,
+  List<int> shape,
+  List<int> indices,
+  int depth,
+  void Function(dynamic) addItem,
+) {
+  if (depth == 0) {
+    for (int i = 0; i < shape[depth]; i++) {
+      indices[depth] = i;
+      addItem(_getNestedItem(list, indices));
+    }
+  } else {
+    for (int i = 0; i < shape[depth]; i++) {
+      indices[depth] = i;
+      _flattenFortranOrderRecursive(list, shape, indices, depth - 1, addItem);
+    }
+  }
+}
+
+dynamic _getNestedItem(List<dynamic> list, List<int> indices) {
+  dynamic item = list;
+  for (final index in indices) {
+    if (item is List) {
+      item = item[index];
+    } else {
+      throw const NpyInternalStateException(message: 'Unexpected non-list item encountered');
+    }
+  }
+  return item;
 }
 
 // class NpzFile {
