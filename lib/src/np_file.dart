@@ -34,8 +34,9 @@ class NdArray<T> {
         }
     }
 
-    final flattenedData =
-        headerSection.header.fortranOrder ? flattenFortranOrder(data, headerSection.header.shape) : flattenCOrder(data);
+    final flattenedData = headerSection.header.fortranOrder
+        ? flattenFortranOrder<T>(data, shape: headerSection.header.shape)
+        : flattenCOrder<T>(data);
 
     for (final element in flattenedData) {
       final byteData = ByteData(dtype.itemSize);
@@ -98,51 +99,45 @@ List<T> flattenCOrder<T>(List list) {
   return result;
 }
 
-List<T> flattenFortranOrder<T>(List<dynamic> list, List<int> shape) {
+List<T> flattenFortranOrder<T>(List list, {required List<int> shape}) {
   final result = <T>[];
   if (shape.isNotEmpty) {
-    _flattenFortranOrderRecursive(
+    _flattenFortranOrderRecursive<T>(
       list,
       shape,
       List.filled(shape.length, 0),
       shape.length - 1,
-      (item) => result.add(item as T),
+      (item) => result.add(item),
     );
   }
   return result;
 }
 
-void _flattenFortranOrderRecursive(
-  List<dynamic> list,
+void _flattenFortranOrderRecursive<T>(
+  List list,
   List<int> shape,
   List<int> indices,
   int depth,
-  void Function(dynamic) addItem,
+  void Function(T) addItem,
 ) {
   if (depth == 0) {
     for (int i = 0; i < shape[depth]; i++) {
       indices[depth] = i;
-      addItem(_getNestedItem(list, indices));
+      addItem(_getNestedItem<T>(list, indices));
     }
   } else {
     for (int i = 0; i < shape[depth]; i++) {
       indices[depth] = i;
-      _flattenFortranOrderRecursive(list, shape, indices, depth - 1, addItem);
+      _flattenFortranOrderRecursive<T>(list, shape, indices, depth - 1, addItem);
     }
   }
 }
 
-dynamic _getNestedItem(List<dynamic> list, List<int> indices) {
-  dynamic item = list;
-  for (final index in indices) {
-    if (item is List) {
-      item = item[index];
-    } else {
-      throw const NpyInternalStateException(message: 'Unexpected non-list item encountered');
-    }
-  }
-  return item;
-}
+T _getNestedItem<T>(List list, List<int> indices) => _getNestedItemRecursive<T>(list, indices, 0);
+
+T _getNestedItemRecursive<T>(List list, List<int> indices, int depth) => depth == indices.length - 1
+    ? list[indices[depth]] as T
+    : _getNestedItemRecursive<T>(list[indices[depth]] as List, indices, depth + 1);
 
 // class NpzFile {
 //   const NpzFile({
