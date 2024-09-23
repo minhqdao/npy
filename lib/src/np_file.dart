@@ -13,8 +13,10 @@ class NdArray<T> {
   final NpyHeaderSection headerSection;
   final List data;
 
-  factory NdArray.fromList(List list, {NpyDType? dtype, bool? fortranOrder}) =>
-      NdArray<T>(headerSection: NpyHeaderSection.fromList(list, dtype: dtype, fortranOrder: fortranOrder), data: list);
+  factory NdArray.fromList(List list, {NpyDType? dtype, NpyEndian? endian, bool? fortranOrder}) => NdArray<T>(
+        headerSection: NpyHeaderSection.fromList(list, dtype: dtype, endian: endian, fortranOrder: fortranOrder),
+        data: list,
+      );
 
   List<int> get asBytes {
     final List<int> dataBytes = [];
@@ -212,8 +214,8 @@ class NpyHeaderSection {
   final int headerSize;
   final NpyHeader header;
 
-  factory NpyHeaderSection.fromList(List list, {NpyDType? dtype, bool? fortranOrder}) =>
-      NpyHeaderSection.fromHeader(NpyHeader.fromList(list, dtype: dtype, fortranOrder: fortranOrder));
+  factory NpyHeaderSection.fromList(List list, {NpyDType? dtype, NpyEndian? endian, bool? fortranOrder}) =>
+      NpyHeaderSection.fromHeader(NpyHeader.fromList(list, dtype: dtype, endian: endian, fortranOrder: fortranOrder));
 
   factory NpyHeaderSection.fromHeader(NpyHeader header) {
     final headerSize = header.length;
@@ -409,11 +411,23 @@ class NpyHeader<T> {
     );
   }
 
-  factory NpyHeader.fromList(List list, {NpyDType? dtype, bool? fortranOrder, List<int> shape = const []}) {
+  factory NpyHeader.fromList(
+    List list, {
+    NpyDType? dtype,
+    NpyEndian? endian,
+    bool? fortranOrder,
+    List<int> shape = const [],
+  }) {
+    assert(endian == null || dtype == null, 'Do not specify both dtype and endian. Define endian within dtype.');
+
     if (list.isEmpty) {
       return NpyHeader.buildString(
         dtype: dtype ??
-            NpyDType.fromArgs(endian: NpyEndian.little, type: NpyType.float, itemSize: NpyDType.defaultItemSize),
+            NpyDType.fromArgs(
+              endian: endian ?? NpyEndian.little,
+              type: NpyType.float,
+              itemSize: NpyDType.defaultItemSize,
+            ),
         fortranOrder: fortranOrder ?? false,
         shape: shape.isEmpty ? shape : [...shape, list.length],
       );
@@ -433,6 +447,7 @@ class NpyHeader<T> {
       return NpyHeader.fromList(
         list.first as List,
         dtype: dtype,
+        endian: endian,
         fortranOrder: fortranOrder,
         shape: updatedShape,
       );
@@ -442,9 +457,9 @@ class NpyHeader<T> {
 
     return NpyHeader.buildString(
       dtype: NpyDType.fromArgs(
-        endian: dtype?.endian ?? NpyEndian.little,
-        type: obtainedType,
+        endian: endian ?? dtype?.endian ?? NpyEndian.little,
         itemSize: dtype?.itemSize ?? NpyDType.defaultItemSize,
+        type: obtainedType,
       ),
       fortranOrder: fortranOrder ?? false,
       shape: updatedShape,

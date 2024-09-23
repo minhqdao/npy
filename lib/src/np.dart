@@ -207,8 +207,8 @@ List<dynamic> reshape<T>(List<T> oneDimensionalList, List<int> shape, {bool fort
 /// Saves the [List] to the given [path] in NPY format.
 ///
 /// The [List] has to be of a supported type, which are currently [int] and [double].
-Future<void> saveList(String path, List list, {NpyDType? dtype, bool? fortranOrder}) async =>
-    save(path, NdArray.fromList(list, dtype: dtype, fortranOrder: fortranOrder));
+Future<void> saveList(String path, List list, {NpyDType? dtype, NpyEndian? endian, bool? fortranOrder}) async =>
+    save(path, NdArray.fromList(list, dtype: dtype, endian: endian, fortranOrder: fortranOrder));
 
 /// Saves the [NdArray] to the given [path] in NPY format.
 ///

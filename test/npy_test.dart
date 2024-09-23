@@ -595,7 +595,7 @@ void main() {
       expect(data, [1.0]);
     });
     test('2 big endian float32', () {
-      final header = NpyHeader.fromList([0.9, -0.2], dtype: const NpyDType.float32(endian: NpyEndian.big));
+      final header = NpyHeader.fromList([0.9, -0.2], dtype: const NpyDType.float32(endian: NpyEndian.big), endian: NpyEndian.big);
       final data = parseBytes<double>([63, 102, 102, 102, 190, 76, 204, 205], header);
       expect(listAlmostEquals(data, [0.9, -0.2]), true);
     });
@@ -1211,7 +1211,7 @@ void main() {
       expect(dataBytes.last, 0x3f);
     });
     test('[256], big endian', () {
-      final ndarray = NdArray.fromList(const [256], dtype: const NpyDType.int64(endian: NpyEndian.big));
+      final ndarray = NdArray.fromList(const [256], endian: NpyEndian.big);
       expect(ndarray.data, const [256]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
       final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
@@ -1221,7 +1221,7 @@ void main() {
       expect(dataBytes.last, 0);
     });
     test('[1, 200], big endian', () {
-      final ndarray = NdArray.fromList(const [1, 200], dtype: const NpyDType.int64(endian: NpyEndian.big));
+      final ndarray = NdArray.fromList(const [1, 200], endian: NpyEndian.big);
       expect(ndarray.data, const [1, 200]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
       final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
@@ -1232,7 +1232,7 @@ void main() {
       expect(dataBytes.elementAt(14), 0);
     });
     test('[1.0, 1.9], big endian', () {
-      final ndarray = NdArray.fromList(const [1.0, 1.9], dtype: const NpyDType.float64(endian: NpyEndian.big));
+      final ndarray = NdArray.fromList(const [1.0, 1.9], endian: NpyEndian.big);
       expect(ndarray.data, const [1.0, 1.9]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.float);
       final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
@@ -1366,7 +1366,7 @@ void main() {
           [1, 2, 3],
           [4, 5, 6],
         ],
-        dtype: const NpyDType.int64(endian: NpyEndian.big),
+        endian: NpyEndian.big,
         fortranOrder: true,
       );
       expect(ndarray.data, const [
@@ -1385,6 +1385,99 @@ void main() {
       expect(dataBytes.elementAt(31), 5);
       expect(dataBytes.elementAt(39), 3);
       expect(dataBytes.elementAt(47), 6);
+    });
+    test('3d, shape [2, 3, 4], little endian, C order', () {
+      final ndarray = NdArray.fromList(
+        [
+          [
+            [1, 2, 3, 4],
+            [5, 6, 7, 8],
+            [9, 10, 11, 12],
+          ],
+          [
+            [13, 14, 15, 16],
+            [17, 18, 19, 20],
+            [21, 22, 23, 24],
+          ],
+        ],
+      );
+      expect(
+        ndarray.data,
+        [
+          [
+            [1, 2, 3, 4],
+            [5, 6, 7, 8],
+            [9, 10, 11, 12],
+          ],
+          [
+            [13, 14, 15, 16],
+            [17, 18, 19, 20],
+            [21, 22, 23, 24],
+          ],
+        ],
+      );
+      expect(ndarray.headerSection.header.dtype.type, NpyType.int);
+      expect(ndarray.headerSection.header.shape, [2, 3, 4]);
+      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      expect(dataBytes.length, 192);
+      expect(dataBytes.first, 1);
+      expect(dataBytes.elementAt(1), 0);
+      expect(dataBytes.elementAt(8), 2);
+      expect(dataBytes.elementAt(9), 0);
+      expect(dataBytes.elementAt(16), 3);
+      expect(dataBytes.elementAt(24), 4);
+      expect(dataBytes.elementAt(32), 5);
+      expect(dataBytes.elementAt(40), 6);
+      expect(dataBytes.elementAt(176), 23);
+      expect(dataBytes.elementAt(184), 24);
+    });
+    test('3d, shape [2, 3, 4], big endian, Fortran order', () {
+      final ndarray = NdArray.fromList(
+        [
+          [
+            [1, 2, 3, 4],
+            [5, 6, 7, 8],
+            [9, 10, 11, 12],
+          ],
+          [
+            [13, 14, 15, 16],
+            [17, 18, 19, 20],
+            [21, 22, 23, 24],
+          ],
+        ],
+        endian: NpyEndian.big,
+        fortranOrder: true,
+      );
+      expect(
+        ndarray.data,
+        [
+          [
+            [1, 2, 3, 4],
+            [5, 6, 7, 8],
+            [9, 10, 11, 12],
+          ],
+          [
+            [13, 14, 15, 16],
+            [17, 18, 19, 20],
+            [21, 22, 23, 24],
+          ],
+        ],
+      );
+      expect(ndarray.headerSection.header.dtype.type, NpyType.int);
+      expect(ndarray.headerSection.header.shape, [2, 3, 4]);
+      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      expect(dataBytes.length, 192);
+      expect(dataBytes.first, 0);
+      expect(dataBytes.elementAt(1), 0);
+      expect(dataBytes.elementAt(7), 1);
+      expect(dataBytes.elementAt(15), 13);
+      expect(dataBytes.elementAt(23), 5);
+      expect(dataBytes.elementAt(31), 17);
+      expect(dataBytes.elementAt(39), 9);
+      expect(dataBytes.elementAt(47), 21);
+      expect(dataBytes.elementAt(55), 2);
+      expect(dataBytes.elementAt(183), 12);
+      expect(dataBytes.elementAt(191), 24);
     });
   });
 
