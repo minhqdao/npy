@@ -17,23 +17,23 @@ void main() {
     return true;
   }
 
-  group('ByteTransformer:', () {
+  group('ChunkTransformer:', () {
     test('Empty list', () {
       final controller = StreamController<List<int>>();
       controller.add([]);
       expect(
-        controller.stream.transform(const ByteTransformer()),
+        controller.stream.transform(const ChunkTransformer()),
         emitsInOrder([
           [],
         ]),
       );
       controller.close();
     });
-    test('Empty list, transformed', () {
+    test('Empty list with given buffer size', () {
       final controller = StreamController<List<int>>();
       controller.add([]);
       expect(
-        controller.stream.transform(const ByteTransformer(bufferSize: 1)),
+        controller.stream.transform(const ChunkTransformer(bufferSize: 1)),
         emitsInOrder([
           [],
         ]),
@@ -44,7 +44,7 @@ void main() {
       final controller = StreamController<List<int>>();
       controller.add([1]);
       expect(
-        controller.stream.transform(const ByteTransformer()),
+        controller.stream.transform(const ChunkTransformer()),
         emitsInOrder([
           [1],
         ]),
@@ -55,7 +55,7 @@ void main() {
       final controller = StreamController<List<int>>();
       controller.add([1, 2]);
       expect(
-        controller.stream.transform(const ByteTransformer()),
+        controller.stream.transform(const ChunkTransformer()),
         emitsInOrder([
           [1, 2],
         ]),
@@ -66,7 +66,7 @@ void main() {
       final controller = StreamController<List<int>>();
       controller.add([1, 2]);
       expect(
-        controller.stream.transform(const ByteTransformer(bufferSize: 1)),
+        controller.stream.transform(const ChunkTransformer(bufferSize: 1)),
         emitsInOrder([
           [1],
           [2],
@@ -78,7 +78,7 @@ void main() {
       final controller = StreamController<List<int>>();
       controller.add([1, 2]);
       expect(
-        controller.stream.transform(const ByteTransformer(bufferSize: 2)),
+        controller.stream.transform(const ChunkTransformer(bufferSize: 2)),
         emitsInOrder([
           [1, 2],
         ]),
@@ -89,7 +89,7 @@ void main() {
       final controller = StreamController<List<int>>();
       controller.add([1, 2]);
       expect(
-        controller.stream.transform(const ByteTransformer(bufferSize: 3)),
+        controller.stream.transform(const ChunkTransformer(bufferSize: 3)),
         emitsInOrder([
           [1, 2],
         ]),
@@ -100,7 +100,7 @@ void main() {
       final controller = StreamController<List<int>>();
       controller.add([1, 2, 3]);
       expect(
-        controller.stream.transform(const ByteTransformer(bufferSize: 2)),
+        controller.stream.transform(const ChunkTransformer(bufferSize: 2)),
         emitsInOrder([
           [1, 2],
           [3],
@@ -114,7 +114,7 @@ void main() {
         ..add([1])
         ..add([2]);
       expect(
-        controller.stream.transform(const ByteTransformer(bufferSize: 1)),
+        controller.stream.transform(const ChunkTransformer(bufferSize: 1)),
         emitsInOrder([
           [1],
           [2],
@@ -130,7 +130,7 @@ void main() {
         ..add([3])
         ..add([4, 5, 6, 7]);
       expect(
-        controller.stream.transform(const ByteTransformer(bufferSize: 2)),
+        controller.stream.transform(const ChunkTransformer(bufferSize: 2)),
         emitsInOrder([
           [1, 2],
           [3, 4],
@@ -697,64 +697,64 @@ void main() {
   group('Parse bytes:', () {
     test('1 little endian float64', () {
       final header = NpyHeader.fromList([1.0], dtype: const NpyDType.float64(endian: NpyEndian.little));
-      final data = parseBytes([0, 0, 0, 0, 0, 0, 240, 63], header);
+      final data = parseDataBytes([0, 0, 0, 0, 0, 0, 240, 63], header);
       expect(data, [1.0]);
     });
     test('2 big endian float32', () {
       final header = NpyHeader.fromList([0.9, -0.2], dtype: const NpyDType.float32(endian: NpyEndian.big));
-      final data = parseBytes<double>([63, 102, 102, 102, 190, 76, 204, 205], header);
+      final data = parseDataBytes<double>([63, 102, 102, 102, 190, 76, 204, 205], header);
       expect(listAlmostEquals(data, [0.9, -0.2]), true);
     });
     test('2 little endian int64', () {
       final header = NpyHeader.fromList([-42, 2], dtype: const NpyDType.int64(endian: NpyEndian.little));
-      final data = parseBytes([214, 255, 255, 255, 255, 255, 255, 255, 2, 0, 0, 0, 0, 0, 0, 0], header);
+      final data = parseDataBytes([214, 255, 255, 255, 255, 255, 255, 255, 2, 0, 0, 0, 0, 0, 0, 0], header);
       expect(data, [-42, 2]);
     });
     test('1 big endian int32', () {
       final header = NpyHeader.fromList([1], dtype: const NpyDType.int32(endian: NpyEndian.big));
-      final data = parseBytes([0, 0, 0, 1], header);
+      final data = parseDataBytes([0, 0, 0, 1], header);
       expect(data, [1]);
     });
     test('2 little endian int16', () {
       final header = NpyHeader.fromList([1, 2], dtype: const NpyDType.int16(endian: NpyEndian.little));
-      final data = parseBytes([1, 0, 2, 0], header);
+      final data = parseDataBytes([1, 0, 2, 0], header);
       expect(data, [1, 2]);
     });
     test('4 int8', () {
       final header = NpyHeader.fromList([1, -1, 3, 4], dtype: const NpyDType.int8());
-      final data = parseBytes([1, 255, 3, 4], header);
+      final data = parseDataBytes([1, 255, 3, 4], header);
       expect(data, [1, -1, 3, 4]);
     });
     test('1 big endian uint64', () {
       final header = NpyHeader.fromList([1], dtype: const NpyDType.uint64(endian: NpyEndian.big));
-      final data = parseBytes([0, 0, 0, 0, 0, 0, 0, 1], header);
+      final data = parseDataBytes([0, 0, 0, 0, 0, 0, 0, 1], header);
       expect(data, [1]);
     });
     test('2 little endian uint32', () {
       final header = NpyHeader.fromList([1, 2], dtype: const NpyDType.uint32(endian: NpyEndian.little));
-      final data = parseBytes([1, 0, 0, 0, 2, 0, 0, 0], header);
+      final data = parseDataBytes([1, 0, 0, 0, 2, 0, 0, 0], header);
       expect(data, [1, 2]);
     });
     test('1 big endian uint16', () {
       final header = NpyHeader.fromList([1], dtype: const NpyDType.uint16(endian: NpyEndian.big));
-      final data = parseBytes([0, 1], header);
+      final data = parseDataBytes([0, 1], header);
       expect(data, [1]);
     });
     test('3 uint8', () {
       final header = NpyHeader.fromList([1, 255, 3], dtype: const NpyDType.uint8());
-      final data = parseBytes([1, 255, 3], header);
+      final data = parseDataBytes([1, 255, 3], header);
       expect(data, [1, 255, 3]);
     });
     test('1D bool', () {
       final header = NpyHeader.fromList([true, false, true]);
-      expect(parseBytes([1, 0, 1], header), [true, false, true]);
+      expect(parseDataBytes([1, 0, 1], header), [true, false, true]);
     });
     test('2D bool', () {
       final header = NpyHeader.fromList([
         [true, false, true],
         [false, true, false],
       ]);
-      expect(parseBytes([1, 0, 1, 0, 1, 0], header), [
+      expect(parseDataBytes([1, 0, 1, 0, 1, 0], header), [
         [true, false, true],
         [false, true, false],
       ]);

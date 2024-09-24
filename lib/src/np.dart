@@ -18,11 +18,11 @@ import 'package:npy/src/np_file.dart';
 ///}
 /// ```
 Future<NdArray<T>> load<T>(String path, [int? bufferSize]) async {
-  if (T != dynamic && T != int && T != double && T != bool) {
+  if (T != dynamic && T != double && T != int && T != bool) {
     throw NpyUnsupportedTypeException(message: 'Unsupported NdArray type: $T');
   }
 
-  final stream = File(path).openRead().transform(ByteTransformer(bufferSize: bufferSize));
+  final stream = File(path).openRead().transform(ChunkTransformer(bufferSize: bufferSize));
 
   final List<int> buffer = [];
   final parser = NpyParser();
@@ -51,7 +51,7 @@ Future<NdArray<T>> load<T>(String path, [int? bufferSize]) async {
       final elementsInBuffer = (buffer.length - dataOffset) ~/ parser.header!.dtype.itemSize;
       final elementsToProcess = min(remainingElements, elementsInBuffer);
 
-      final newData = parseBytes<T>(
+      final newData = parseDataBytes<T>(
         buffer.sublist(dataOffset, dataOffset + elementsToProcess * parser.header!.dtype.itemSize),
         parser.header!,
       );
@@ -74,7 +74,8 @@ Future<NdArray<T>> load<T>(String path, [int? bufferSize]) async {
   throw NpyParseException(message: "Error parsing '$path' as an NPY file.");
 }
 
-List parseBytes<T>(List<int> bytes, NpyHeader header) {
+/// Parse the data bytes according to the [header] metadata and return a single- or multidimensional [List] of values.
+List parseDataBytes<T>(List<int> bytes, NpyHeader header) {
   final dtype = header.dtype;
   final numberOfElements = bytes.length ~/ dtype.itemSize;
 
@@ -155,8 +156,8 @@ List parseBytes<T>(List<int> bytes, NpyHeader header) {
 }
 
 /// Transforms a stream and emits chunks of the specified size.
-class ByteTransformer extends StreamTransformerBase<List<int>, List<int>> {
-  const ByteTransformer({this.bufferSize});
+class ChunkTransformer extends StreamTransformerBase<List<int>, List<int>> {
+  const ChunkTransformer({this.bufferSize});
 
   final int? bufferSize;
 
@@ -183,6 +184,7 @@ class ByteTransformer extends StreamTransformerBase<List<int>, List<int>> {
   }
 }
 
+/// Reshape a one-dimensional [List] according to the given [shape] and order (C or Fortran).
 List<dynamic> reshape<T>(List<T> oneDimensionalList, List<int> shape, {bool fortranOrder = false}) {
   if (oneDimensionalList.isEmpty) return const [];
   if (shape.isEmpty) throw const NpyParseException(message: 'Shape must not be empty.');
@@ -235,11 +237,11 @@ List<dynamic> reshape<T>(List<T> oneDimensionalList, List<int> shape, {bool fort
 
 /// Saves the [List] to the given [path] in NPY format.
 ///
-/// The [List] has to be of a supported type, which are currently [int] and [double].
+/// The [List] has to be of a supported type, which are currently [double], [int] and [bool].
 Future<void> saveList(String path, List list, {NpyDType? dtype, NpyEndian? endian, bool? fortranOrder}) async =>
     save(path, NdArray.fromList(list, dtype: dtype, endian: endian, fortranOrder: fortranOrder));
 
-/// Saves the [NdArray] to the given [path] in NPY format.
+/// Saves an [NdArray] to the given [path] in NPY format.
 ///
 /// The [NdArray] can be conveniently created using the [NdArray.fromList] constructor.
 ///
