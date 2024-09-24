@@ -155,8 +155,11 @@ List parseDataBytes<T>(List<int> bytes, NpyHeader header) {
   return reshape(result, header.shape, fortranOrder: header.fortranOrder);
 }
 
-/// Transforms a stream and emits chunks of the specified size.
+/// Transforms a stream to emit chunks of the specified [bufferSize]. If [bufferSize] is not provided, the stream will
+/// be emitted as chunks of default size.
 class ChunkTransformer extends StreamTransformerBase<List<int>, List<int>> {
+  /// Creates an instance of a [ChunkTransformer] that transforms a stream to emit chunks of the specified [bufferSize].
+  /// If [bufferSize] is not provided, the stream will be emitted as chunks of default size.
   const ChunkTransformer({this.bufferSize});
 
   final int? bufferSize;
