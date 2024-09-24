@@ -1480,32 +1480,32 @@ void main() {
     });
   });
 
-  group('Save npy:', () {
+  group('Save list:', () {
     test('Empty list', () async {
       const filename = 'save_empty_list.tmp';
       await saveList(filename, const []);
-      final ndarray = await load(filename);
-      expect(ndarray.headerSection.header.fortranOrder, false);
-      expect(ndarray.headerSection.header.dtype.endian, NpyEndian.little);
-      expect(ndarray.headerSection.header.dtype.type, NpyType.float);
-      expect(ndarray.headerSection.header.dtype.itemSize, 8);
-      expect(ndarray.headerSection.header.shape, const []);
-      expect(ndarray.data, const []);
-      expect(ndarray.dataBytes, const []);
-      File(filename).deleteSync();
+      final bytes = File(filename).readAsBytesSync();
+      expect(bytes.length, 128);
+      File(filename).delete();
+      final headerSection = NpyHeaderSection.fromHeader(NpyHeader.fromBytes(bytes));
+      expect(headerSection.header.fortranOrder, false);
+      expect(headerSection.header.dtype.endian, NpyEndian.little);
+      expect(headerSection.header.dtype.type, NpyType.float);
+      expect(headerSection.header.dtype.itemSize, 8);
+      expect(headerSection.header.shape, const []);
     });
     test('1d bool', () async {
       const filename = 'save_1d_bool.tmp';
       await saveList(filename, [true, false]);
-      final ndarray = await load(filename);
-      expect(ndarray.headerSection.header.fortranOrder, false);
-      expect(ndarray.headerSection.header.dtype.endian, NpyEndian.none);
-      expect(ndarray.headerSection.header.dtype.type, NpyType.boolean);
-      expect(ndarray.headerSection.header.dtype.itemSize, 1);
-      expect(ndarray.headerSection.header.shape, [2]);
-      expect(ndarray.data, [true, false]);
-      expect(ndarray.dataBytes, [1, 0]);
-      File(filename).deleteSync();
+      final bytes = File(filename).readAsBytesSync();
+      File(filename).delete();
+      final headerSection = NpyHeaderSection.fromHeader(NpyHeader.fromBytes(bytes.sublist(0, 128)));
+      expect(headerSection.header.fortranOrder, false);
+      expect(headerSection.header.dtype.endian, NpyEndian.none);
+      expect(headerSection.header.dtype.type, NpyType.boolean);
+      expect(headerSection.header.dtype.itemSize, 1);
+      expect(headerSection.header.shape, [2]);
+      expect(bytes.sublist(128), [1, 0]);
     });
     test('2d float', () async {
       const filename = 'save_2d_float.tmp';
@@ -1514,19 +1514,16 @@ void main() {
         [3.0, 4.0],
         [5.0, 6.0],
       ]);
-      final ndarray = await load(filename);
-      expect(ndarray.headerSection.header.fortranOrder, false);
-      expect(ndarray.headerSection.header.dtype.endian, NpyEndian.little);
-      expect(ndarray.headerSection.header.dtype.type, NpyType.float);
-      expect(ndarray.headerSection.header.dtype.itemSize, 8);
-      expect(ndarray.headerSection.header.shape, [3, 2]);
-      expect(ndarray.data, [
-        [1.0, 2.0],
-        [3.0, 4.0],
-        [5.0, 6.0],
-      ]);
+      final bytes = File(filename).readAsBytesSync();
+      File(filename).delete();
+      final headerSection = NpyHeaderSection.fromHeader(NpyHeader.fromBytes(bytes.sublist(0, 128)));
+      expect(headerSection.header.fortranOrder, false);
+      expect(headerSection.header.dtype.endian, NpyEndian.little);
+      expect(headerSection.header.dtype.type, NpyType.float);
+      expect(headerSection.header.dtype.itemSize, 8);
+      expect(headerSection.header.shape, [3, 2]);
       expect(
-        ndarray.dataBytes,
+        bytes.sublist(128),
         [
           0,
           0,
@@ -1578,7 +1575,6 @@ void main() {
           0x40,
         ],
       );
-      File(filename).deleteSync();
     });
     test('3d int16, big endian, Fortran order', () async {
       const filename = 'save_3d_int16.tmp';
@@ -1597,24 +1593,87 @@ void main() {
         dtype: const NpyDType.int16(endian: NpyEndian.big),
         fortranOrder: true,
       );
-      final ndarray = await load(filename);
-      expect(ndarray.headerSection.header.dtype.type, NpyType.int);
-      expect(ndarray.headerSection.header.dtype.endian, NpyEndian.big);
-      expect(ndarray.headerSection.header.fortranOrder, true);
-      expect(ndarray.headerSection.header.dtype.itemSize, 2);
-      expect(ndarray.headerSection.header.shape, [2, 2, 3]);
-      expect(ndarray.data, [
-        [
-          [1, 2, 3],
-          [4, 5, 6],
-        ],
-        [
-          [7, 8, 9],
-          [10, 11, 12],
-        ],
+      final bytes = File(filename).readAsBytesSync();
+      File(filename).delete();
+      final headerSection = NpyHeaderSection.fromHeader(NpyHeader.fromBytes(bytes.sublist(0, 128)));
+      expect(headerSection.header.dtype.type, NpyType.int);
+      expect(headerSection.header.dtype.endian, NpyEndian.big);
+      expect(headerSection.header.fortranOrder, true);
+      expect(headerSection.header.dtype.itemSize, 2);
+      expect(headerSection.header.shape, [2, 2, 3]);
+      expect(bytes.sublist(128), [0, 1, 0, 7, 0, 4, 0, 10, 0, 2, 0, 8, 0, 5, 0, 11, 0, 3, 0, 9, 0, 6, 0, 12]);
+    });
+  });
+
+  group('Save:', () {
+    test('1d float', () async {
+      const filename = 'save_1d_float.tmp';
+      await save(filename, NdArray.fromList(const [-1.0, 2.2, -4.2]));
+      final bytes = File(filename).readAsBytesSync();
+      File(filename).delete();
+      final headerSection = NpyHeaderSection.fromHeader(NpyHeader.fromBytes(bytes.sublist(0, 128)));
+      expect(headerSection.header.fortranOrder, false);
+      expect(headerSection.header.dtype.endian, NpyEndian.little);
+      expect(headerSection.header.dtype.type, NpyType.float);
+      expect(headerSection.header.dtype.itemSize, 8);
+      expect(headerSection.header.shape, [3]);
+      expect(bytes.sublist(128), [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0xf0,
+        0xbf,
+        0x9a,
+        0x99,
+        0x99,
+        0x99,
+        0x99,
+        0x99,
+        0x01,
+        0x40,
+        0xcd,
+        0xcc,
+        0xcc,
+        0xcc,
+        0xcc,
+        0xcc,
+        0x10,
+        0xc0,
       ]);
-      expect(ndarray.dataBytes, [0, 1, 0, 7, 0, 4, 0, 10, 0, 2, 0, 8, 0, 5, 0, 11, 0, 3, 0, 9, 0, 6, 0, 12]);
-      File(filename).deleteSync();
+    });
+    test('3d uint16, big endian, Fortran order', () async {
+      const filename = 'save_3d_uint.tmp';
+      await save(
+        filename,
+        NdArray.fromList(
+          [
+            [
+              [1, 2],
+              [3, 4],
+              [5, 6],
+            ],
+            [
+              [7, 8],
+              [9, 10],
+              [11, 12],
+            ],
+          ],
+          dtype: const NpyDType.uint16(endian: NpyEndian.big),
+          fortranOrder: true,
+        ),
+      );
+      final bytes = File(filename).readAsBytesSync();
+      File(filename).delete();
+      final headerSection = NpyHeaderSection.fromHeader(NpyHeader.fromBytes(bytes.sublist(0, 128)));
+      expect(headerSection.header.dtype.type, NpyType.uint);
+      expect(headerSection.header.dtype.endian, NpyEndian.big);
+      expect(headerSection.header.fortranOrder, true);
+      expect(headerSection.header.dtype.itemSize, 2);
+      expect(headerSection.header.shape, [2, 3, 2]);
+      expect(bytes.sublist(128), [0, 1, 0, 7, 0, 3, 0, 9, 0, 5, 0, 11, 0, 2, 0, 8, 0, 4, 0, 10, 0, 6, 0, 12]);
     });
   });
 }
