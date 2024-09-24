@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:npy/npy.dart';
@@ -15,6 +16,131 @@ void main() {
     }
     return true;
   }
+
+  group('ByteTransformer:', () {
+    test('Empty list', () {
+      final controller = StreamController<List<int>>();
+      controller.add([]);
+      expect(
+        controller.stream.transform(const ByteTransformer()),
+        emitsInOrder([
+          [],
+        ]),
+      );
+      controller.close();
+    });
+    test('Empty list, transformed', () {
+      final controller = StreamController<List<int>>();
+      controller.add([]);
+      expect(
+        controller.stream.transform(const ByteTransformer(bufferSize: 1)),
+        emitsInOrder([
+          [],
+        ]),
+      );
+      controller.close();
+    });
+    test('Single entry', () {
+      final controller = StreamController<List<int>>();
+      controller.add([1]);
+      expect(
+        controller.stream.transform(const ByteTransformer()),
+        emitsInOrder([
+          [1],
+        ]),
+      );
+      controller.close();
+    });
+    test('Two entries, untransformed', () {
+      final controller = StreamController<List<int>>();
+      controller.add([1, 2]);
+      expect(
+        controller.stream.transform(const ByteTransformer()),
+        emitsInOrder([
+          [1, 2],
+        ]),
+      );
+      controller.close();
+    });
+    test('Two entries, transformed to single bytes', () {
+      final controller = StreamController<List<int>>();
+      controller.add([1, 2]);
+      expect(
+        controller.stream.transform(const ByteTransformer(bufferSize: 1)),
+        emitsInOrder([
+          [1],
+          [2],
+        ]),
+      );
+      controller.close();
+    });
+    test('Two entries, buffersize equals list length', () {
+      final controller = StreamController<List<int>>();
+      controller.add([1, 2]);
+      expect(
+        controller.stream.transform(const ByteTransformer(bufferSize: 2)),
+        emitsInOrder([
+          [1, 2],
+        ]),
+      );
+      controller.close();
+    });
+    test('Two entries, buffersize exceeds list length', () {
+      final controller = StreamController<List<int>>();
+      controller.add([1, 2]);
+      expect(
+        controller.stream.transform(const ByteTransformer(bufferSize: 3)),
+        emitsInOrder([
+          [1, 2],
+        ]),
+      );
+      controller.close();
+    });
+    test('Transform with remaining entries', () {
+      final controller = StreamController<List<int>>();
+      controller.add([1, 2, 3]);
+      expect(
+        controller.stream.transform(const ByteTransformer(bufferSize: 2)),
+        emitsInOrder([
+          [1, 2],
+          [3],
+        ]),
+      );
+      controller.close();
+    });
+    test('Multiple emits, single bytes', () {
+      final controller = StreamController<List<int>>();
+      controller
+        ..add([1])
+        ..add([2]);
+      expect(
+        controller.stream.transform(const ByteTransformer(bufferSize: 1)),
+        emitsInOrder([
+          [1],
+          [2],
+        ]),
+      );
+      controller.close();
+    });
+    test('Random emits, bufferSize 2', () {
+      final controller = StreamController<List<int>>();
+      controller
+        ..add([1, 2])
+        ..add([])
+        ..add([3])
+        ..add([4, 5, 6, 7]);
+      expect(
+        controller.stream.transform(const ByteTransformer(bufferSize: 2)),
+        emitsInOrder([
+          [1, 2],
+          [3, 4],
+          [5, 6],
+          [7],
+        ]),
+      );
+      controller.close();
+    });
+  });
 
   group('Check magic string:', () {
     test('Valid code units', () {

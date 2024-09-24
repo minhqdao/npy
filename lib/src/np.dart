@@ -22,7 +22,7 @@ Future<NdArray<T>> load<T>(String path, [int? bufferSize]) async {
     throw NpyUnsupportedTypeException(message: 'Unsupported NdArray type: $T');
   }
 
-  final stream = File(path).openRead().transform(ByteTransformer(bufferSize));
+  final stream = File(path).openRead().transform(ByteTransformer(bufferSize: bufferSize));
 
   final List<int> buffer = [];
   final parser = NpyParser();
@@ -156,28 +156,30 @@ List parseBytes<T>(List<int> bytes, NpyHeader header) {
 
 /// Transforms a stream and emits chunks of the specified size.
 class ByteTransformer extends StreamTransformerBase<List<int>, List<int>> {
-  const ByteTransformer(this.chunkSize);
+  const ByteTransformer({this.bufferSize});
 
-  final int? chunkSize;
+  final int? bufferSize;
 
   @override
   Stream<List<int>> bind(Stream<List<int>> stream) async* {
-    if (chunkSize == null) {
+    if (bufferSize == null) {
       yield* stream;
       return;
     }
 
-    List<int> buffer = [];
+    bool hasNotReceivedData = true;
+    final List<int> buffer = [];
     await for (final data in stream) {
+      if (hasNotReceivedData && data.isNotEmpty) hasNotReceivedData = false;
       buffer.addAll(data);
 
-      while (buffer.length >= chunkSize!) {
-        yield buffer.sublist(0, chunkSize);
-        buffer = buffer.sublist(chunkSize!);
+      while (buffer.length >= bufferSize!) {
+        yield buffer.sublist(0, bufferSize);
+        buffer.removeRange(0, bufferSize!);
       }
     }
 
-    if (buffer.isNotEmpty) yield buffer;
+    if (buffer.isNotEmpty || hasNotReceivedData) yield buffer;
   }
 }
 
