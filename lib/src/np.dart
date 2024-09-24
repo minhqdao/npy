@@ -17,12 +17,12 @@ import 'package:npy/src/np_file.dart';
 ///  print(list);
 ///}
 /// ```
-Future<NdArray<T>> load<T>(String path) async {
+Future<NdArray<T>> load<T>(String path, [int? bufferSize]) async {
   if (T != dynamic && T != int && T != double && T != bool) {
     throw NpyUnsupportedTypeException(message: 'Unsupported NdArray type: $T');
   }
 
-  final stream = File(path).openRead();
+  final stream = File(path).openRead().transform(ByteTransformer(bufferSize));
 
   final List<int> buffer = [];
   final parser = NpyParser();
@@ -152,6 +152,33 @@ List parseBytes<T>(List<int> bytes, NpyHeader header) {
   }
 
   return reshape(result, header.shape, fortranOrder: header.fortranOrder);
+}
+
+/// Transforms a stream and emits chunks of the specified size.
+class ByteTransformer extends StreamTransformerBase<List<int>, List<int>> {
+  const ByteTransformer(this.chunkSize);
+
+  final int? chunkSize;
+
+  @override
+  Stream<List<int>> bind(Stream<List<int>> stream) async* {
+    if (chunkSize == null) {
+      yield* stream;
+      return;
+    }
+
+    List<int> buffer = [];
+    await for (final data in stream) {
+      buffer.addAll(data);
+
+      while (buffer.length >= chunkSize!) {
+        yield buffer.sublist(0, chunkSize);
+        buffer = buffer.sublist(chunkSize!);
+      }
+    }
+
+    if (buffer.isNotEmpty) yield buffer;
+  }
 }
 
 List<dynamic> reshape<T>(List<T> oneDimensionalList, List<int> shape, {bool fortranOrder = false}) {
