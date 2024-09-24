@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:collection/collection.dart';
 import 'package:npy/npy.dart';
 import 'package:npy/src/np_exception.dart';
 import 'package:test/test.dart';
@@ -344,22 +343,22 @@ void main() {
   group('Get shape:', () {
     test('Empty list', () {
       final header = NpyHeader.fromList([]);
-      expect(const ListEquality().equals(header.shape, []), true);
+      expect(header.shape, []);
       expect(header.dtype.type, NpyType.float);
     });
     test('One int', () {
       final header = NpyHeader.fromList([42]);
-      expect(const ListEquality().equals(header.shape, [1]), true);
+      expect(header.shape, [1]);
       expect(header.dtype.type, NpyType.int);
     });
     test('Two ints', () {
       final header = NpyHeader.fromList([42, 35]);
-      expect(const ListEquality().equals(header.shape, [2]), true);
+      expect(header.shape, [2]);
       expect(header.dtype.type, NpyType.int);
     });
     test('Two doubles', () {
       final header = NpyHeader.fromList([0.1, 2.3]);
-      expect(const ListEquality().equals(header.shape, [2]), true);
+      expect(header.shape, [2]);
       expect(header.dtype.type, NpyType.float);
     });
     test('[2, 3]', () {
@@ -367,7 +366,7 @@ void main() {
         [1, 2, 3],
         [4, 5, 6],
       ]);
-      expect(const ListEquality().equals(header.shape, [2, 3]), true);
+      expect(header.shape, [2, 3]);
       expect(header.dtype.type, NpyType.int);
     });
     test('[3, 2, 1]', () {
@@ -385,7 +384,7 @@ void main() {
           [6.5],
         ],
       ]);
-      expect(const ListEquality().equals(header.shape, [3, 2, 1]), true);
+      expect(header.shape, [3, 2, 1]);
       expect(header.dtype.type, NpyType.float);
     });
     test('[2, 0]', () {
@@ -393,7 +392,7 @@ void main() {
         [],
         [],
       ]);
-      expect(const ListEquality().equals(header.shape, [2, 0]), true);
+      expect(header.shape, [2, 0]);
       expect(header.dtype.type, NpyType.float);
     });
     test('[true, false, true]', () {
@@ -595,7 +594,7 @@ void main() {
       expect(data, [1.0]);
     });
     test('2 big endian float32', () {
-      final header = NpyHeader.fromList([0.9, -0.2], dtype: const NpyDType.float32(endian: NpyEndian.big), endian: NpyEndian.big);
+      final header = NpyHeader.fromList([0.9, -0.2], dtype: const NpyDType.float32(endian: NpyEndian.big));
       final data = parseBytes<double>([63, 102, 102, 102, 190, 76, 204, 205], header);
       expect(listAlmostEquals(data, [0.9, -0.2]), true);
     });
@@ -1163,19 +1162,19 @@ void main() {
       final ndarray = NdArray.fromList(const []);
       expect(ndarray.data, const []);
       expect(ndarray.headerSection.header.dtype.type, NpyType.float);
-      expect(ndarray.asBytes.skip(ndarray.headerSection.asBytes.length).length, 0);
+      expect(ndarray.dataBytes.length, 0);
     });
     test('[], uint', () {
       final ndarray = NdArray.fromList(const [], dtype: const NpyDType.uint64());
       expect(ndarray.data, const []);
       expect(ndarray.headerSection.header.dtype.type, NpyType.uint);
-      expect(ndarray.asBytes.skip(ndarray.headerSection.asBytes.length).length, 0);
+      expect(ndarray.dataBytes.length, 0);
     });
     test('[1]', () {
       final ndarray = NdArray.fromList(const [1]);
       expect(ndarray.data, const [1]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 8);
       expect(dataBytes.first, 1);
     });
@@ -1183,7 +1182,7 @@ void main() {
       final ndarray = NdArray.fromList(const [-1]);
       expect(ndarray.data, const [-1]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 8);
       expect(dataBytes.first, 255);
       expect(dataBytes.last, 255);
@@ -1192,7 +1191,7 @@ void main() {
       final ndarray = NdArray.fromList(const [1, 200]);
       expect(ndarray.data, const [1, 200]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 16);
       expect(dataBytes.elementAt(0), 1);
       expect(dataBytes.elementAt(1), 0);
@@ -1203,7 +1202,7 @@ void main() {
       final ndarray = NdArray.fromList(const [1.0]);
       expect(ndarray.data, const [1.0]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.float);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 8);
       expect(dataBytes.first, 0);
       expect(dataBytes.elementAt(5), 0);
@@ -1214,7 +1213,7 @@ void main() {
       final ndarray = NdArray.fromList(const [256], endian: NpyEndian.big);
       expect(ndarray.data, const [256]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 8);
       expect(dataBytes.first, 0);
       expect(dataBytes.elementAt(6), 1);
@@ -1224,7 +1223,7 @@ void main() {
       final ndarray = NdArray.fromList(const [1, 200], endian: NpyEndian.big);
       expect(ndarray.data, const [1, 200]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 16);
       expect(dataBytes.elementAt(7), 1);
       expect(dataBytes.elementAt(6), 0);
@@ -1235,7 +1234,7 @@ void main() {
       final ndarray = NdArray.fromList(const [1.0, 1.9], endian: NpyEndian.big);
       expect(ndarray.data, const [1.0, 1.9]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.float);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 16);
       expect(dataBytes.first, 0x3f);
       expect(dataBytes.elementAt(1), 0xf0);
@@ -1248,7 +1247,7 @@ void main() {
       final ndarray = NdArray.fromList(const [1, 200], dtype: const NpyDType.int32());
       expect(ndarray.data, const [1, 200]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 8);
       expect(dataBytes.first, 1);
       expect(dataBytes.elementAt(1), 0);
@@ -1259,7 +1258,7 @@ void main() {
       final ndarray = NdArray.fromList(const [1, 200], dtype: const NpyDType.int32(endian: NpyEndian.big));
       expect(ndarray.data, const [1, 200]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 8);
       expect(dataBytes.first, 0);
       expect(dataBytes.elementAt(2), 0);
@@ -1271,7 +1270,7 @@ void main() {
       final ndarray = NdArray.fromList(const [0.5, 2.0], dtype: const NpyDType.float32(endian: NpyEndian.little));
       expect(ndarray.data, const [0.5, 2.0]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.float);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 8);
       expect(dataBytes.first, 0);
       expect(dataBytes.elementAt(2), 0);
@@ -1290,7 +1289,7 @@ void main() {
       ]);
       expect(ndarray.headerSection.header.shape, [2, 1]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 16);
       expect(dataBytes.first, 1);
       expect(dataBytes.elementAt(1), 0);
@@ -1306,7 +1305,7 @@ void main() {
       ]);
       expect(ndarray.headerSection.header.shape, [1, 2]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 16);
       expect(dataBytes.first, 1);
       expect(dataBytes.elementAt(1), 0);
@@ -1324,7 +1323,7 @@ void main() {
       ]);
       expect(ndarray.headerSection.header.shape, [2, 3]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 48);
       expect(dataBytes.first, 1);
       expect(dataBytes.elementAt(1), 0);
@@ -1349,7 +1348,7 @@ void main() {
       ]);
       expect(ndarray.headerSection.header.shape, [2, 3]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 48);
       expect(dataBytes.first, 1);
       expect(dataBytes.elementAt(1), 0);
@@ -1375,7 +1374,7 @@ void main() {
       ]);
       expect(ndarray.headerSection.header.shape, [2, 3]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 48);
       expect(dataBytes.first, 0);
       expect(dataBytes.elementAt(7), 1);
@@ -1418,7 +1417,7 @@ void main() {
       );
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
       expect(ndarray.headerSection.header.shape, [2, 3, 4]);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 192);
       expect(dataBytes.first, 1);
       expect(dataBytes.elementAt(1), 0);
@@ -1465,7 +1464,7 @@ void main() {
       );
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
       expect(ndarray.headerSection.header.shape, [2, 3, 4]);
-      final dataBytes = ndarray.asBytes.skip(ndarray.headerSection.asBytes.length);
+      final dataBytes = ndarray.dataBytes;
       expect(dataBytes.length, 192);
       expect(dataBytes.first, 0);
       expect(dataBytes.elementAt(1), 0);
@@ -1492,10 +1491,11 @@ void main() {
       expect(ndarray.headerSection.header.dtype.itemSize, 8);
       expect(ndarray.headerSection.header.shape, const []);
       expect(ndarray.data, const []);
+      expect(ndarray.dataBytes, const []);
       File(filename).deleteSync();
     });
-    test('Bool list 1D', () async {
-      const filename = 'save_bool_list_1d.tmp';
+    test('1d bool', () async {
+      const filename = 'save_1d_bool.tmp';
       await saveList(filename, [true, false]);
       final ndarray = await load(filename);
       expect(ndarray.headerSection.header.fortranOrder, false);
@@ -1504,54 +1504,116 @@ void main() {
       expect(ndarray.headerSection.header.dtype.itemSize, 1);
       expect(ndarray.headerSection.header.shape, [2]);
       expect(ndarray.data, [true, false]);
+      expect(ndarray.dataBytes, [1, 0]);
       File(filename).deleteSync();
     });
-    test('Bool list 2D', () async {
-      const filename = 'save_bool_list_2d.tmp';
+    test('2d float', () async {
+      const filename = 'save_2d_float.tmp';
       await saveList(filename, [
-        [true, false, true],
-        [false, true, false],
+        [1.0, 2.0],
+        [3.0, 4.0],
+        [5.0, 6.0],
       ]);
       final ndarray = await load(filename);
       expect(ndarray.headerSection.header.fortranOrder, false);
-      expect(ndarray.headerSection.header.dtype.endian, NpyEndian.none);
-      expect(ndarray.headerSection.header.dtype.type, NpyType.boolean);
-      expect(ndarray.headerSection.header.dtype.itemSize, 1);
-      expect(ndarray.headerSection.header.shape, [2, 3]);
+      expect(ndarray.headerSection.header.dtype.endian, NpyEndian.little);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.float);
+      expect(ndarray.headerSection.header.dtype.itemSize, 8);
+      expect(ndarray.headerSection.header.shape, [3, 2]);
       expect(ndarray.data, [
-        [true, false, true],
-        [false, true, false],
+        [1.0, 2.0],
+        [3.0, 4.0],
+        [5.0, 6.0],
       ]);
+      expect(
+        ndarray.dataBytes,
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0xf0,
+          0x3f,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0x40,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0x08,
+          0x40,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0x10,
+          0x40,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0x14,
+          0x40,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0x18,
+          0x40,
+        ],
+      );
       File(filename).deleteSync();
     });
-    test('Bool list 3D', () async {
-      const filename = 'save_bool_list_3d.tmp';
-      await saveList(filename, [
+    test('3d int16, big endian, Fortran order', () async {
+      const filename = 'save_3d_int16.tmp';
+      await saveList(
+        filename,
         [
-          [true, false, true],
-          [false, true, false],
+          [
+            [1, 2, 3],
+            [4, 5, 6],
+          ],
+          [
+            [7, 8, 9],
+            [10, 11, 12],
+          ],
         ],
-        [
-          [true, false, true],
-          [false, true, false],
-        ],
-      ]);
+        dtype: const NpyDType.int16(endian: NpyEndian.big),
+        fortranOrder: true,
+      );
       final ndarray = await load(filename);
-      expect(ndarray.headerSection.header.fortranOrder, false);
-      expect(ndarray.headerSection.header.dtype.endian, NpyEndian.none);
-      expect(ndarray.headerSection.header.dtype.type, NpyType.boolean);
-      expect(ndarray.headerSection.header.dtype.itemSize, 1);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.int);
+      expect(ndarray.headerSection.header.dtype.endian, NpyEndian.big);
+      expect(ndarray.headerSection.header.fortranOrder, true);
+      expect(ndarray.headerSection.header.dtype.itemSize, 2);
       expect(ndarray.headerSection.header.shape, [2, 2, 3]);
       expect(ndarray.data, [
         [
-          [true, false, true],
-          [false, true, false],
+          [1, 2, 3],
+          [4, 5, 6],
         ],
         [
-          [true, false, true],
-          [false, true, false],
+          [7, 8, 9],
+          [10, 11, 12],
         ],
       ]);
+      expect(ndarray.dataBytes, [0, 1, 0, 7, 0, 4, 0, 10, 0, 2, 0, 8, 0, 5, 0, 11, 0, 3, 0, 9, 0, 6, 0, 12]);
       File(filename).deleteSync();
     });
   });

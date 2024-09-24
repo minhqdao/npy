@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:collection/collection.dart';
 import 'package:npy/src/np_exception.dart';
 
 class NdArray<T> {
@@ -18,8 +17,10 @@ class NdArray<T> {
         data: list,
       );
 
-  List<int> get asBytes {
-    final List<int> dataBytes = [];
+  List<int> get asBytes => [...headerSection.asBytes, ...dataBytes];
+
+  List<int> get dataBytes {
+    final List<int> bytes = [];
     final dtype = headerSection.header.dtype;
     late final Endian endian;
 
@@ -87,9 +88,10 @@ class NdArray<T> {
       } else {
         throw NpyUnsupportedTypeException(message: 'Unsupported NdArray type: ${element.runtimeType}');
       }
-      dataBytes.addAll(Uint8List.fromList(byteData.buffer.asUint8List()));
+      bytes.addAll(Uint8List.fromList(byteData.buffer.asUint8List()));
     }
-    return [...headerSection.asBytes, ...dataBytes];
+
+    return bytes;
   }
 }
 
@@ -165,8 +167,10 @@ class NpyParser<T> {
 
   void checkMagicString(List<int> bytes) {
     if (hasPassedMagicStringCheck || bytes.length < magicString.length) return;
-    if (!const IterableEquality().equals(magicString.codeUnits, bytes.take(magicString.length))) {
-      throw const NpyInvalidMagicStringException(message: 'Invalid magic string.');
+    for (int i = 0; i < magicString.length; i++) {
+      if (magicString.codeUnitAt(i) != bytes[i]) {
+        throw const NpyInvalidMagicStringException(message: 'Invalid magic string.');
+      }
     }
     hasPassedMagicStringCheck = true;
   }
