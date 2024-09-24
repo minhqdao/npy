@@ -276,25 +276,6 @@ void main() {
     test('Two characters', () => expect(() => NpyType.fromChar('fc'), throwsA(isA<AssertionError>())));
   });
 
-  group('Match NpyType:', () {
-    test('Boolean type', () {
-      const type = NpyType.boolean;
-      expect(type.matches('?'), true);
-      expect(type.matches('b'), false);
-    });
-    test('Float type', () {
-      const type = NpyType.float;
-      expect(type.matches('f'), true);
-      expect(type.matches('i'), false);
-    });
-    test('String type', () {
-      const type = NpyType.string;
-      expect(type.matches('S'), true);
-      expect(type.matches('a'), true);
-      expect(type.matches('U'), false);
-    });
-  });
-
   group('Parse NpyDType:', () {
     test('<f8', () {
       final dtype = NpyDType.fromString('<f8');

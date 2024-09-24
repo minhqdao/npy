@@ -570,7 +570,7 @@ class NpyDType {
 
   static const defaultItemSize = 8;
 
-  factory NpyDType.fromArgs({required NpyType type, required int itemSize, NpyEndian? endian}) {
+  factory NpyDType.fromArgs({NpyEndian? endian, required NpyType type, required int itemSize}) {
     switch (type) {
       case NpyType.float:
         switch (itemSize) {
@@ -620,10 +620,11 @@ class NpyDType {
     if (string.length < 3) throw NpyInvalidDTypeException(message: "'descr' field has insufficient length: '$string'");
 
     try {
-      final endian = NpyEndian.fromChar(string[0]);
-      final type = NpyType.fromChar(string[1]);
-      final itemSize = int.parse(string.substring(2));
-      return NpyDType.fromArgs(endian: endian, type: type, itemSize: itemSize);
+      return NpyDType.fromArgs(
+        endian: NpyEndian.fromChar(string[0]),
+        type: NpyType.fromChar(string[1]),
+        itemSize: int.parse(string.substring(2)),
+      );
     } catch (e) {
       throw NpyInvalidDTypeException(message: "Invalid 'descr' field: '$string': $e");
     }
@@ -674,10 +675,8 @@ enum NpyType {
   factory NpyType.fromChar(String char) {
     assert(char.length == 1);
     return NpyType.values.firstWhere(
-      (type) => type.matches(char),
+      (type) => type.chars.contains(char),
       orElse: () => throw NpyUnsupportedNpyTypeException(message: 'Unsupported list type: $char'),
     );
   }
-
-  bool matches(String char) => chars.contains(char);
 }
