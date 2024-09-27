@@ -146,27 +146,27 @@ void main() {
     test('Valid code units', () {
       final parser = NpyParser();
       expect(parser.hasPassedMagicStringCheck, false);
-      expect(() => parser.checkMagicString([147, 78, 85, 77, 80, 89]), returnsNormally);
+      parser.checkMagicString([147, 78, 85, 77, 80, 89]);
       expect(parser.hasPassedMagicStringCheck, true);
     });
     test('Additional bytes', () {
       final parser = NpyParser();
       expect(parser.hasPassedMagicStringCheck, false);
-      expect(() => parser.checkMagicString([147, 78, 85, 77, 80, 89, 1, 2, 3]), returnsNormally);
+      parser.checkMagicString([147, 78, 85, 77, 80, 89, 1, 2, 3]);
       expect(parser.hasPassedMagicStringCheck, true);
     });
     test('Insufficient bytes', () {
       final parser = NpyParser();
       expect(parser.hasPassedMagicStringCheck, false);
-      expect(() => parser.checkMagicString([147, 78, 85, 77, 80]), returnsNormally);
+      parser.checkMagicString([147, 78, 85, 77, 80]);
       expect(parser.hasPassedMagicStringCheck, false);
     });
     test('Second run returns early with wrong magic string', () {
       final parser = NpyParser();
       expect(parser.hasPassedMagicStringCheck, false);
-      expect(() => parser.checkMagicString([147, 78, 85, 77, 80, 89]), returnsNormally);
+      parser.checkMagicString([147, 78, 85, 77, 80, 89]);
       expect(parser.hasPassedMagicStringCheck, true);
-      expect(() => parser.checkMagicString([147, 78, 85, 77, 80, 90]), returnsNormally);
+      parser.checkMagicString([1, 2, 3, 4, 5, 6]);
       expect(parser.hasPassedMagicStringCheck, true);
     });
     test(
@@ -193,9 +193,6 @@ void main() {
         expect(parser.hasPassedMagicStringCheck, false);
       },
     );
-    test('Too short', () => expect(() => NpyParser().checkMagicString([147, 78, 85, 77, 80]), returnsNormally));
-    test('Too long', () => expect(() => NpyParser().checkMagicString([147, 78, 85, 77, 80, 89, 90]), returnsNormally));
-    test('From valid text', () => expect(() => NpyParser().checkMagicString('\x93NUMPY'.codeUnits), returnsNormally));
   });
 
   group('Parse version:', () {
@@ -640,86 +637,72 @@ void main() {
     });
   });
 
-  group('Parse header section:', () {
-    test('Build section when data is available', () {
+  group('Build header section and get data:', () {
+    test('Gradually build float list', () {
+      final parser = NpyParser();
       List<int> bytes = const [];
-      final parser = NpyParser()
-        ..checkMagicString(bytes)
-        ..getVersion(bytes)
-        ..getHeaderSize(bytes)
-        ..getHeader(bytes)
-        ..buildHeaderSection();
-      expect(parser.headerSection, null);
       bytes = [magicString.codeUnits.first];
-      parser
-        ..checkMagicString(bytes)
-        ..getVersion(bytes)
-        ..getHeaderSize(bytes)
-        ..getHeader(bytes)
-        ..buildHeaderSection();
+      parser.checkMagicString(bytes);
       expect(parser.hasPassedMagicStringCheck, false);
-      expect(parser.headerSection, null);
       bytes = [...bytes, ...magicString.codeUnits.sublist(1)];
-      parser
-        ..checkMagicString(bytes)
-        ..getVersion(bytes)
-        ..getHeaderSize(bytes)
-        ..getHeader(bytes)
-        ..buildHeaderSection();
+      parser.checkMagicString(bytes);
       expect(parser.hasPassedMagicStringCheck, true);
-      expect(parser.version, null);
-      expect(parser.headerSection, null);
       bytes = [...bytes, 1];
-      parser
-        ..checkMagicString(bytes)
-        ..getVersion(bytes)
-        ..getHeaderSize(bytes)
-        ..getHeader(bytes)
-        ..buildHeaderSection();
-      expect(parser.hasPassedMagicStringCheck, true);
+      parser.getVersion(bytes);
       expect(parser.version, null);
-      expect(parser.headerSection, null);
       bytes = [...bytes, 0];
-      parser
-        ..checkMagicString(bytes)
-        ..getVersion(bytes)
-        ..getHeaderSize(bytes)
-        ..getHeader(bytes)
-        ..buildHeaderSection();
+      parser.getVersion(bytes);
       expect(parser.version?.major, 1);
       expect(parser.version?.minor, 0);
       expect(parser.version?.numberOfHeaderBytes, 2);
-      expect(parser.headerSection, null);
+      expect(parser.headerSize, null);
       final headerSection = NpyHeaderSection.fromList([1, 2, 3]);
-      bytes = [...bytes, ...headerSection.headerSizeAsBytes];
-      parser
-        ..checkMagicString(bytes)
-        ..getVersion(bytes)
-        ..getHeaderSize(bytes)
-        ..getHeader(bytes)
-        ..buildHeaderSection();
+      bytes = [...bytes, headerSection.headerSizeAsBytes.first];
+      parser.getHeaderSize(bytes);
+      expect(parser.headerSize, null);
+      bytes = [...bytes, ...headerSection.headerSizeAsBytes.sublist(1)];
+      parser.getHeaderSize(bytes);
       expect(parser.headerSize, 118);
+      bytes = [...bytes, headerSection.header.asBytes.first];
+      parser.getHeader(bytes);
+      expect(parser.header, null);
+      bytes = [...bytes, ...headerSection.header.asBytes.sublist(1)];
+      parser.getHeader(bytes);
+      expect(parser.header?.shape, [3]);
+      expect(parser.header?.asBytes.length, 118);
       expect(parser.headerSection, null);
-      expect(parser.isNotReadyForData, true);
-      bytes = [...bytes, ...headerSection.header.asBytes];
-      parser
-        ..checkMagicString(bytes)
-        ..getVersion(bytes)
-        ..getHeaderSize(bytes)
-        ..getHeader(bytes)
-        ..buildHeaderSection();
-      expect(parser.header?.length, 118);
+      parser.buildHeaderSection();
       expect(parser.headerSection?.version.major, 1);
       expect(parser.headerSection?.version.minor, 0);
       expect(parser.headerSection?.version.numberOfHeaderBytes, 2);
       expect(parser.headerSection?.headerSize, 118);
       expect(parser.headerSection?.header.shape, [3]);
       expect(parser.headerSection?.size, 128);
-      expect(parser.isNotReadyForData, false);
+    });
+    test('Empty list', () {
+      final headerSection = NpyHeaderSection.fromList(const []);
+      final bytes = [
+        ...magicString.codeUnits,
+        ...headerSection.version.asBytes,
+        ...headerSection.headerSizeAsBytes,
+        ...headerSection.header.asBytes,
+      ];
+      final parser = NpyParser()
+        ..checkMagicString(bytes)
+        ..getVersion(bytes)
+        ..getHeaderSize(bytes)
+        ..getHeader(bytes);
+      expect(parser.headerSection, null);
+      parser.buildHeaderSection();
+      expect(parser.headerSection?.header.shape, []);
+      expect(parser.isCompleted, false);
+      parser.getData(bytes);
+      expect(parser.isCompleted, true);
+      expect(parser.data, []);
     });
   });
 
-  group('Parse bytes:', () {
+  group('Parse data bytes:', () {
     test('1 little endian float64', () {
       final header = NpyHeader.fromList([1.0], dtype: const NpyDType.float64(endian: NpyEndian.little));
       final data = parseDataBytes([0, 0, 0, 0, 0, 0, 240, 63], header);
