@@ -154,84 +154,96 @@ T _getNestedItemRecursive<T>(List list, List<int> indices, int depth) => depth =
 
 class NpyParser<T> {
   NpyParser({
-    this.hasPassedMagicStringCheck = false,
-    this.version,
-    this.headerSize,
-    this.header,
-  });
+    bool hasPassedMagicStringCheck = false,
+    NpyVersion? version,
+    int? headerSize,
+    NpyHeader? header,
+  })  : _hasPassedMagicStringCheck = hasPassedMagicStringCheck,
+        _version = version,
+        _headerSize = headerSize,
+        _header = header;
 
-  bool hasPassedMagicStringCheck;
-  NpyVersion? version;
-  int? headerSize;
-  NpyHeader? header;
+  bool _hasPassedMagicStringCheck;
+  NpyVersion? _version;
+  int? _headerSize;
+  NpyHeader? _header;
 
-  NpyHeaderSection? headerSection;
-  List data = [];
-  bool isCompleted = false;
+  bool get hasPassedMagicStringCheck => _hasPassedMagicStringCheck;
+  NpyVersion? get version => _version;
+  int? get headerSize => _headerSize;
+  NpyHeader? get header => _header;
+
+  NpyHeaderSection? _headerSection;
+  List _data = [];
+  bool _isCompleted = false;
   int _dataOffset = 0;
   int _elementsRead = 0;
 
+  NpyHeaderSection? get headerSection => _headerSection;
+  List get data => _data;
+  bool get isCompleted => _isCompleted;
+
   void checkMagicString(List<int> buffer) {
-    if (hasPassedMagicStringCheck || buffer.length < magicString.length) return;
+    if (_hasPassedMagicStringCheck || buffer.length < magicString.length) return;
     for (int i = 0; i < magicString.length; i++) {
       if (magicString.codeUnitAt(i) != buffer[i]) throw const NpyParseException(message: 'Invalid magic string.');
     }
-    hasPassedMagicStringCheck = true;
+    _hasPassedMagicStringCheck = true;
   }
 
   void getVersion(List<int> buffer) {
-    if (version != null || buffer.length < magicString.length + NpyVersion.numberOfReservedBytes) return;
-    version = NpyVersion.fromBytes(buffer.skip(magicString.length).take(NpyVersion.numberOfReservedBytes));
+    if (_version != null || buffer.length < magicString.length + NpyVersion.numberOfReservedBytes) return;
+    _version = NpyVersion.fromBytes(buffer.skip(magicString.length).take(NpyVersion.numberOfReservedBytes));
   }
 
   void getHeaderSize(List<int> buffer) {
     const bytesTaken = magicString.length + NpyVersion.numberOfReservedBytes;
-    if (headerSize != null || version == null || buffer.length < bytesTaken + version!.numberOfHeaderBytes) return;
-    final relevantBytes = buffer.skip(bytesTaken).take(version!.numberOfHeaderBytes).toList();
-    headerSize = version!.major == 1 ? littleEndian16ToInt(relevantBytes) : littleEndian32ToInt(relevantBytes);
+    if (_headerSize != null || _version == null || buffer.length < bytesTaken + _version!.numberOfHeaderBytes) return;
+    final relevantBytes = buffer.skip(bytesTaken).take(_version!.numberOfHeaderBytes).toList();
+    _headerSize = _version!.major == 1 ? littleEndian16ToInt(relevantBytes) : littleEndian32ToInt(relevantBytes);
   }
 
   void getHeader(List<int> buffer) {
-    if (header != null || version == null || headerSize == null) return;
-    final bytesTaken = magicString.length + NpyVersion.numberOfReservedBytes + version!.numberOfHeaderBytes;
-    if (buffer.length < bytesTaken + headerSize!) return;
-    header = NpyHeader.fromBytes(buffer.skip(bytesTaken).take(headerSize!).toList());
+    if (_header != null || _version == null || _headerSize == null) return;
+    final bytesTaken = magicString.length + NpyVersion.numberOfReservedBytes + _version!.numberOfHeaderBytes;
+    if (buffer.length < bytesTaken + _headerSize!) return;
+    _header = NpyHeader.fromBytes(buffer.skip(bytesTaken).take(_headerSize!).toList());
   }
 
   void buildHeaderSection() {
-    if (headerSection != null || header == null || headerSize == null || version == null) return;
-    headerSection = NpyHeaderSection(version: version!, headerSize: headerSize!, header: header!);
+    if (_headerSection != null || _header == null || _headerSize == null || _version == null) return;
+    _headerSection = NpyHeaderSection(version: _version!, headerSize: _headerSize!, header: _header!);
   }
 
   void getData(List<int> buffer) {
-    if (headerSection == null ||
-        header == null ||
-        headerSize == null ||
-        version == null ||
-        !hasPassedMagicStringCheck) {
+    if (_headerSection == null ||
+        _header == null ||
+        _headerSize == null ||
+        _version == null ||
+        !_hasPassedMagicStringCheck) {
       return;
     }
 
-    if (header!.shape.isEmpty) {
-      data = const [];
-      isCompleted = true;
+    if (_header!.shape.isEmpty) {
+      _data = const [];
+      _isCompleted = true;
       return;
     }
 
-    final itemSize = header!.dtype.itemSize;
-    _dataOffset = headerSection!.size + _elementsRead * itemSize;
-    final totalElements = header!.shape.reduce((a, b) => a * b);
+    final itemSize = _header!.dtype.itemSize;
+    _dataOffset = _headerSection!.size + _elementsRead * itemSize;
+    final totalElements = _header!.shape.reduce((a, b) => a * b);
     final remainingElements = totalElements - _elementsRead;
     final elementsInBuffer = (buffer.length - _dataOffset) ~/ itemSize;
     final elementsToProcess = min(remainingElements, elementsInBuffer);
 
     final newData = parseDataBytes<T>(buffer.sublist(_dataOffset, _dataOffset + elementsToProcess * itemSize), header!);
 
-    data.addAll(newData);
+    _data.addAll(newData);
     _elementsRead += elementsToProcess;
 
     if (_elementsRead == totalElements) {
-      isCompleted = true;
+      _isCompleted = true;
       return;
     }
 
