@@ -176,7 +176,7 @@ void main() {
         expect(parser.hasPassedMagicStringCheck, false);
         expect(
           () => parser.checkMagicString([146, 78, 85, 77, 80, 89]),
-          throwsA(const TypeMatcher<NpyInvalidMagicStringException>()),
+          throwsA(const TypeMatcher<NpyParseException>()),
         );
         expect(parser.hasPassedMagicStringCheck, false);
       },
@@ -188,7 +188,7 @@ void main() {
         expect(parser.hasPassedMagicStringCheck, false);
         expect(
           () => parser.checkMagicString([147, 78, 85, 77, 80, 87]),
-          throwsA(const TypeMatcher<NpyInvalidMagicStringException>()),
+          throwsA(const TypeMatcher<NpyParseException>()),
         );
         expect(parser.hasPassedMagicStringCheck, false);
       },
@@ -650,7 +650,16 @@ void main() {
         ..getHeader(bytes)
         ..buildHeaderSection();
       expect(parser.headerSection, null);
-      bytes = [...magicString.codeUnits];
+      bytes = [magicString.codeUnits.first];
+      parser
+        ..checkMagicString(bytes)
+        ..getVersion(bytes)
+        ..getHeaderSize(bytes)
+        ..getHeader(bytes)
+        ..buildHeaderSection();
+      expect(parser.hasPassedMagicStringCheck, false);
+      expect(parser.headerSection, null);
+      bytes = [...bytes, ...magicString.codeUnits.sublist(1)];
       parser
         ..checkMagicString(bytes)
         ..getVersion(bytes)
@@ -658,8 +667,19 @@ void main() {
         ..getHeader(bytes)
         ..buildHeaderSection();
       expect(parser.hasPassedMagicStringCheck, true);
+      expect(parser.version, null);
       expect(parser.headerSection, null);
-      bytes = [...bytes, 1, 0];
+      bytes = [...bytes, 1];
+      parser
+        ..checkMagicString(bytes)
+        ..getVersion(bytes)
+        ..getHeaderSize(bytes)
+        ..getHeader(bytes)
+        ..buildHeaderSection();
+      expect(parser.hasPassedMagicStringCheck, true);
+      expect(parser.version, null);
+      expect(parser.headerSection, null);
+      bytes = [...bytes, 0];
       parser
         ..checkMagicString(bytes)
         ..getVersion(bytes)
@@ -689,6 +709,11 @@ void main() {
         ..getHeader(bytes)
         ..buildHeaderSection();
       expect(parser.header?.length, 118);
+      expect(parser.headerSection?.version.major, 1);
+      expect(parser.headerSection?.version.minor, 0);
+      expect(parser.headerSection?.version.numberOfHeaderBytes, 2);
+      expect(parser.headerSection?.headerSize, 118);
+      expect(parser.headerSection?.header.shape, [3]);
       expect(parser.headerSection?.size, 128);
       expect(parser.isNotReadyForData, false);
     });
@@ -888,41 +913,41 @@ void main() {
 
   group('Load npy:', () {
     test('Non-existent file', () {
-      expect(load('not_existent.npy'), throwsA(const TypeMatcher<NpFileNotExistsException>()));
+      expect(load('load_not_existent.npy'), throwsA(const TypeMatcher<NpFileNotExistsException>()));
     });
     test('Pointing at current directory', () => expect(load('.'), throwsA(const TypeMatcher<NpFileOpenException>())));
     test('Empty file', () async {
-      const filename = 'empty_file.tmp';
+      const filename = 'load_empty_file.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([]);
       await expectLater(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
       tmpFile.deleteSync();
     });
     test('Insufficient length', () async {
-      const filename = 'insufficient_length.tmp';
+      const filename = 'load_insufficient_length.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([1, 2, 3]);
       await expectLater(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
       tmpFile.deleteSync();
     });
     test('Invalid magic string', () async {
-      const filename = 'invalid_magic_string.tmp';
+      const filename = 'load_invalid_magic_string.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([1, 2, 3, 4, 5, 6]);
-      await expectLater(load(filename), throwsA(const TypeMatcher<NpyInvalidMagicStringException>()));
+      await expectLater(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
       tmpFile.deleteSync();
     });
     test('Unsupported major version', () async {
-      const filename = 'unsupported_major_version.tmp';
+      const filename = 'load_unsupported_major_version.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 4, 0]);
       await expectLater(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
       tmpFile.deleteSync();
     });
     test('Unsupported minor version', () async {
-      const filename = 'unsupported_minor_version.tmp';
+      const filename = 'load_unsupported_minor_version.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 1, 1]);
       await expectLater(load(filename), throwsA(const TypeMatcher<NpyParseException>()));
       tmpFile.deleteSync();
     });
     test('Empty list', () async {
-      const filename = 'empty_list.tmp';
+      const filename = 'load_empty_list.tmp';
       final headerSection = NpyHeaderSection.fromList([]);
       final tmpFile = File(filename)..writeAsBytesSync(headerSection.asBytes);
       final ndarray = await load(filename);
@@ -935,7 +960,7 @@ void main() {
       tmpFile.deleteSync();
     });
     test('float list', () async {
-      const filename = 'float_list.tmp';
+      const filename = 'load_float_list.tmp';
       final headerSection = NpyHeaderSection.fromList([1.0, -2.1]);
       final tmpFile = File(filename)
         ..writeAsBytesSync([...headerSection.asBytes, 0, 0, 0, 0, 0, 0, 240, 63, 205, 204, 204, 204, 204, 204, 0, 192]);
@@ -949,7 +974,7 @@ void main() {
       tmpFile.deleteSync();
     });
     test('int list', () async {
-      const filename = 'int_list.tmp';
+      const filename = 'load_int_list.tmp';
       final headerSection = NpyHeaderSection.fromList([-1, 1]);
       final tmpFile = File(filename)
         ..writeAsBytesSync([...headerSection.asBytes, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 0, 0, 0, 0]);
@@ -959,7 +984,7 @@ void main() {
       tmpFile.deleteSync();
     });
     test('uint list', () async {
-      const filename = 'uint_list.tmp';
+      const filename = 'load_uint_list.tmp';
       final headerSection = NpyHeaderSection.fromList([1, 1], dtype: const NpyDType.uint32());
       final tmpFile = File(filename)..writeAsBytesSync([...headerSection.asBytes, 255, 255, 255, 255, 1, 0, 0, 0]);
       final ndarray = await load(filename);
@@ -969,7 +994,7 @@ void main() {
       tmpFile.deleteSync();
     });
     test('2d int list', () async {
-      const filename = '2d_int_list.tmp';
+      const filename = 'load_2d_int_list.tmp';
       final headerSection = NpyHeaderSection.fromList(
         [
           [1, 2, 3],
@@ -989,7 +1014,7 @@ void main() {
       tmpFile.deleteSync();
     });
     test('bool list', () async {
-      const filename = 'bool_list.tmp';
+      const filename = 'load_bool_list.tmp';
       final headerSection = NpyHeaderSection.fromList([true, false]);
       final tmpFile = File(filename)..writeAsBytesSync([...headerSection.asBytes, 1, 0]);
       final ndarray = await load(filename);
@@ -997,6 +1022,20 @@ void main() {
       expect(ndarray.data, [true, false]);
       tmpFile.deleteSync();
     });
+    // test('Read float list bytewise', () async {
+    //   const filename = 'load_float_list_with_bytewise_buffer.tmp';
+    //   final headerSection = NpyHeaderSection.fromList([1.0, -2.1]);
+    //   final tmpFile = File(filename)
+    //     ..writeAsBytesSync([...headerSection.asBytes, 0, 0, 0, 0, 0, 0, 240, 63, 205, 204, 204, 204, 204, 204, 0, 192]);
+    //   final ndarray = await load(filename, bufferSize: 1);
+    //   expect(ndarray.headerSection.header.dtype.endian, NpyEndian.little);
+    //   expect(ndarray.headerSection.header.dtype.type, NpyType.float);
+    //   expect(ndarray.headerSection.header.dtype.itemSize, 8);
+    //   expect(ndarray.headerSection.header.fortranOrder, false);
+    //   expect(ndarray.headerSection.header.shape, [2]);
+    //   expect(ndarray.data, [1.0, -2.1]);
+    //   tmpFile.deleteSync();
+    // });
     // test('np.array(0)', () async {
     //   await load('test/files/array_0.npy');
     //   // expect(load('test/array_0.npy'), throwsA(const TypeMatcher<int>()));

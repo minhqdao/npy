@@ -17,7 +17,7 @@ import 'package:npy/src/np_file.dart';
 ///  print(list);
 ///}
 /// ```
-Future<NdArray<T>> load<T>(String path, [int? bufferSize]) async {
+Future<NdArray<T>> load<T>(String path, {int? bufferSize}) async {
   if (T != dynamic && T != double && T != int && T != bool) {
     throw NpyUnsupportedTypeException(message: 'Unsupported NdArray type: $T');
   }
@@ -28,7 +28,7 @@ Future<NdArray<T>> load<T>(String path, [int? bufferSize]) async {
   final parser = NpyParser();
   int dataOffset = 0;
   int elementsRead = 0;
-  final List list = [];
+  final List data = [];
 
   try {
     await for (final chunk in stream) {
@@ -56,10 +56,10 @@ Future<NdArray<T>> load<T>(String path, [int? bufferSize]) async {
         parser.header!,
       );
 
-      list.addAll(newData);
+      data.addAll(newData);
       elementsRead += elementsToProcess;
 
-      if (elementsRead == totalElements) return NdArray<T>(headerSection: parser.headerSection!, data: list);
+      if (elementsRead == totalElements) return NdArray<T>(headerSection: parser.headerSection!, data: data);
 
       dataOffset += elementsToProcess * parser.header!.dtype.itemSize;
     }

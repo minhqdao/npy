@@ -168,9 +168,7 @@ class NpyParser<T> {
   void checkMagicString(List<int> bytes) {
     if (hasPassedMagicStringCheck || bytes.length < magicString.length) return;
     for (int i = 0; i < magicString.length; i++) {
-      if (magicString.codeUnitAt(i) != bytes[i]) {
-        throw const NpyInvalidMagicStringException(message: 'Invalid magic string.');
-      }
+      if (magicString.codeUnitAt(i) != bytes[i]) throw const NpyParseException(message: 'Invalid magic string.');
     }
     hasPassedMagicStringCheck = true;
   }
