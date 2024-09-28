@@ -481,8 +481,8 @@ class NpyVersion {
   /// True if [string] cannot be ASCII encoded.
   static bool cannotBeAsciiEncoded(String string) => string.codeUnits.any((codeUnit) => codeUnit > lastAsciiCodeUnit);
 
-  /// Returns the version as a List<int> of bytes.
-  List<int> get asBytes => [major, minor];
+  /// Returns the version as a list of bytes.
+  Uint8List get asBytes => Uint8List.fromList([major, minor]);
 
   /// Returns the number of bytes used to store the header length depending on the major version.
   int get numberOfHeaderBytes =>

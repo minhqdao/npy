@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:npy/src/np_exception.dart';
 import 'package:npy/src/np_file.dart';
@@ -67,18 +68,19 @@ class ChunkTransformer extends StreamTransformerBase<List<int>, List<int>> {
     }
 
     bool hasNotReceivedData = true;
-    final List<int> buffer = [];
-    await for (final data in stream) {
-      if (hasNotReceivedData && data.isNotEmpty) hasNotReceivedData = false;
-      buffer.addAll(data);
+    final buffer = BytesBuilder();
+    await for (final chunk in stream) {
+      if (hasNotReceivedData && chunk.isNotEmpty) hasNotReceivedData = false;
+      buffer.add(chunk);
 
       while (buffer.length >= bufferSize!) {
-        yield buffer.sublist(0, bufferSize);
-        buffer.removeRange(0, bufferSize!);
+        final bytesTaken = buffer.takeBytes();
+        yield Uint8List.sublistView(bytesTaken, 0, bufferSize);
+        buffer.add(bytesTaken.sublist(bufferSize!));
       }
     }
 
-    if (buffer.isNotEmpty || hasNotReceivedData) yield buffer;
+    if (buffer.isNotEmpty || hasNotReceivedData) yield buffer.takeBytes();
   }
 }
 
