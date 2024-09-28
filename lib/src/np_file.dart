@@ -5,10 +5,7 @@ import 'dart:typed_data';
 import 'package:npy/src/np_exception.dart';
 
 class NdArray<T> {
-  const NdArray({
-    required this.headerSection,
-    required this.data,
-  });
+  const NdArray({required this.headerSection, required this.data});
 
   final NpyHeaderSection headerSection;
   final List data;
@@ -174,12 +171,14 @@ class NpyParser<T> {
   NpyHeader? get header => _header;
 
   NpyHeaderSection? _headerSection;
-  List _data = [];
+  final List<T> _rawData = [];
+  List _data = const [];
   bool _isCompleted = false;
   int _dataOffset = 0;
   int _elementsRead = 0;
 
   NpyHeaderSection? get headerSection => _headerSection;
+  List get rawData => _rawData;
   List get data => _data;
   bool get isCompleted => _isCompleted;
 
@@ -216,7 +215,8 @@ class NpyParser<T> {
   }
 
   void getData(List<int> buffer) {
-    if (_headerSection == null ||
+    if (_isCompleted ||
+        _headerSection == null ||
         _header == null ||
         _headerSize == null ||
         _version == null ||
@@ -225,7 +225,6 @@ class NpyParser<T> {
     }
 
     if (_header!.shape.isEmpty) {
-      _data = const [];
       _isCompleted = true;
       return;
     }
@@ -237,26 +236,22 @@ class NpyParser<T> {
     final elementsInBuffer = (buffer.length - _dataOffset) ~/ itemSize;
     final elementsToProcess = min(remainingElements, elementsInBuffer);
 
-    final newData = parseDataBytes<T>(buffer.sublist(_dataOffset, _dataOffset + elementsToProcess * itemSize), header!);
-
-    _data.addAll(newData);
+    _rawData.addAll(
+      parseByteData<T>(buffer.sublist(_dataOffset, _dataOffset + elementsToProcess * itemSize), header!.dtype),
+    );
     _elementsRead += elementsToProcess;
 
-    if (_elementsRead == totalElements) {
-      _isCompleted = true;
-      return;
-    }
-
-    _dataOffset += elementsToProcess * itemSize;
+    if (_elementsRead != totalElements) return;
+    _data = reshape<T>(_rawData, _header!.shape, fortranOrder: _header!.fortranOrder);
+    _isCompleted = true;
   }
 }
 
-/// Parse the data bytes according to the [header] metadata and return a single- or multidimensional [List] of values.
-List parseDataBytes<T>(List<int> bytes, NpyHeader header) {
-  final dtype = header.dtype;
+/// Parse byte data according to the [header] metadata and return a one-dimensional [List] of values.
+List<T> parseByteData<T>(List<int> bytes, NpyDType dtype) {
   final numberOfElements = bytes.length ~/ dtype.itemSize;
 
-  late final List result;
+  late final List<T> result;
   switch (dtype.type) {
     case NpyType.float:
       result = List.filled(numberOfElements, .0 as T);
@@ -329,7 +324,7 @@ List parseDataBytes<T>(List<int> bytes, NpyHeader header) {
     }
   }
 
-  return reshape(result, header.shape, fortranOrder: header.fortranOrder);
+  return result;
 }
 
 /// Reshape a one-dimensional [List] according to the given [shape] and order (C or Fortran).

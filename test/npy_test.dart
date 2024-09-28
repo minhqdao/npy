@@ -638,36 +638,36 @@ void main() {
   });
 
   group('Build header section and get data:', () {
-    test('Gradually build float list', () {
+    test('Gradually build 1d float list', () {
       final parser = NpyParser();
-      List<int> bytes = const [];
-      bytes = [magicString.codeUnits.first];
-      parser.checkMagicString(bytes);
+      List<int> buffer = const [];
+      buffer = [magicString.codeUnits.first];
+      parser.checkMagicString(buffer);
       expect(parser.hasPassedMagicStringCheck, false);
-      bytes = [...bytes, ...magicString.codeUnits.sublist(1)];
-      parser.checkMagicString(bytes);
+      buffer = [...buffer, ...magicString.codeUnits.sublist(1)];
+      parser.checkMagicString(buffer);
       expect(parser.hasPassedMagicStringCheck, true);
-      bytes = [...bytes, 1];
-      parser.getVersion(bytes);
+      buffer = [...buffer, 1];
+      parser.getVersion(buffer);
       expect(parser.version, null);
-      bytes = [...bytes, 0];
-      parser.getVersion(bytes);
+      buffer = [...buffer, 0];
+      parser.getVersion(buffer);
       expect(parser.version?.major, 1);
       expect(parser.version?.minor, 0);
       expect(parser.version?.numberOfHeaderBytes, 2);
       expect(parser.headerSize, null);
-      final headerSection = NpyHeaderSection.fromList([1, 2, 3]);
-      bytes = [...bytes, headerSection.headerSizeAsBytes.first];
-      parser.getHeaderSize(bytes);
+      final headerSection = NpyHeaderSection.fromList([1.0, -1.0, 2.0]);
+      buffer = [...buffer, headerSection.headerSizeAsBytes.first];
+      parser.getHeaderSize(buffer);
       expect(parser.headerSize, null);
-      bytes = [...bytes, ...headerSection.headerSizeAsBytes.sublist(1)];
-      parser.getHeaderSize(bytes);
+      buffer = [...buffer, ...headerSection.headerSizeAsBytes.sublist(1)];
+      parser.getHeaderSize(buffer);
       expect(parser.headerSize, 118);
-      bytes = [...bytes, headerSection.header.asBytes.first];
-      parser.getHeader(bytes);
+      buffer = [...buffer, headerSection.header.asBytes.first];
+      parser.getHeader(buffer);
       expect(parser.header, null);
-      bytes = [...bytes, ...headerSection.header.asBytes.sublist(1)];
-      parser.getHeader(bytes);
+      buffer = [...buffer, ...headerSection.header.asBytes.sublist(1)];
+      parser.getHeader(buffer);
       expect(parser.header?.shape, [3]);
       expect(parser.header?.asBytes.length, 118);
       expect(parser.headerSection, null);
@@ -678,95 +678,177 @@ void main() {
       expect(parser.headerSection?.headerSize, 118);
       expect(parser.headerSection?.header.shape, [3]);
       expect(parser.headerSection?.size, 128);
+      buffer = [...buffer, 0];
+      parser.getData(buffer);
+      expect(parser.data, []);
+      expect(parser.rawData, []);
+      expect(parser.isCompleted, false);
+      buffer = [...buffer, 0, 0, 0, 0, 0, 240, 63];
+      parser.getData(buffer);
+      expect(parser.data, []);
+      expect(parser.rawData, [1.0]);
+      expect(parser.isCompleted, false);
+      buffer = [...buffer, 0];
+      parser.getData(buffer);
+      expect(parser.data, []);
+      expect(parser.rawData, [1.0]);
+      expect(parser.isCompleted, false);
+      buffer = [...buffer, 0, 0, 0, 0, 0, 240, 191];
+      parser.getData(buffer);
+      expect(parser.data, []);
+      expect(parser.rawData, [1.0, -1.0]);
+      expect(parser.isCompleted, false);
+      buffer = [...buffer, 0, 0, 0, 0, 0, 0, 0, 64];
+      parser.getData(buffer);
+      expect(parser.data, [1.0, -1.0, 2.0]);
+      expect(parser.rawData, [1.0, -1.0, 2.0]);
+      expect(parser.isCompleted, true);
+      buffer.removeRange(buffer.length - 2, buffer.length);
+      buffer = [...buffer, 240, 63];
+      expect(parser.data, [1.0, -1.0, 2.0]);
+      expect(parser.rawData, [1.0, -1.0, 2.0]);
+      expect(parser.isCompleted, true);
     });
     test('Empty list', () {
       final headerSection = NpyHeaderSection.fromList(const []);
-      final bytes = [
-        ...magicString.codeUnits,
-        ...headerSection.version.asBytes,
-        ...headerSection.headerSizeAsBytes,
-        ...headerSection.header.asBytes,
-      ];
+      final buffer = headerSection.asBytes;
       final parser = NpyParser()
-        ..checkMagicString(bytes)
-        ..getVersion(bytes)
-        ..getHeaderSize(bytes)
-        ..getHeader(bytes);
+        ..checkMagicString(buffer)
+        ..getVersion(buffer)
+        ..getHeaderSize(buffer)
+        ..getHeader(buffer);
       expect(parser.headerSection, null);
       parser.buildHeaderSection();
       expect(parser.headerSection?.header.shape, []);
       expect(parser.isCompleted, false);
-      parser.getData(bytes);
+      parser.getData(buffer);
       expect(parser.isCompleted, true);
       expect(parser.data, []);
+    });
+    test('2d bool list', () {
+      final headerSection = NpyHeaderSection.fromList([
+        [true, true, true],
+        [false, false, false],
+      ]);
+      List<int> buffer = headerSection.asBytes;
+      final parser = NpyParser()
+        ..checkMagicString(buffer)
+        ..getVersion(buffer)
+        ..getHeaderSize(buffer)
+        ..getHeader(buffer)
+        ..buildHeaderSection();
+      expect(parser.headerSection?.header.shape, [2, 3]);
+      expect(parser.data, []);
+      expect(parser.rawData, []);
+      expect(parser.isCompleted, false);
+      buffer = [...buffer, 1, 1, 1];
+      parser.getData(buffer);
+      expect(parser.data, []);
+      expect(parser.rawData, [true, true, true]);
+      expect(parser.isCompleted, false);
+      buffer = [...buffer, 0, 0, 0];
+      parser.getData(buffer);
+      expect(parser.data, [
+        [true, true, true],
+        [false, false, false],
+      ]);
+      expect(parser.rawData, [true, true, true, false, false, false]);
+      expect(parser.isCompleted, true);
+    });
+    test('3d uint16 list, big endian, fortran order', () {
+      final headerSection = NpyHeaderSection.fromList(
+        [
+          [
+            [1, 2, 3],
+            [4, 5, 6],
+          ],
+          [
+            [7, 8, 9],
+            [10, 11, 12],
+          ],
+        ],
+        dtype: const NpyDType.uint16(endian: NpyEndian.big),
+        fortranOrder: true,
+      );
+      List<int> buffer = headerSection.asBytes;
+      final parser = NpyParser()
+        ..checkMagicString(buffer)
+        ..getVersion(buffer)
+        ..getHeaderSize(buffer)
+        ..getHeader(buffer)
+        ..buildHeaderSection()
+        ..getData(buffer);
+      expect(parser.headerSection?.header.shape, [2, 2, 3]);
+      expect(parser.data, []);
+      expect(parser.rawData, []);
+      expect(parser.isCompleted, false);
+      buffer = [...buffer, 0, 1, 0, 7, 0, 4, 0, 10, 0, 2, 0, 8];
+      parser.getData(buffer);
+      expect(parser.data, []);
+      expect(parser.rawData, [1, 7, 4, 10, 2, 8]);
+      expect(parser.isCompleted, false);
+      buffer = [...buffer, 0, 5, 0, 11, 0, 3, 0, 9, 0, 6, 0, 12];
+      parser.getData(buffer);
+      expect(parser.data, [
+        [
+          [1, 2, 3],
+          [4, 5, 6],
+        ],
+        [
+          [7, 8, 9],
+          [10, 11, 12],
+        ],
+      ]);
+      expect(parser.rawData, [1, 7, 4, 10, 2, 8, 5, 11, 3, 9, 6, 12]);
+      expect(parser.isCompleted, true);
     });
   });
 
   group('Parse data bytes:', () {
-    test('1 little endian float64', () {
-      final header = NpyHeader.fromList([1.0], dtype: const NpyDType.float64(endian: NpyEndian.little));
-      final data = parseDataBytes([0, 0, 0, 0, 0, 0, 240, 63], header);
-      expect(data, [1.0]);
-    });
-    test('2 big endian float32', () {
-      final header = NpyHeader.fromList([0.9, -0.2], dtype: const NpyDType.float32(endian: NpyEndian.big));
-      final data = parseDataBytes<double>([63, 102, 102, 102, 190, 76, 204, 205], header);
-      expect(listAlmostEquals(data, [0.9, -0.2]), true);
-    });
-    test('2 little endian int64', () {
-      final header = NpyHeader.fromList([-42, 2], dtype: const NpyDType.int64(endian: NpyEndian.little));
-      final data = parseDataBytes([214, 255, 255, 255, 255, 255, 255, 255, 2, 0, 0, 0, 0, 0, 0, 0], header);
-      expect(data, [-42, 2]);
-    });
-    test('1 big endian int32', () {
-      final header = NpyHeader.fromList([1], dtype: const NpyDType.int32(endian: NpyEndian.big));
-      final data = parseDataBytes([0, 0, 0, 1], header);
-      expect(data, [1]);
-    });
-    test('2 little endian int16', () {
-      final header = NpyHeader.fromList([1, 2], dtype: const NpyDType.int16(endian: NpyEndian.little));
-      final data = parseDataBytes([1, 0, 2, 0], header);
-      expect(data, [1, 2]);
-    });
-    test('4 int8', () {
-      final header = NpyHeader.fromList([1, -1, 3, 4], dtype: const NpyDType.int8());
-      final data = parseDataBytes([1, 255, 3, 4], header);
-      expect(data, [1, -1, 3, 4]);
-    });
-    test('1 big endian uint64', () {
-      final header = NpyHeader.fromList([1], dtype: const NpyDType.uint64(endian: NpyEndian.big));
-      final data = parseDataBytes([0, 0, 0, 0, 0, 0, 0, 1], header);
-      expect(data, [1]);
-    });
-    test('2 little endian uint32', () {
-      final header = NpyHeader.fromList([1, 2], dtype: const NpyDType.uint32(endian: NpyEndian.little));
-      final data = parseDataBytes([1, 0, 0, 0, 2, 0, 0, 0], header);
-      expect(data, [1, 2]);
-    });
-    test('1 big endian uint16', () {
-      final header = NpyHeader.fromList([1], dtype: const NpyDType.uint16(endian: NpyEndian.big));
-      final data = parseDataBytes([0, 1], header);
-      expect(data, [1]);
-    });
-    test('3 uint8', () {
-      final header = NpyHeader.fromList([1, 255, 3], dtype: const NpyDType.uint8());
-      final data = parseDataBytes([1, 255, 3], header);
-      expect(data, [1, 255, 3]);
-    });
-    test('1D bool', () {
-      final header = NpyHeader.fromList([true, false, true]);
-      expect(parseDataBytes([1, 0, 1], header), [true, false, true]);
-    });
-    test('2D bool', () {
-      final header = NpyHeader.fromList([
-        [true, false, true],
-        [false, true, false],
-      ]);
-      expect(parseDataBytes([1, 0, 1, 0, 1, 0], header), [
-        [true, false, true],
-        [false, true, false],
-      ]);
-    });
+    test(
+      '1 little endian float64',
+      () => expect(parseByteData([0, 0, 0, 0, 0, 0, 240, 63], const NpyDType.float64(endian: NpyEndian.little)), [1.0]),
+    );
+    test(
+      '2 big endian float32',
+      () => expect(
+        listAlmostEquals(
+          parseByteData<double>([63, 102, 102, 102, 190, 76, 204, 205], const NpyDType.float32(endian: NpyEndian.big)),
+          [0.9, -0.2],
+        ),
+        true,
+      ),
+    );
+    test(
+      '2 little endian int64',
+      () => expect(
+        parseByteData(
+          [214, 255, 255, 255, 255, 255, 255, 255, 2, 0, 0, 0, 0, 0, 0, 0],
+          const NpyDType.int64(endian: NpyEndian.little),
+        ),
+        [-42, 2],
+      ),
+    );
+    test(
+      '1 big endian int32',
+      () => expect(parseByteData([0, 0, 0, 1], const NpyDType.int32(endian: NpyEndian.big)), [1]),
+    );
+    test(
+      '2 little endian int16',
+      () => expect(parseByteData([1, 0, 2, 0], const NpyDType.int16(endian: NpyEndian.little)), [1, 2]),
+    );
+    test('4 int8', () => expect(parseByteData([1, 255, 3, 4], const NpyDType.int8()), [1, -1, 3, 4]));
+    test(
+      '1 big endian uint64',
+      () => expect(parseByteData([0, 0, 0, 0, 0, 0, 0, 1], const NpyDType.uint64(endian: NpyEndian.big)), [1]),
+    );
+    test(
+      '2 little endian uint32',
+      () => expect(parseByteData([1, 0, 0, 0, 2, 0, 0, 0], const NpyDType.uint32(endian: NpyEndian.little)), [1, 2]),
+    );
+    test('1 big endian uint16', () => expect(parseByteData([0, 1], const NpyDType.uint16(endian: NpyEndian.big)), [1]));
+    test('3 uint8', () => expect(parseByteData([1, 255, 3], const NpyDType.uint8()), [1, 255, 3]));
+    test('3 bool', () => expect(parseByteData([1, 0, 1], const NpyDType.boolean()), [true, false, true]));
   });
 
   group('Reshape:', () {
@@ -942,7 +1024,7 @@ void main() {
       expect(ndarray.data, const []);
       tmpFile.deleteSync();
     });
-    test('float list', () async {
+    test('1d float list', () async {
       const filename = 'load_float_list.tmp';
       final headerSection = NpyHeaderSection.fromList([1.0, -2.1]);
       final tmpFile = File(filename)
@@ -956,19 +1038,9 @@ void main() {
       expect(ndarray.data, [1.0, -2.1]);
       tmpFile.deleteSync();
     });
-    test('int list', () async {
-      const filename = 'load_int_list.tmp';
-      final headerSection = NpyHeaderSection.fromList([-1, 1]);
-      final tmpFile = File(filename)
-        ..writeAsBytesSync([...headerSection.asBytes, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 0, 0, 0, 0]);
-      final ndarray = await load(filename);
-      expect(ndarray.headerSection.header.shape, [2]);
-      expect(ndarray.data, [-1, 1]);
-      tmpFile.deleteSync();
-    });
-    test('uint list', () async {
+    test('1d uint list', () async {
       const filename = 'load_uint_list.tmp';
-      final headerSection = NpyHeaderSection.fromList([1, 1], dtype: const NpyDType.uint32());
+      final headerSection = NpyHeaderSection.fromList([4294967295, 1], dtype: const NpyDType.uint32());
       final tmpFile = File(filename)..writeAsBytesSync([...headerSection.asBytes, 255, 255, 255, 255, 1, 0, 0, 0]);
       final ndarray = await load(filename);
       expect(ndarray.headerSection.header.dtype.type, NpyType.uint);
@@ -980,23 +1052,24 @@ void main() {
       const filename = 'load_2d_int_list.tmp';
       final headerSection = NpyHeaderSection.fromList(
         [
-          [1, 2, 3],
+          [-1, 2, 3],
           [4, 5, 6],
         ],
         dtype: const NpyDType.int16(),
       );
-      final tmpFile = File(filename)..writeAsBytesSync([...headerSection.asBytes, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0]);
+      final tmpFile = File(filename)
+        ..writeAsBytesSync([...headerSection.asBytes, 255, 255, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0]);
       final ndarray = await load(filename);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
       expect(ndarray.headerSection.header.dtype.itemSize, 2);
       expect(ndarray.headerSection.header.shape, [2, 3]);
       expect(ndarray.data, [
-        [1, 2, 3],
+        [-1, 2, 3],
         [4, 5, 6],
       ]);
       tmpFile.deleteSync();
     });
-    test('bool list', () async {
+    test('1d bool list', () async {
       const filename = 'load_bool_list.tmp';
       final headerSection = NpyHeaderSection.fromList([true, false]);
       final tmpFile = File(filename)..writeAsBytesSync([...headerSection.asBytes, 1, 0]);
@@ -1005,20 +1078,53 @@ void main() {
       expect(ndarray.data, [true, false]);
       tmpFile.deleteSync();
     });
-    // test('Read float list bytewise', () async {
-    //   const filename = 'load_float_list_with_bytewise_buffer.tmp';
-    //   final headerSection = NpyHeaderSection.fromList([1.0, -2.1]);
-    //   final tmpFile = File(filename)
-    //     ..writeAsBytesSync([...headerSection.asBytes, 0, 0, 0, 0, 0, 0, 240, 63, 205, 204, 204, 204, 204, 204, 0, 192]);
-    //   final ndarray = await load(filename, bufferSize: 1);
-    //   expect(ndarray.headerSection.header.dtype.endian, NpyEndian.little);
-    //   expect(ndarray.headerSection.header.dtype.type, NpyType.float);
-    //   expect(ndarray.headerSection.header.dtype.itemSize, 8);
-    //   expect(ndarray.headerSection.header.fortranOrder, false);
-    //   expect(ndarray.headerSection.header.shape, [2]);
-    //   expect(ndarray.data, [1.0, -2.1]);
-    //   tmpFile.deleteSync();
-    // });
+    test('1d float list bytewise', () async {
+      const filename = 'load_float_list_bytewise.tmp';
+      final headerSection = NpyHeaderSection.fromList([1.0, -2.1]);
+      final tmpFile = File(filename)
+        ..writeAsBytesSync([...headerSection.asBytes, 0, 0, 0, 0, 0, 0, 240, 63, 205, 204, 204, 204, 204, 204, 0, 192]);
+      final ndarray = await load(filename, bufferSize: 1);
+      expect(ndarray.headerSection.header.dtype.endian, NpyEndian.little);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.float);
+      expect(ndarray.headerSection.header.dtype.itemSize, 8);
+      expect(ndarray.headerSection.header.fortranOrder, false);
+      expect(ndarray.headerSection.header.shape, [2]);
+      expect(ndarray.data, [1.0, -2.1]);
+      tmpFile.deleteSync();
+    });
+    test('3d bool list, fortran order, bytewise', () async {
+      const filename = 'load_bool_list_bytewise.tmp';
+      final headerSection = NpyHeaderSection.fromList(
+        [
+          [
+            [true, true, true],
+            [true, true, true],
+          ],
+          [
+            [false, false, false],
+            [false, false, false],
+          ],
+        ],
+        fortranOrder: true,
+      );
+      final tmpFile = File(filename)..writeAsBytesSync([...headerSection.asBytes, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]);
+      final ndarray = await load(filename, bufferSize: 1);
+      expect(ndarray.headerSection.header.fortranOrder, true);
+      expect(ndarray.headerSection.header.dtype.type, NpyType.boolean);
+      expect(ndarray.headerSection.header.dtype.itemSize, 1);
+      expect(ndarray.headerSection.header.shape, [2, 2, 3]);
+      expect(ndarray.data, [
+        [
+          [true, true, true],
+          [true, true, true],
+        ],
+        [
+          [false, false, false],
+          [false, false, false],
+        ],
+      ]);
+      tmpFile.deleteSync();
+    });
     // test('np.array(0)', () async {
     //   await load('test/files/array_0.npy');
     //   // expect(load('test/array_0.npy'), throwsA(const TypeMatcher<int>()));
