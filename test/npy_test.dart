@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:npy/npy.dart';
 import 'package:npy/src/np_exception.dart';
@@ -377,6 +378,17 @@ void main() {
     test('Two characters', () => expect(() => NpyEndian.fromChar('<>'), throwsA(isA<AssertionError>())));
   });
 
+  test('Get native NpyEndian', () {
+    switch (Endian.host) {
+      case Endian.little:
+        expect(NpyEndian.getNative(), NpyEndian.little);
+      case Endian.big:
+        expect(NpyEndian.getNative(), NpyEndian.big);
+      default:
+        fail('Unknown endian');
+    }
+  });
+
   group('Parse NpyType:', () {
     test('Boolean type', () => expect(NpyType.fromChar('?'), NpyType.boolean));
     test('Byte type', () => expect(NpyType.fromChar('b'), NpyType.byte));
@@ -449,6 +461,47 @@ void main() {
     test('Invalid digit', () {
       expect(() => NpyDType.fromString('>ff'), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
     });
+  });
+
+  group('NpyDType to string', () {
+    test('native f8', () {
+      switch (Endian.host) {
+        case Endian.little:
+          expect(NpyDType.float64().toString(), '<f8');
+        case Endian.big:
+          expect(NpyDType.float64().toString(), '>f8');
+        default:
+          fail('Unknown endian');
+      }
+    });
+    test('>f4', () => expect(NpyDType.float32(endian: NpyEndian.big).toString(), '>f4'));
+    test('<i8', () => expect(NpyDType.int64(endian: NpyEndian.little).toString(), '<i8'));
+    test('native i4', () {
+      switch (Endian.host) {
+        case Endian.little:
+          expect(NpyDType.int32().toString(), '<i4');
+        case Endian.big:
+          expect(NpyDType.int32().toString(), '>i4');
+        default:
+          fail('Unknown endian');
+      }
+    });
+    test('>i2', () => expect(NpyDType.int16(endian: NpyEndian.big).toString(), '>i2'));
+    test('|i1', () => expect(const NpyDType.int8().toString(), '|i1'));
+    test('>u8', () => expect(NpyDType.uint64(endian: NpyEndian.big).toString(), '>u8'));
+    test('<u4', () => expect(NpyDType.uint32(endian: NpyEndian.little).toString(), '<u4'));
+    test('native u2', () {
+      switch (Endian.host) {
+        case Endian.little:
+          expect(NpyDType.uint16().toString(), '<u2');
+        case Endian.big:
+          expect(NpyDType.uint16().toString(), '>u2');
+        default:
+          fail('Unknown endian');
+      }
+    });
+    test('|u1', () => expect(const NpyDType.uint8().toString(), '|u1'));
+    test('|b1', () => expect(const NpyDType.boolean().toString(), '|b1'));
   });
 
   group('Get shape:', () {
@@ -774,7 +827,7 @@ void main() {
             [10, 11, 12],
           ],
         ],
-        dtype: const NpyDType.uint16(endian: NpyEndian.big),
+        dtype: NpyDType.uint16(endian: NpyEndian.big),
         fortranOrder: true,
       );
       List<int> buffer = headerSection.asBytes;
@@ -814,13 +867,13 @@ void main() {
   group('Parse data bytes:', () {
     test(
       '1 little endian float64',
-      () => expect(parseByteData([0, 0, 0, 0, 0, 0, 240, 63], const NpyDType.float64(endian: NpyEndian.little)), [1.0]),
+      () => expect(parseByteData([0, 0, 0, 0, 0, 0, 240, 63], NpyDType.float64(endian: NpyEndian.little)), [1.0]),
     );
     test(
       '2 big endian float32',
       () => expect(
         listAlmostEquals(
-          parseByteData<double>([63, 102, 102, 102, 190, 76, 204, 205], const NpyDType.float32(endian: NpyEndian.big)),
+          parseByteData<double>([63, 102, 102, 102, 190, 76, 204, 205], NpyDType.float32(endian: NpyEndian.big)),
           [0.9, -0.2],
         ),
         true,
@@ -831,29 +884,26 @@ void main() {
       () => expect(
         parseByteData(
           [214, 255, 255, 255, 255, 255, 255, 255, 2, 0, 0, 0, 0, 0, 0, 0],
-          const NpyDType.int64(endian: NpyEndian.little),
+          NpyDType.int64(endian: NpyEndian.little),
         ),
         [-42, 2],
       ),
     );
-    test(
-      '1 big endian int32',
-      () => expect(parseByteData([0, 0, 0, 1], const NpyDType.int32(endian: NpyEndian.big)), [1]),
-    );
+    test('1 big endian int32', () => expect(parseByteData([0, 0, 0, 1], NpyDType.int32(endian: NpyEndian.big)), [1]));
     test(
       '2 little endian int16',
-      () => expect(parseByteData([1, 0, 2, 0], const NpyDType.int16(endian: NpyEndian.little)), [1, 2]),
+      () => expect(parseByteData([1, 0, 2, 0], NpyDType.int16(endian: NpyEndian.little)), [1, 2]),
     );
     test('4 int8', () => expect(parseByteData([1, 255, 3, 4], const NpyDType.int8()), [1, -1, 3, 4]));
     test(
       '1 big endian uint64',
-      () => expect(parseByteData([0, 0, 0, 0, 0, 0, 0, 1], const NpyDType.uint64(endian: NpyEndian.big)), [1]),
+      () => expect(parseByteData([0, 0, 0, 0, 0, 0, 0, 1], NpyDType.uint64(endian: NpyEndian.big)), [1]),
     );
     test(
       '2 little endian uint32',
-      () => expect(parseByteData([1, 0, 0, 0, 2, 0, 0, 0], const NpyDType.uint32(endian: NpyEndian.little)), [1, 2]),
+      () => expect(parseByteData([1, 0, 0, 0, 2, 0, 0, 0], NpyDType.uint32(endian: NpyEndian.little)), [1, 2]),
     );
-    test('1 big endian uint16', () => expect(parseByteData([0, 1], const NpyDType.uint16(endian: NpyEndian.big)), [1]));
+    test('1 big endian uint16', () => expect(parseByteData([0, 1], NpyDType.uint16(endian: NpyEndian.big)), [1]));
     test('3 uint8', () => expect(parseByteData([1, 255, 3], const NpyDType.uint8()), [1, 255, 3]));
     test('3 bool', () => expect(parseByteData([1, 0, 1], const NpyDType.boolean()), [true, false, true]));
   });
@@ -1047,7 +1097,7 @@ void main() {
     });
     test('1d uint list', () async {
       const filename = 'load_uint_list.tmp';
-      final headerSection = NpyHeaderSection.fromList([4294967295, 1], dtype: const NpyDType.uint32());
+      final headerSection = NpyHeaderSection.fromList([4294967295, 1], dtype: NpyDType.uint32());
       final tmpFile = File(filename)..writeAsBytesSync([...headerSection.asBytes, 255, 255, 255, 255, 1, 0, 0, 0]);
       final ndarray = await load(filename);
       expect(ndarray.headerSection.header.dtype.type, NpyType.uint);
@@ -1062,7 +1112,7 @@ void main() {
           [-1, 2, 3],
           [4, 5, 6],
         ],
-        dtype: const NpyDType.int16(),
+        dtype: NpyDType.int16(),
       );
       final tmpFile = File(filename)
         ..writeAsBytesSync([...headerSection.asBytes, 255, 255, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0]);
@@ -1156,7 +1206,7 @@ void main() {
   group('Build header string:', () {
     test('<f8, False, ()', () {
       final header = NpyHeader.buildString(
-        dtype: const NpyDType.float64(endian: NpyEndian.little),
+        dtype: NpyDType.float64(endian: NpyEndian.little),
         fortranOrder: false,
         shape: [],
       );
@@ -1164,7 +1214,7 @@ void main() {
     });
     test('<f8, True, ()', () {
       final header = NpyHeader.buildString(
-        dtype: const NpyDType.float64(endian: NpyEndian.little),
+        dtype: NpyDType.float64(endian: NpyEndian.little),
         fortranOrder: true,
         shape: [],
       );
@@ -1172,7 +1222,7 @@ void main() {
     });
     test('>i4, True, ()', () {
       final header = NpyHeader.buildString(
-        dtype: const NpyDType.int32(endian: NpyEndian.big),
+        dtype: NpyDType.int32(endian: NpyEndian.big),
         fortranOrder: true,
         shape: [],
       );
@@ -1180,7 +1230,7 @@ void main() {
     });
     test('<i2, True, (3,)', () {
       final header = NpyHeader.buildString(
-        dtype: const NpyDType.int16(endian: NpyEndian.little),
+        dtype: NpyDType.int16(endian: NpyEndian.little),
         fortranOrder: true,
         shape: [3],
       );
@@ -1188,7 +1238,7 @@ void main() {
     });
     test('>f4, True, (3, 4)', () {
       final header = NpyHeader.buildString(
-        dtype: const NpyDType.float32(endian: NpyEndian.big),
+        dtype: NpyDType.float32(endian: NpyEndian.big),
         fortranOrder: true,
         shape: [3, 4],
       );
@@ -1355,7 +1405,7 @@ void main() {
       expect(ndarray.dataBytes.length, 0);
     });
     test('[], uint', () {
-      final ndarray = NdArray.fromList(const [], dtype: const NpyDType.uint64());
+      final ndarray = NdArray.fromList(const [], dtype: NpyDType.uint64());
       expect(ndarray.data, const []);
       expect(ndarray.headerSection.header.dtype.type, NpyType.uint);
       expect(ndarray.dataBytes.length, 0);
@@ -1434,7 +1484,7 @@ void main() {
       expect(dataBytes.last, 0x66);
     });
     test('[1, 200]', () {
-      final ndarray = NdArray.fromList(const [1, 200], dtype: const NpyDType.int32());
+      final ndarray = NdArray.fromList(const [1, 200], dtype: NpyDType.int32());
       expect(ndarray.data, const [1, 200]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
       final dataBytes = ndarray.dataBytes;
@@ -1445,7 +1495,7 @@ void main() {
       expect(dataBytes.elementAt(5), 0);
     });
     test('[1, 200], big endian', () {
-      final ndarray = NdArray.fromList(const [1, 200], dtype: const NpyDType.int32(endian: NpyEndian.big));
+      final ndarray = NdArray.fromList(const [1, 200], dtype: NpyDType.int32(endian: NpyEndian.big));
       expect(ndarray.data, const [1, 200]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
       final dataBytes = ndarray.dataBytes;
@@ -1457,7 +1507,7 @@ void main() {
       expect(dataBytes.last, 200);
     });
     test('[0.5, 2.0]', () {
-      final ndarray = NdArray.fromList(const [0.5, 2.0], dtype: const NpyDType.float32(endian: NpyEndian.little));
+      final ndarray = NdArray.fromList(const [0.5, 2.0], dtype: NpyDType.float32(endian: NpyEndian.little));
       expect(ndarray.data, const [0.5, 2.0]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.float);
       final dataBytes = ndarray.dataBytes;
@@ -1780,7 +1830,7 @@ void main() {
             [10, 11, 12],
           ],
         ],
-        dtype: const NpyDType.int16(endian: NpyEndian.big),
+        dtype: NpyDType.int16(endian: NpyEndian.big),
         fortranOrder: true,
       );
       final bytes = File(filename).readAsBytesSync();
@@ -1851,7 +1901,7 @@ void main() {
               [11, 12],
             ],
           ],
-          dtype: const NpyDType.uint16(endian: NpyEndian.big),
+          dtype: NpyDType.uint16(endian: NpyEndian.big),
           fortranOrder: true,
         ),
       );
