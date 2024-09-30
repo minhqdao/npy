@@ -743,7 +743,7 @@ class NpyDType {
 
   static const defaultItemSize = 8;
 
-  factory NpyDType.fromArgs({NpyEndian? endian, required NpyType type, required int itemSize}) {
+  factory NpyDType.fromArgs({required NpyType type, required int itemSize, NpyEndian? endian}) {
     switch (type) {
       case NpyType.float:
         switch (itemSize) {
@@ -791,6 +791,7 @@ class NpyDType {
 
   factory NpyDType.fromString(String string) {
     if (string.length < 3) throw NpyInvalidDTypeException(message: "'descr' field has insufficient length: '$string'");
+    if (string == '|b1') return const NpyDType.boolean();
 
     try {
       return NpyDType.fromArgs(
@@ -804,7 +805,7 @@ class NpyDType {
   }
 
   @override
-  String toString() => '${endian.char}${type.chars.first}$itemSize';
+  String toString() => type == NpyType.boolean ? '|b1' : '${endian.char}${type.chars.first}$itemSize';
 }
 
 enum NpyEndian {
@@ -849,7 +850,7 @@ enum NpyType {
     assert(char.length == 1);
     return NpyType.values.firstWhere(
       (type) => type.chars.contains(char),
-      orElse: () => throw NpyUnsupportedNpyTypeException(message: 'Unsupported list type: $char'),
+      orElse: () => throw NpyUnsupportedNpyTypeException(message: 'Unsupported type: $char'),
     );
   }
 }

@@ -424,6 +424,13 @@ void main() {
       expect(dtype.type, NpyType.uint);
       expect(dtype.itemSize, 2);
     });
+    test('|b1', () {
+      final dtype = NpyDType.fromString('|b1');
+      expect(dtype.endian, NpyEndian.none);
+      expect(dtype.type, NpyType.boolean);
+      expect(dtype.itemSize, 1);
+    });
+    test('|b2', () => expect(() => NpyDType.fromString('|b2'), throwsA(const TypeMatcher<NpyInvalidDTypeException>())));
     test('Empty string', () {
       expect(() => NpyDType.fromString(''), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
     });
