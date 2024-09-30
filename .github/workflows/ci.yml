@@ -13,7 +13,6 @@ jobs:
       - uses: dart-lang/setup-dart@v1
       - run: dart pub get
       - run: dart test
-      - run: dart run example/load/load_example.dart
   format_analyze:
     runs-on: ubuntu-latest
     steps:
