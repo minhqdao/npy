@@ -2,6 +2,14 @@ name: CI
 on: push
 
 jobs:
+  format_analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub get
+      - run: dart format -o none --set-exit-if-changed -l 120 .
+      - run: dart analyze --fatal-infos
   test:
     strategy:
       matrix:
@@ -11,14 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
+      - uses: actions/setup-python@v5
+      - run: pip install numpy
       - run: dart pub get
       - run: dart test
-      - run: dart run example/load/load_example.dart
-  format_analyze:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dart-lang/setup-dart@v1
-      - run: dart pub get
-      - run: dart format -o none --set-exit-if-changed -l 120 .
-      - run: dart analyze --fatal-infos
