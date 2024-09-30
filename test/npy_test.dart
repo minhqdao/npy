@@ -1125,10 +1125,6 @@ void main() {
       ]);
       tmpFile.deleteSync();
     });
-    // test('np.array(0)', () async {
-    //   await load('test/files/array_0.npy');
-    //   // expect(load('test/array_0.npy'), throwsA(const TypeMatcher<int>()));
-    // });
   });
 
   group('Get padding size:', () {
@@ -1200,54 +1196,6 @@ void main() {
       expect(bytes[0], 118);
       expect(bytes[1], 0);
     });
-    // test('100, V2', () {
-    //   final bytes = NpyHeaderSection(
-    //     version: const NpyVersion(major: 2),
-    //     header: NpyHeader.fromList([]),
-    //     headerSize: 0,
-    //     paddingSize: 0,
-    //   ).headerSizeAsBytes(100);
-    //   expect(bytes.length, 4);
-    //   expect(bytes[0], 100);
-    //   expect(bytes[1], 0);
-    //   expect(bytes[2], 0);
-    //   expect(bytes[3], 0);
-    // });
-    // test('65536, V2', () {
-    //   final bytes = NpyHeaderSection(
-    //     version: const NpyVersion(major: 2),
-    //     header: NpyHeader.fromList([]),
-    //     headerSize: 0,
-    //     paddingSize: 0,
-    //   ).headerSizeAsBytes(65536);
-    //   expect(bytes.length, 4);
-    //   expect(bytes[0], 0);
-    //   expect(bytes[1], 0);
-    //   expect(bytes[2], 1);
-    //   expect(bytes[3], 0);
-    // });
-    // test('V2 max', () {
-    //   final bytes = NpyHeaderSection(
-    //     version: const NpyVersion(major: 2),
-    //     header: NpyHeader.fromList([]),
-    //     headerSize: 0,
-    //     paddingSize: 0,
-    //   ).headerSizeAsBytes(4294967295);
-    //   expect(bytes.length, 4);
-    //   expect(bytes[0], 255);
-    //   expect(bytes[1], 255);
-    //   expect(bytes[2], 255);
-    //   expect(bytes[3], 255);
-    // });
-    // test('V2 exceeded', () {
-    //   final bytes = NpyHeaderSection(
-    //     version: const NpyVersion(major: 2),
-    //     header: NpyHeader.fromList([]),
-    //     headerSize: 0,
-    //     paddingSize: 0,
-    //   );
-    //   expect(() => bytes.headerSizeAsBytes(4294967296), throwsA(isA<AssertionError>()));
-    // });
   });
 
   group('Flatten:', () {
