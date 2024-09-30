@@ -678,53 +678,53 @@ int littleEndian32ToInt(List<int> bytes) {
 }
 
 class NpyDType {
-  const NpyDType.float64({NpyEndian? endian})
-      : endian = endian ?? NpyEndian.native,
+  NpyDType.float64({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.getNative(),
         type = NpyType.float,
         itemSize = 8;
 
-  const NpyDType.float32({NpyEndian? endian})
-      : endian = endian ?? NpyEndian.native,
+  NpyDType.float32({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.getNative(),
         type = NpyType.float,
         itemSize = 4;
 
-  const NpyDType.int64({NpyEndian? endian})
-      : endian = endian ?? NpyEndian.native,
+  NpyDType.int64({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.getNative(),
         type = NpyType.int,
         itemSize = 8;
 
-  const NpyDType.int32({NpyEndian? endian})
-      : endian = endian ?? NpyEndian.native,
+  NpyDType.int32({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.getNative(),
         type = NpyType.int,
         itemSize = 4;
 
-  const NpyDType.int16({NpyEndian? endian})
-      : endian = endian ?? NpyEndian.native,
+  NpyDType.int16({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.getNative(),
         type = NpyType.int,
         itemSize = 2;
 
-  const NpyDType.int8({NpyEndian? endian})
-      : endian = endian ?? NpyEndian.native,
+  const NpyDType.int8()
+      : endian = NpyEndian.none,
         type = NpyType.int,
         itemSize = 1;
 
-  const NpyDType.uint64({NpyEndian? endian})
-      : endian = endian ?? NpyEndian.native,
+  NpyDType.uint64({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.getNative(),
         type = NpyType.uint,
         itemSize = 8;
 
-  const NpyDType.uint32({NpyEndian? endian})
-      : endian = endian ?? NpyEndian.native,
+  NpyDType.uint32({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.getNative(),
         type = NpyType.uint,
         itemSize = 4;
 
-  const NpyDType.uint16({NpyEndian? endian})
-      : endian = endian ?? NpyEndian.native,
+  NpyDType.uint16({NpyEndian? endian})
+      : endian = endian ?? NpyEndian.getNative(),
         type = NpyType.uint,
         itemSize = 2;
 
-  const NpyDType.uint8({NpyEndian? endian})
-      : endian = endian ?? NpyEndian.native,
+  const NpyDType.uint8()
+      : endian = NpyEndian.none,
         type = NpyType.uint,
         itemSize = 1;
 
@@ -743,7 +743,7 @@ class NpyDType {
 
   static const defaultItemSize = 8;
 
-  factory NpyDType.fromArgs({NpyEndian? endian, required NpyType type, required int itemSize}) {
+  factory NpyDType.fromArgs({required NpyType type, required int itemSize, NpyEndian? endian}) {
     switch (type) {
       case NpyType.float:
         switch (itemSize) {
@@ -763,7 +763,7 @@ class NpyDType {
           case 2:
             return NpyDType.int16(endian: endian);
           case 1:
-            return NpyDType.int8(endian: endian);
+            return const NpyDType.int8();
           default:
             throw NpyUnsupportedDTypeException(message: 'Unsupported int item size: $itemSize');
         }
@@ -776,7 +776,7 @@ class NpyDType {
           case 2:
             return NpyDType.uint16(endian: endian);
           case 1:
-            return NpyDType.uint8(endian: endian);
+            return const NpyDType.uint8();
           default:
             throw NpyUnsupportedDTypeException(message: 'Unsupported uint item size: $itemSize');
         }
@@ -791,6 +791,7 @@ class NpyDType {
 
   factory NpyDType.fromString(String string) {
     if (string.length < 3) throw NpyInvalidDTypeException(message: "'descr' field has insufficient length: '$string'");
+    if (string == '|b1') return const NpyDType.boolean();
 
     try {
       return NpyDType.fromArgs(
@@ -804,7 +805,7 @@ class NpyDType {
   }
 
   @override
-  String toString() => '${endian.char}${type.chars.first}$itemSize';
+  String toString() => type == NpyType.boolean ? '|b1' : '${endian.char}${type.chars.first}$itemSize';
 }
 
 enum NpyEndian {
@@ -816,6 +817,9 @@ enum NpyEndian {
   const NpyEndian(this.char);
 
   final String char;
+
+  factory NpyEndian.getNative() =>
+      ByteData.view(Uint16List.fromList([1]).buffer).getInt8(0) == 1 ? NpyEndian.little : NpyEndian.big;
 
   factory NpyEndian.fromChar(String char) {
     assert(char.length == 1);
@@ -849,7 +853,7 @@ enum NpyType {
     assert(char.length == 1);
     return NpyType.values.firstWhere(
       (type) => type.chars.contains(char),
-      orElse: () => throw NpyUnsupportedNpyTypeException(message: 'Unsupported list type: $char'),
+      orElse: () => throw NpyUnsupportedNpyTypeException(message: 'Unsupported type: $char'),
     );
   }
 }
