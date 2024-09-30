@@ -7,7 +7,7 @@ import 'package:npy/src/np_exception.dart';
 import 'package:test/test.dart';
 
 void main() {
-  const double epsilon = 1e-6;
+  const epsilon = 1e-6;
   bool almostEqual(double a, double b, [double tolerance = epsilon]) => (a - b).abs() < tolerance;
   bool listAlmostEquals(List a, List<double> b, [double tolerance = epsilon]) {
     if (a.length != b.length) return false;
