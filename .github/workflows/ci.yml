@@ -19,5 +19,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
+      - run: dart pub get
       - run: dart format -o none --set-exit-if-changed -l 120 .
       - run: dart analyze --fatal-infos
