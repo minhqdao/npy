@@ -259,9 +259,15 @@ void main() {
       expect(parser.version?.minor, 0);
       expect(parser.version?.numberOfHeaderBytes, 4);
     });
-    test('Unsupported major version in parse', () {
+    test('Unsupported major version in parse: 4', () {
       expect(
         () => NpyParser().getVersion([...magicString.codeUnits, 4, 0]),
+        throwsA(const TypeMatcher<NpyUnsupportedVersionException>()),
+      );
+    });
+    test('Unsupported major version in parse: 0', () {
+      expect(
+        () => NpyParser().getVersion([...magicString.codeUnits, 0, 0]),
         throwsA(const TypeMatcher<NpyUnsupportedVersionException>()),
       );
     });
@@ -297,7 +303,11 @@ void main() {
   });
 
   group('Parse header length', () {
+    test('[0, 0]', () => expect(littleEndian16ToInt([0, 0]), 0));
+    test('[1, 0]', () => expect(littleEndian16ToInt([1, 0]), 1));
+    test('[0, 1]', () => expect(littleEndian16ToInt([0, 1]), 256));
     test('[2, 1]', () => expect(littleEndian16ToInt([2, 1]), 258));
+    test('[1, 2]', () => expect(littleEndian16ToInt([1, 2]), 513));
     test('[4, 3, 2, 1]', () => expect(littleEndian32ToInt([4, 3, 2, 1]), 16909060));
     test('[1, 2, 3, 4]', () => expect(littleEndian32ToInt([1, 2, 3, 4]), 67305985));
     test('Less than 2 bytes', () => expect(() => littleEndian16ToInt([1]), throwsA(isA<AssertionError>())));
@@ -353,7 +363,7 @@ void main() {
     });
     test('Return early if version not set', () {
       final parser = NpyParser();
-      parser.getHeaderSize([...magicString.codeUnits, ...'\x93NUMPY'.codeUnits, 1, 2]);
+      parser.getHeaderSize([...magicString.codeUnits, 147, 78, 85, 77, 80, 89, 1, 0, 1, 2]);
       expect(parser.headerSize, null);
     });
     test('[0x56, 0x78]', () {

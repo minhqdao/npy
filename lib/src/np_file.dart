@@ -668,13 +668,13 @@ const supportedInputTypes = {int, double};
 /// Converts the given [bytes] to a 16-bit unsigned integer in little-endian byte order.
 int littleEndian16ToInt(List<int> bytes) {
   assert(bytes.length == 2);
-  return ByteData.sublistView(Uint8List.fromList(bytes)).getUint16(0, Endian.little);
+  return ByteData.view(Uint8List.fromList(bytes).buffer).getUint16(0, Endian.little);
 }
 
 /// Converts the given [bytes] to a 32-bit unsigned integer in little-endian byte order.
 int littleEndian32ToInt(List<int> bytes) {
   assert(bytes.length == 4);
-  return ByteData.sublistView(Uint8List.fromList(bytes)).getUint32(0, Endian.little);
+  return ByteData.view(Uint8List.fromList(bytes).buffer).getUint32(0, Endian.little);
 }
 
 class NpyDType {
