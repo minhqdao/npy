@@ -6,12 +6,18 @@ import 'package:test/test.dart';
 void main() {
   const baseDir = 'test/integration_test/';
 
+  Future<ProcessResult> runPython(String script, String filename) async {
+    final result = await Process.run('which', ['python3']);
+    if (result.exitCode != 0) throw 'python3 not found';
+    return await Process.run('python3', [script, filename]);
+  }
+
   group('Save:', () {
     test('1d float32', () async {
       const npyFilename = '${baseDir}save_float_test.npy';
       const pythonScript = '${baseDir}load_float_test.py';
       await saveList(npyFilename, [.111, 2.22, -33.3], dtype: NpyDType.float32());
-      final result = await Process.run('python', [pythonScript, npyFilename]);
+      final result = await runPython(pythonScript, npyFilename);
       File(npyFilename).deleteSync();
       expect(result.exitCode, 0, reason: result.stderr.toString());
     });
@@ -26,7 +32,7 @@ void main() {
         ],
         fortranOrder: true,
       );
-      final result = await Process.run('python', [pythonScript, npyFilename]);
+      final result = await runPython(pythonScript, npyFilename);
       File(npyFilename).deleteSync();
       expect(result.exitCode, 0, reason: result.stderr.toString());
     });
@@ -47,7 +53,7 @@ void main() {
         ],
         dtype: NpyDType.int16(),
       );
-      final result = await Process.run('python', [pythonScript, npyFilename]);
+      final result = await runPython(pythonScript, npyFilename);
       File(npyFilename).deleteSync();
       expect(result.exitCode, 0, reason: result.stderr.toString());
     });
@@ -62,7 +68,7 @@ void main() {
         ],
         dtype: NpyDType.uint32(endian: NpyEndian.big),
       );
-      final result = await Process.run('python', [pythonScript, npyFilename]);
+      final result = await runPython(pythonScript, npyFilename);
       File(npyFilename).deleteSync();
       expect(result.exitCode, 0, reason: result.stderr.toString());
     });
@@ -72,7 +78,7 @@ void main() {
     test('2d float64, big endian', () async {
       const pythonScript = '${baseDir}save_float_test.py';
       const npyFilename = '${baseDir}load_float_test.npy';
-      await Process.run('python', [pythonScript, npyFilename]);
+      await runPython(pythonScript, npyFilename);
       final ndarray = await load(npyFilename);
       File(npyFilename).deleteSync();
       expect(ndarray.data, [
@@ -90,7 +96,7 @@ void main() {
     test('3d bool', () async {
       const pythonScript = '${baseDir}save_bool_test.py';
       const npyFilename = '${baseDir}load_bool_test.npy';
-      await Process.run('python', [pythonScript, npyFilename]);
+      await runPython(pythonScript, npyFilename);
       final ndarray = await load(npyFilename);
       File(npyFilename).deleteSync();
       expect(ndarray.data, [
@@ -112,7 +118,7 @@ void main() {
     test('2d int64, fortran order', () async {
       const pythonScript = '${baseDir}save_int_test.py';
       const npyFilename = '${baseDir}load_int_test.npy';
-      await Process.run('python', [pythonScript, npyFilename]);
+      await runPython(pythonScript, npyFilename);
       final ndarray = await load(npyFilename);
       File(npyFilename).deleteSync();
       expect(ndarray.data, [
@@ -129,7 +135,7 @@ void main() {
     test('1d uint8', () async {
       const pythonScript = '${baseDir}save_uint_test.py';
       const npyFilename = '${baseDir}load_uint_test.npy';
-      await Process.run('python', [pythonScript, npyFilename]);
+      await runPython(pythonScript, npyFilename);
       final ndarray = await load(npyFilename);
       File(npyFilename).deleteSync();
       expect(ndarray.data, [0, 1, 254, 255]);
