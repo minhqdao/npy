@@ -146,4 +146,70 @@ void main() {
       expect(ndarray.headerSection.header.dtype.itemSize, 1);
     });
   });
+
+  group('Bytewise comparison:', () {
+    test('2d float64, big endian', () async {
+      const pythonScript = '${baseDir}save_float_test.py';
+      const npyFilename = '${baseDir}compare_float_test.npy';
+      await runPython(pythonScript, npyFilename);
+      final pyBytes = await File(npyFilename).readAsBytes();
+      File(npyFilename).deleteSync();
+      final dartBytes = NdArray.fromList(
+        [
+          [-9.999, -1.1],
+          [-0.12345, 0.12],
+          [9.1, 1.999],
+          [1.23, -1.2],
+        ],
+        endian: NpyEndian.big,
+      ).asBytes;
+      expect(pyBytes, dartBytes);
+    });
+    test('3d bool', () async {
+      const pythonScript = '${baseDir}save_bool_test.py';
+      const npyFilename = '${baseDir}compare_bool_test.npy';
+      await runPython(pythonScript, npyFilename);
+      final pyBytes = await File(npyFilename).readAsBytes();
+      File(npyFilename).deleteSync();
+      final dartBytes = NdArray.fromList(
+        [
+          [
+            [true, true, true],
+            [false, false, false],
+          ],
+          [
+            [false, false, false],
+            [true, true, true],
+          ]
+        ],
+        endian: NpyEndian.none,
+      ).asBytes;
+      expect(pyBytes, dartBytes);
+    });
+    test('2d int64, fortran order', () async {
+      const pythonScript = '${baseDir}save_int_test.py';
+      const npyFilename = '${baseDir}compare_int_test.npy';
+      await runPython(pythonScript, npyFilename);
+      final pyBytes = await File(npyFilename).readAsBytes();
+      File(npyFilename).deleteSync();
+      final dartBytes = NdArray.fromList(
+        [
+          [-9223372036854775808, -1],
+          [0, 0],
+          [1, 9223372036854775807],
+        ],
+        endian: NpyEndian.big,
+      ).asBytes;
+      expect(pyBytes, dartBytes);
+    });
+    test('1d uint8', () async {
+      const pythonScript = '${baseDir}save_uint_test.py';
+      const npyFilename = '${baseDir}compare_uint_test.npy';
+      await runPython(pythonScript, npyFilename);
+      final pyBytes = await File(npyFilename).readAsBytes();
+      File(npyFilename).deleteSync();
+      final dartBytes = NdArray.fromList([0, 1, 254, 255], endian: NpyEndian.none).asBytes;
+      expect(pyBytes, dartBytes);
+    });
+  });
 }
