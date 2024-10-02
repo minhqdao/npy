@@ -75,7 +75,7 @@ class ChunkTransformer extends StreamTransformerBase<List<int>, List<int>> {
 
       while (buffer.length >= bufferSize!) {
         final bytesTaken = buffer.takeBytes();
-        yield Uint8List.sublistView(bytesTaken, 0, bufferSize);
+        yield Uint8List.view(bytesTaken.buffer, 0, bufferSize);
         buffer.add(bytesTaken.sublist(bufferSize!));
       }
     }
