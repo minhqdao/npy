@@ -109,6 +109,18 @@ void main() {
       );
       controller.close();
     });
+    test('Transform without remaining entries', () {
+      final controller = StreamController<List<int>>();
+      controller.add([1, 2, 3, 4]);
+      expect(
+        controller.stream.transform(const ChunkTransformer(bufferSize: 2)),
+        emitsInOrder([
+          [1, 2],
+          [3, 4],
+        ]),
+      );
+      controller.close();
+    });
     test('Multiple emits, single bytes', () {
       final controller = StreamController<List<int>>();
       controller
