@@ -578,6 +578,8 @@ class NpyDType {
   String toString() => type == NpyType.boolean ? '|b1' : '${endian.char}${type.chars.first}$itemSize';
 }
 
+/// The endianness of the NPY file. It is represented by a single character. Single-byte data types are always
+/// [NpyEndian.none].
 enum NpyEndian {
   little('<'),
   big('>'),
@@ -589,7 +591,7 @@ enum NpyEndian {
   /// The char representation of the [NpyEndian].
   final String char;
 
-  /// Get the endian that is native on the current platform.
+  /// Get the native endianness of the current platform.
   factory NpyEndian.getNative() =>
       ByteData.view(Uint16List.fromList([1]).buffer).getInt8(0) == 1 ? NpyEndian.little : NpyEndian.big;
 
@@ -603,6 +605,9 @@ enum NpyEndian {
   }
 }
 
+/// The supported data types of the NPY file. A data type is represented by one or multiple single-character
+/// representations. If more than one representation exists, the first one is used for saving. This package aims to
+/// gradually increase support for more data types.
 enum NpyType {
   boolean(['?']),
   byte(['b']),
@@ -620,8 +625,10 @@ enum NpyType {
 
   const NpyType(this.chars);
 
+  /// A list of single characters that represent an [NpyType].
   final List<String> chars;
 
+  /// Converts the given [char] to an [NpyType].
   factory NpyType.fromChar(String char) {
     assert(char.length == 1);
     return NpyType.values.firstWhere(
