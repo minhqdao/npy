@@ -18,7 +18,7 @@ import 'package:npy/src/np_file.dart';
 /// ```
 Future<NdArray<T>> load<T>(String path, {int? bufferSize}) async {
   if (T != dynamic && T != double && T != int && T != bool) {
-    throw NpyUnsupportedTypeException(message: 'Unsupported NdArray type: $T');
+    throw NpyInvalidNpyTypeException(message: 'Unsupported NdArray type: $T');
   }
 
   final stream = File(path).openRead().transform(ChunkTransformer(bufferSize: bufferSize));

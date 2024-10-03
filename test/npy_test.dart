@@ -230,13 +230,13 @@ void main() {
     test('Insufficient byte length', () => expect(() => NpyVersion.fromBytes([1]), throwsA(isA<AssertionError>())));
     test('Exceeded byte length', () => expect(() => NpyVersion.fromBytes([1, 0, 0]), throwsA(isA<AssertionError>())));
     test('Create instance: Unsupported major version: 0', () {
-      expect(() => NpyVersion.fromBytes([0, 0]), throwsA(const TypeMatcher<NpyUnsupportedVersionException>()));
+      expect(() => NpyVersion.fromBytes([0, 0]), throwsA(const TypeMatcher<NpyInvalidVersionException>()));
     });
     test('Create instance: Unsupported major version: 4', () {
-      expect(() => NpyVersion.fromBytes([4, 0]), throwsA(const TypeMatcher<NpyUnsupportedVersionException>()));
+      expect(() => NpyVersion.fromBytes([4, 0]), throwsA(const TypeMatcher<NpyInvalidVersionException>()));
     });
     test('Create instance: Unsupported minor version', () {
-      expect(() => NpyVersion.fromBytes([1, 1]), throwsA(const TypeMatcher<NpyUnsupportedVersionException>()));
+      expect(() => NpyVersion.fromBytes([1, 1]), throwsA(const TypeMatcher<NpyInvalidVersionException>()));
     });
     test('Parse major: 1, minor: 0', () {
       final parser = NpyParser();
@@ -262,19 +262,19 @@ void main() {
     test('Unsupported major version in parse: 4', () {
       expect(
         () => NpyParser().getVersion([...magicString.codeUnits, 4, 0]),
-        throwsA(const TypeMatcher<NpyUnsupportedVersionException>()),
+        throwsA(const TypeMatcher<NpyInvalidVersionException>()),
       );
     });
     test('Unsupported major version in parse: 0', () {
       expect(
         () => NpyParser().getVersion([...magicString.codeUnits, 0, 0]),
-        throwsA(const TypeMatcher<NpyUnsupportedVersionException>()),
+        throwsA(const TypeMatcher<NpyInvalidVersionException>()),
       );
     });
     test('Unsupported minor version in parse', () {
       expect(
         () => NpyParser().getVersion([...magicString.codeUnits, 1, 1]),
-        throwsA(const TypeMatcher<NpyUnsupportedVersionException>()),
+        throwsA(const TypeMatcher<NpyInvalidVersionException>()),
       );
     });
     test('Additional bytes', () {
@@ -394,7 +394,7 @@ void main() {
     test('Native byte', () => expect(NpyEndian.fromChar('='), NpyEndian.native));
     test('None', () => expect(NpyEndian.fromChar('|'), NpyEndian.none));
     test('Invalid endian', () {
-      expect(() => NpyEndian.fromChar('!'), throwsA(const TypeMatcher<NpyUnsupportedEndianException>()));
+      expect(() => NpyEndian.fromChar('!'), throwsA(const TypeMatcher<NpyInvalidEndianException>()));
     });
     test('Empty string', () => expect(() => NpyEndian.fromChar(''), throwsA(isA<AssertionError>())));
     test('Two characters', () => expect(() => NpyEndian.fromChar('<>'), throwsA(isA<AssertionError>())));
@@ -427,7 +427,7 @@ void main() {
     test('Unicode type', () => expect(NpyType.fromChar('U'), NpyType.unicode));
     test('Void type', () => expect(NpyType.fromChar('V'), NpyType.voidType));
     test('Invalid type', () {
-      expect(() => NpyType.fromChar('x'), throwsA(const TypeMatcher<NpyUnsupportedNpyTypeException>()));
+      expect(() => NpyType.fromChar('x'), throwsA(const TypeMatcher<NpyInvalidNpyTypeException>()));
     });
     test('Empty string', () => expect(() => NpyType.fromChar(''), throwsA(isA<AssertionError>())));
     test('Two characters', () => expect(() => NpyType.fromChar('fc'), throwsA(isA<AssertionError>())));
@@ -485,8 +485,51 @@ void main() {
     });
   });
 
-  group('NpyDType to string', () {
-    test('native f8', () {
+  group('NpyDType.fromArgs:', () {
+    test('Native float64', () {
+      switch (Endian.host) {
+        case Endian.little:
+          expect(NpyDType.fromArgs(type: NpyType.float, itemSize: 8).toString(), '<f8');
+        case Endian.big:
+          expect(NpyDType.fromArgs(type: NpyType.float, itemSize: 8).toString(), '>f8');
+        default:
+          fail('Unknown endian');
+      }
+    });
+    test('Unsupported float itemSize', () {
+      expect(
+        () => NpyDType.fromArgs(type: NpyType.float, itemSize: 2),
+        throwsA(const TypeMatcher<NpyInvalidDTypeException>()),
+      );
+    });
+    test('Unsupported int itemSize', () {
+      expect(
+        () => NpyDType.fromArgs(type: NpyType.int, itemSize: 3),
+        throwsA(const TypeMatcher<NpyInvalidDTypeException>()),
+      );
+    });
+    test('Unsupported uint itemSize', () {
+      expect(
+        () => NpyDType.fromArgs(type: NpyType.uint, itemSize: 0),
+        throwsA(const TypeMatcher<NpyInvalidDTypeException>()),
+      );
+    });
+    test('Unsupported boolean itemSize', () {
+      expect(() => NpyDType.fromArgs(type: NpyType.boolean, itemSize: 2), throwsA(isA<AssertionError>()));
+    });
+    test('Unsupported boolean endian', () {
+      expect(() => NpyDType.fromArgs(type: NpyType.boolean, endian: NpyEndian.big), throwsA(isA<AssertionError>()));
+    });
+    test('Get default values for boolean', () {
+      final dtype = NpyDType.fromArgs(type: NpyType.boolean);
+      expect(dtype.type, NpyType.boolean);
+      expect(dtype.itemSize, 1);
+      expect(dtype.endian, NpyEndian.none);
+    });
+  });
+
+  group('NpyDType to String:', () {
+    test('Native f8', () {
       switch (Endian.host) {
         case Endian.little:
           expect(NpyDType.float64().toString(), '<f8');
@@ -593,7 +636,7 @@ void main() {
       expect(header.shape, [2, 3]);
     });
     test('String throws error', () {
-      expect(() => NpyHeader.fromList(['hi']), throwsA(const TypeMatcher<NpyUnsupportedTypeException>()));
+      expect(() => NpyHeader.fromList(['hi']), throwsA(const TypeMatcher<NpyInvalidNpyTypeException>()));
     });
   });
 

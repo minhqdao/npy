@@ -33,8 +33,8 @@ class NpyParseException extends NpException {
   final String message;
 }
 
-class NpyUnsupportedVersionException extends NpyParseException {
-  const NpyUnsupportedVersionException({required super.message});
+class NpyInvalidVersionException extends NpyParseException {
+  const NpyInvalidVersionException({required super.message});
 }
 
 class NpyInvalidHeaderException extends NpyParseException {
@@ -45,20 +45,12 @@ class NpyInvalidDTypeException extends NpyInvalidHeaderException {
   const NpyInvalidDTypeException({required super.message});
 }
 
-class NpyUnsupportedEndianException extends NpyInvalidDTypeException {
-  const NpyUnsupportedEndianException({required super.message});
+class NpyInvalidEndianException extends NpyInvalidDTypeException {
+  const NpyInvalidEndianException({required super.message});
 }
 
-class NpyUnsupportedNpyTypeException extends NpyInvalidDTypeException {
-  const NpyUnsupportedNpyTypeException({required super.message});
-}
-
-class NpyUnsupportedDTypeException extends NpyParseException {
-  const NpyUnsupportedDTypeException({required super.message});
-}
-
-class NpyUnsupportedTypeException extends NpyParseException {
-  const NpyUnsupportedTypeException({required super.message});
+class NpyInvalidNpyTypeException extends NpyInvalidDTypeException {
+  const NpyInvalidNpyTypeException({required super.message});
 }
 
 class NpyParseOrderException extends NpyParseException {

@@ -115,7 +115,7 @@ void main() {
       expect(ndarray.headerSection.header.dtype.endian, NpyEndian.none);
       expect(ndarray.headerSection.header.dtype.itemSize, 1);
     });
-    test('2d int64, fortran order', () async {
+    test('2d int64, big endian, fortran order', () async {
       const pythonScript = '${baseDir}save_int_test.py';
       const npyFilename = '${baseDir}load_int_test.npy';
       await runPython(pythonScript, npyFilename);
@@ -199,6 +199,7 @@ void main() {
           [1, 9223372036854775807],
         ],
         endian: NpyEndian.big,
+        fortranOrder: true,
       ).asBytes;
       expect(pyBytes, dartBytes);
     });
@@ -208,7 +209,7 @@ void main() {
       await runPython(pythonScript, npyFilename);
       final pyBytes = await File(npyFilename).readAsBytes();
       File(npyFilename).deleteSync();
-      final dartBytes = NdArray.fromList([0, 1, 254, 255], endian: NpyEndian.none).asBytes;
+      final dartBytes = NdArray.fromList([0, 1, 254, 255], dtype: const NpyDType.uint8()).asBytes;
       expect(pyBytes, dartBytes);
     });
   });

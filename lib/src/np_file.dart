@@ -31,7 +31,7 @@ class NdArray<T> {
         endian = Endian.host;
       default:
         if (dtype.itemSize != 1) {
-          throw const NpyUnsupportedEndianException(message: 'Endian must be specified for item size > 1.');
+          throw const NpyInvalidEndianException(message: 'Endian must be specified for item size > 1.');
         }
     }
 
@@ -54,7 +54,7 @@ class NdArray<T> {
               case 1:
                 byteData.setInt8(0, element);
               default:
-                throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
+                throw NpyInvalidDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
             }
           case NpyType.uint:
             switch (dtype.itemSize) {
@@ -67,10 +67,10 @@ class NdArray<T> {
               case 1:
                 byteData.setUint8(0, element);
               default:
-                throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
+                throw NpyInvalidDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
             }
           default:
-            throw NpyUnsupportedNpyTypeException(message: 'Unsupported NpyType: ${dtype.type}');
+            throw NpyInvalidNpyTypeException(message: 'Unsupported NpyType: ${dtype.type}');
         }
       } else if (element is double) {
         switch (dtype.itemSize) {
@@ -79,12 +79,12 @@ class NdArray<T> {
           case 4:
             byteData.setFloat32(0, element, endian);
           default:
-            throw NpyUnsupportedDTypeException(message: 'Unsupported NpyType: ${dtype.type}');
+            throw NpyInvalidDTypeException(message: 'Unsupported NpyType: ${dtype.type}');
         }
       } else if (element is bool) {
         byteData.setUint8(0, element ? 1 : 0);
       } else {
-        throw NpyUnsupportedTypeException(message: 'Unsupported NdArray type: ${element.runtimeType}');
+        throw NpyInvalidNpyTypeException(message: 'Unsupported NdArray type: ${element.runtimeType}');
       }
       bytes.addAll(Uint8List.fromList(byteData.buffer.asUint8List()));
     }
@@ -261,7 +261,7 @@ List<T> parseByteData<T>(List<int> bytes, NpyDType dtype) {
     case NpyType.boolean:
       result = List.filled(numberOfElements, false as T);
     default:
-      throw NpyUnsupportedDTypeException(message: 'Unsupported dtype: $dtype');
+      throw NpyInvalidDTypeException(message: 'Unsupported dtype: $dtype');
   }
 
   late final Endian endian;
@@ -274,7 +274,7 @@ List<T> parseByteData<T>(List<int> bytes, NpyDType dtype) {
       endian = Endian.host;
     default:
       if (dtype.itemSize != 1) {
-        throw const NpyUnsupportedEndianException(message: 'Endian must be specified for item size > 1.');
+        throw const NpyInvalidEndianException(message: 'Endian must be specified for item size > 1.');
       }
   }
 
@@ -289,7 +289,7 @@ List<T> parseByteData<T>(List<int> bytes, NpyDType dtype) {
           case 4:
             result[i] = byteData.getFloat32(i * 4, endian) as T;
           default:
-            throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
+            throw NpyInvalidDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
         }
       case NpyType.int:
         switch (dtype.itemSize) {
@@ -302,7 +302,7 @@ List<T> parseByteData<T>(List<int> bytes, NpyDType dtype) {
           case 1:
             result[i] = byteData.getInt8(i) as T;
           default:
-            throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
+            throw NpyInvalidDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
         }
       case NpyType.uint:
         switch (dtype.itemSize) {
@@ -315,12 +315,12 @@ List<T> parseByteData<T>(List<int> bytes, NpyDType dtype) {
           case 1:
             result[i] = byteData.getUint8(i) as T;
           default:
-            throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
+            throw NpyInvalidDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
         }
       case NpyType.boolean:
         result[i] = (byteData.getUint8(i) == 1) as T;
       default:
-        throw NpyUnsupportedDTypeException(message: 'Unsupported dtype: $dtype');
+        throw NpyInvalidDTypeException(message: 'Unsupported dtype: $dtype');
     }
   }
 
@@ -459,9 +459,9 @@ class NpyVersion {
     assert(bytes.length == NpyVersion.numberOfReservedBytes);
 
     if (!_supportedMajorVersions.contains(bytes.elementAt(0))) {
-      throw NpyUnsupportedVersionException(message: 'Unsupported major version: ${bytes.elementAt(0)}');
+      throw NpyInvalidVersionException(message: 'Unsupported major version: ${bytes.elementAt(0)}');
     } else if (!_supportedMinorVersions.contains(bytes.elementAt(1))) {
-      throw NpyUnsupportedVersionException(message: 'Unsupported minor version: ${bytes.elementAt(1)}');
+      throw NpyInvalidVersionException(message: 'Unsupported minor version: ${bytes.elementAt(1)}');
     }
 
     return NpyVersion(major: bytes.elementAt(0), minor: bytes.elementAt(1));
@@ -604,7 +604,7 @@ class NpyHeader<T> {
       return NpyHeader.buildString(
         dtype: dtype ??
             NpyDType.fromArgs(
-              endian: endian ?? NpyEndian.little,
+              endian: endian ?? NpyEndian.getNative(),
               type: NpyType.float,
               itemSize: NpyDType.defaultItemSize,
             ),
@@ -632,13 +632,14 @@ class NpyHeader<T> {
         shape: updatedShape,
       );
     } else {
-      throw NpyUnsupportedTypeException(message: 'Unsupported input type: ${firstElement.runtimeType}');
+      throw NpyInvalidNpyTypeException(message: 'Unsupported input type: ${firstElement.runtimeType}');
     }
 
     return NpyHeader.buildString(
       dtype: NpyDType.fromArgs(
-        endian: endian ?? dtype?.endian ?? NpyEndian.little,
-        itemSize: dtype?.itemSize ?? NpyDType.defaultItemSize,
+        endian: endian ?? dtype?.endian ?? (obtainedType == NpyType.boolean ? NpyEndian.none : NpyEndian.getNative()),
+        itemSize: dtype?.itemSize ??
+            (obtainedType == NpyType.boolean ? NpyDType.defaultBoolItemSize : NpyDType.defaultItemSize),
         type: obtainedType,
       ),
       fortranOrder: fortranOrder ?? false,
@@ -741,9 +742,13 @@ class NpyDType {
   final NpyType type;
   final int itemSize;
 
+  /// The default item size for various types except boolean.
   static const defaultItemSize = 8;
 
-  factory NpyDType.fromArgs({required NpyType type, required int itemSize, NpyEndian? endian}) {
+  /// The default item size for the boolean type.
+  static const defaultBoolItemSize = 1;
+
+  factory NpyDType.fromArgs({required NpyType type, int? itemSize, NpyEndian? endian}) {
     switch (type) {
       case NpyType.float:
         switch (itemSize) {
@@ -752,7 +757,7 @@ class NpyDType {
           case 4:
             return NpyDType.float32(endian: endian);
           default:
-            throw NpyUnsupportedDTypeException(message: 'Unsupported float item size: $itemSize');
+            throw NpyInvalidDTypeException(message: 'Unsupported float item size or none provided: $itemSize');
         }
       case NpyType.int:
         switch (itemSize) {
@@ -763,9 +768,10 @@ class NpyDType {
           case 2:
             return NpyDType.int16(endian: endian);
           case 1:
+            assert(endian == NpyEndian.none, 'Int8 endian must be none');
             return const NpyDType.int8();
           default:
-            throw NpyUnsupportedDTypeException(message: 'Unsupported int item size: $itemSize');
+            throw NpyInvalidDTypeException(message: 'Unsupported int item size: $itemSize');
         }
       case NpyType.uint:
         switch (itemSize) {
@@ -776,16 +782,20 @@ class NpyDType {
           case 2:
             return NpyDType.uint16(endian: endian);
           case 1:
+            assert(endian == NpyEndian.none, 'Uint8 endian must be none');
             return const NpyDType.uint8();
           default:
-            throw NpyUnsupportedDTypeException(message: 'Unsupported uint item size: $itemSize');
+            throw NpyInvalidDTypeException(message: 'Unsupported uint item size: $itemSize');
         }
       case NpyType.boolean:
+        assert(endian == null || endian == NpyEndian.none, 'Boolean endian must not be provided or none');
+        assert(itemSize == null || itemSize == 1, 'Boolean item size must not be provided or 1');
         return const NpyDType.boolean();
       case NpyType.string:
+        if (itemSize == null) throw const NpyInvalidDTypeException(message: 'Item size must be specified for strings.');
         return NpyDType.string(itemSize: itemSize);
       default:
-        throw NpyUnsupportedNpyTypeException(message: 'Unsupported NpyType: $type');
+        throw NpyInvalidNpyTypeException(message: 'Unsupported NpyType: $type');
     }
   }
 
@@ -825,7 +835,7 @@ enum NpyEndian {
     assert(char.length == 1);
     return NpyEndian.values.firstWhere(
       (order) => order.char == char,
-      orElse: () => throw NpyUnsupportedEndianException(message: 'Unsupported endian: $char'),
+      orElse: () => throw NpyInvalidEndianException(message: 'Unsupported endian: $char'),
     );
   }
 }
@@ -853,7 +863,7 @@ enum NpyType {
     assert(char.length == 1);
     return NpyType.values.firstWhere(
       (type) => type.chars.contains(char),
-      orElse: () => throw NpyUnsupportedNpyTypeException(message: 'Unsupported type: $char'),
+      orElse: () => throw NpyInvalidNpyTypeException(message: 'Unsupported type: $char'),
     );
   }
 }
