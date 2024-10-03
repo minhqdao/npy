@@ -140,6 +140,15 @@ void _flattenFortranOrderRecursive<T>(
   }
 }
 
+/// An `NPZ` file is a zip file containing one or more `NPY` files.
+class NpzFile {
+  const NpzFile({required this.files});
+
+  /// The map of files contained in the [NpzFile]. The key is the name of the file, and the value represents the
+  /// [NdArray] object.
+  final Map<String, NdArray> files;
+}
+
 class NpyHeaderSection {
   const NpyHeaderSection({
     required this.version,

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:archive/archive_io.dart';
 import 'package:npy/src/npy_chunktransformer.dart';
 import 'package:npy/src/npy_exception.dart';
 import 'package:npy/src/npy_ndarray.dart';
@@ -50,6 +52,34 @@ Future<NdArray<T>> load<T>(String path, {int? bufferSize}) async {
     throw NpFileOpenException(path, e.toString());
   }
   throw NpyParseException("Error parsing '$path' as an NPY file.");
+}
+
+/// Loads an NPY file from the given [path] and returns an [NpzFile] object.
+Future<NpzFile> loadNpz(String path) async {
+  final inputStream = InputFileStream(path);
+  final archive = ZipDecoder().decodeBuffer(inputStream);
+  final files = <String, NdArray>{};
+
+  for (final file in archive) {
+    if (!file.isFile) continue;
+
+    final bytes = file.content as Uint8List;
+    final parser = NpyParser();
+
+    parser
+      ..checkMagicString(bytes)
+      ..getVersion(bytes)
+      ..getHeaderSize(bytes)
+      ..getHeader(bytes)
+      ..buildHeaderSection()
+      ..getData(bytes);
+
+    if (!parser.isCompleted) throw NpyParseException("Error parsing '${file.name}' as an NPY file.");
+    files[file.name] = NdArray(headerSection: parser.headerSection!, data: parser.data);
+  }
+
+  inputStream.close();
+  return NpzFile(files: files);
 }
 
 /// Saves the [List] to the given [path] in NPY format.

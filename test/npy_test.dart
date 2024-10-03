@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:npy/npy.dart';
 import 'package:test/test.dart';
 
@@ -2058,6 +2059,104 @@ void main() {
       expect(headerSection.header.dtype.itemSize, 2);
       expect(headerSection.header.shape, [2, 3, 2]);
       expect(bytes.sublist(128), [0, 1, 0, 7, 0, 3, 0, 9, 0, 5, 0, 11, 0, 2, 0, 8, 0, 4, 0, 10, 0, 6, 0, 12]);
+    });
+  });
+
+  group('Load npz file:', () {
+    test('Unexisting file', () => expect(loadNpz('load_unexistent_file.npz'), throwsA(isA<PathNotFoundException>())));
+    test('Not a zip file (missing end of central directory record)', () {
+      const filename = 'load_empty_file.npz';
+      final file = File(filename)..createSync();
+      expect(loadNpz(filename), throwsA(isA<FormatException>()));
+      file.deleteSync();
+    });
+    test('Empty zip file (only has end of central directory record)', () async {
+      const filename = 'load_empty_zip.npz';
+      final file = File(filename)
+        ..writeAsBytesSync([80, 75, 5, 6, 0])
+        ..createSync();
+      final npzFile = await loadNpz(filename);
+      expect(npzFile.files.length, 0);
+      file.deleteSync();
+    });
+    test('Contains file that is not an npy file', () {
+      const filename = 'load_non_npy_file.npz';
+      final bytes = ZipEncoder().encode(Archive()..addFile(ArchiveFile.string('empty_file.txt', '')));
+      final file = File(filename)..writeAsBytesSync(bytes!);
+      expect(loadNpz(filename), throwsA(isA<NpyParseException>()));
+      file.deleteSync();
+    });
+    test('Contains npy file', () async {
+      const filename = 'load_contains_npy_file.npz';
+      const npyFilename = 'load_2d_float.npy';
+      await saveList(npyFilename, [
+        [.111, 2.22, -33.3],
+      ]);
+      final npyFile = File(npyFilename);
+      final npyBytes = npyFile.readAsBytesSync();
+      final npzBytes = ZipEncoder().encode(Archive()..addFile(ArchiveFile(npyFilename, npyBytes.length, npyBytes)));
+      npyFile.deleteSync();
+      final file = File(filename)..writeAsBytesSync(npzBytes!);
+      final npzFile = await loadNpz(filename);
+      expect(npzFile.files.length, 1);
+      expect(npzFile.files[npyFilename]?.data, [
+        [.111, 2.22, -33.3],
+      ]);
+      expect(npzFile.files[npyFilename]?.headerSection.header.dtype.type, NpyType.float);
+      expect(npzFile.files[npyFilename]?.headerSection.header.dtype.itemSize, 8);
+      expect(npzFile.files[npyFilename]?.headerSection.header.shape, [1, 3]);
+      file.deleteSync();
+    });
+    test('Contains two npy files', () async {
+      const filename = 'load_contains_two_npy_files.npz';
+      const npyFilename1 = 'load_1d_float64.npy';
+      const npyFilename2 = 'load_3d_uint16.npy';
+      await saveList(npyFilename1, [0.123, -4.567], endian: NpyEndian.little);
+      await saveList(
+        npyFilename2,
+        [
+          [
+            [1, 2],
+            [3, 4],
+            [5, 6],
+          ],
+        ],
+        dtype: NpyDType.uint16(endian: NpyEndian.big),
+        fortranOrder: true,
+      );
+      final npyFile1 = File(npyFilename1);
+      final npyFile2 = File(npyFilename2);
+      final npyBytes1 = npyFile1.readAsBytesSync();
+      final npyBytes2 = npyFile2.readAsBytesSync();
+      final npzBytes = ZipEncoder().encode(
+        Archive()
+          ..addFile(ArchiveFile(npyFilename1, npyBytes1.length, npyBytes1))
+          ..addFile(ArchiveFile(npyFilename2, npyBytes2.length, npyBytes2)),
+      );
+      npyFile1.deleteSync();
+      npyFile2.deleteSync();
+      final file = File(filename)..writeAsBytesSync(npzBytes!);
+      final npzFile = await loadNpz(filename);
+      expect(npzFile.files.length, 2);
+      expect(npzFile.files[npyFilename1]?.data, [0.123, -4.567]);
+      expect(npzFile.files[npyFilename1]?.headerSection.header.dtype.type, NpyType.float);
+      expect(npzFile.files[npyFilename1]?.headerSection.header.dtype.itemSize, 8);
+      expect(npzFile.files[npyFilename1]?.headerSection.header.dtype.endian, NpyEndian.little);
+      expect(npzFile.files[npyFilename1]?.headerSection.header.fortranOrder, false);
+      expect(npzFile.files[npyFilename1]?.headerSection.header.shape, [2]);
+      expect(npzFile.files[npyFilename2]?.data, [
+        [
+          [1, 2],
+          [3, 4],
+          [5, 6],
+        ]
+      ]);
+      expect(npzFile.files[npyFilename2]?.headerSection.header.dtype.type, NpyType.uint);
+      expect(npzFile.files[npyFilename2]?.headerSection.header.dtype.itemSize, 2);
+      expect(npzFile.files[npyFilename2]?.headerSection.header.dtype.endian, NpyEndian.big);
+      expect(npzFile.files[npyFilename2]?.headerSection.header.fortranOrder, true);
+      expect(npzFile.files[npyFilename2]?.headerSection.header.shape, [1, 3, 2]);
+      file.deleteSync();
     });
   });
 }
