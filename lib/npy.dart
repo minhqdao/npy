@@ -3,7 +3,9 @@
 /// More dartdocs go here.
 library;
 
-export 'src/np.dart';
-export 'src/np_file.dart';
-
-// TODO: Export any libraries intended for clients of this package.
+export 'src/npy_chunktransformer.dart';
+export 'src/npy_exception.dart';
+export 'src/npy_load_save.dart';
+export 'src/npy_ndarray.dart';
+export 'src/npy_npzfile.dart';
+export 'src/npy_parser.dart';

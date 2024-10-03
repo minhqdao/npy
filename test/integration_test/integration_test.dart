@@ -7,9 +7,12 @@ void main() {
   const baseDir = 'test/integration_test/';
 
   Future<ProcessResult> runPython(String script, String filename) async {
-    final result = await Process.run('which', ['python3']);
-    if (result.exitCode != 0) throw 'python3 not found';
-    return await Process.run('python3', [script, filename]);
+    const executable = 'python3';
+    final executableResult = await Process.run('which', [executable]);
+    if (executableResult.exitCode != 0) throw '$executable not found';
+    final moduleResult = await Process.run(executable, ['-c', 'import numpy']);
+    if (moduleResult.exitCode != 0) throw 'numpy not found';
+    return await Process.run(executable, [script, filename]);
   }
 
   group('Save:', () {

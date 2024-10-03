@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:npy/npy.dart';
-import 'package:npy/src/np_exception.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -1180,7 +1179,7 @@ void main() {
 
   group('Load npy:', () {
     test('Non-existent file', () {
-      expect(load('load_not_existent.npy'), throwsA(const TypeMatcher<NpFileNotExistsException>()));
+      expect(load('load_not_existent.npy'), throwsA(const TypeMatcher<NpyFileNotExistsException>()));
     });
     test('Pointing at current directory', () => expect(load('.'), throwsA(const TypeMatcher<NpFileOpenException>())));
     test('Empty file', () async {

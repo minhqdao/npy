@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:npy/src/np_exception.dart';
-import 'package:npy/src/np_file.dart';
+import 'package:npy/src/npy_chunktransformer.dart';
+import 'package:npy/src/npy_exception.dart';
+import 'package:npy/src/npy_ndarray.dart';
+import 'package:npy/src/npy_parser.dart';
 
 /// Loads an NPY file from the given [path] and returns an [NdArray] object.
 ///
@@ -17,7 +19,7 @@ import 'package:npy/src/np_file.dart';
 /// ```
 Future<NdArray<T>> load<T>(String path, {int? bufferSize}) async {
   if (T != dynamic && T != double && T != int && T != bool) {
-    throw NpyInvalidNpyTypeException(message: 'Unsupported NdArray type: $T');
+    throw NpyInvalidNpyTypeException('Unsupported NdArray type: $T');
   }
 
   final stream = File(path).openRead().transform(ChunkTransformer(bufferSize: bufferSize));
@@ -40,14 +42,14 @@ Future<NdArray<T>> load<T>(String path, {int? bufferSize}) async {
       if (parser.isCompleted) return NdArray(headerSection: parser.headerSection!, data: parser.data);
     }
   } on FileSystemException catch (e) {
-    if (e.osError?.errorCode == 2) throw NpFileNotExistsException(path: path);
-    throw NpFileOpenException(path: path, error: e.toString());
+    if (e.osError?.errorCode == 2) throw NpyFileNotExistsException(path);
+    throw NpFileOpenException(path, e.toString());
   } on NpyParseException {
     rethrow;
   } catch (e) {
-    throw NpFileOpenException(path: path, error: e.toString());
+    throw NpFileOpenException(path, e.toString());
   }
-  throw NpyParseException(message: "Error parsing '$path' as an NPY file.");
+  throw NpyParseException("Error parsing '$path' as an NPY file.");
 }
 
 /// Saves the [List] to the given [path] in NPY format.
