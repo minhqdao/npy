@@ -7,7 +7,7 @@ void main() {
   const baseDir = 'test/integration_test/';
 
   Future<ProcessResult> runPython(String script, String filename) async {
-    const executable = 'python3';
+    const executable = 'python';
     final executableResult = await Process.run('which', [executable]);
     if (executableResult.exitCode != 0) throw '$executable not found';
     final moduleResult = await Process.run(executable, ['-c', 'import numpy']);
