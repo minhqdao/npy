@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
@@ -140,6 +141,41 @@ T _getNestedItem<T>(List list, List<int> indices) => _getNestedItemRecursive<T>(
 T _getNestedItemRecursive<T>(List list, List<int> indices, int depth) => depth == indices.length - 1
     ? list[indices[depth]] as T
     : _getNestedItemRecursive<T>(list[indices[depth]] as List, indices, depth + 1);
+
+/// Transforms a stream to emit chunks of the specified [bufferSize]. If [bufferSize] is not provided, the stream will
+/// be emitted as chunks of default size.
+class ChunkTransformer extends StreamTransformerBase<List<int>, List<int>> {
+  /// Creates an instance of a [ChunkTransformer] that transforms a stream to emit chunks of the specified [bufferSize].
+  /// If [bufferSize] is not provided, the stream will be emitted as chunks of default size.
+  const ChunkTransformer({this.bufferSize});
+
+  /// Size of the chunks emitted by the transformed stream. If not provided, the chunk size of the transformed stream
+  /// will equal the chunk size of the untransformed stream.
+  final int? bufferSize;
+
+  @override
+  Stream<List<int>> bind(Stream<List<int>> stream) async* {
+    if (bufferSize == null) {
+      yield* stream;
+      return;
+    }
+
+    bool hasNotReceivedData = true;
+    final buffer = BytesBuilder();
+    await for (final chunk in stream) {
+      if (hasNotReceivedData && chunk.isNotEmpty) hasNotReceivedData = false;
+      buffer.add(chunk);
+
+      while (buffer.length >= bufferSize!) {
+        final bytesTaken = buffer.takeBytes();
+        yield Uint8List.view(bytesTaken.buffer, 0, bufferSize);
+        buffer.add(bytesTaken.sublist(bufferSize!));
+      }
+    }
+
+    if (buffer.isNotEmpty || hasNotReceivedData) yield buffer.takeBytes();
+  }
+}
 
 // class NpzFile {
 //   const NpzFile({
@@ -328,7 +364,7 @@ List<T> parseByteData<T>(List<int> bytes, NpyDType dtype) {
 }
 
 /// Reshape a one-dimensional [List] according to the given [shape] and order (C or Fortran).
-List<dynamic> reshape<T>(List<T> oneDimensionalList, List<int> shape, {bool fortranOrder = false}) {
+List reshape<T>(List<T> oneDimensionalList, List<int> shape, {bool fortranOrder = false}) {
   if (oneDimensionalList.isEmpty) return const [];
   if (shape.isEmpty) throw const NpyParseException(message: 'Shape must not be empty.');
   if (oneDimensionalList.length != shape.reduce((a, b) => a * b)) {
@@ -436,11 +472,10 @@ class NpyHeaderSection {
 /// Returns the number of padding bytes needed to make the given [size] a multiple of 64.
 int getPaddingSize(int size) => (64 - (size % 64)) % 64;
 
+/// The version of the numpy file. It is composed of a major and minor version. Supported major version are currently
+/// 1, 2 and 3. Supported minor version are currently 0.
 class NpyVersion {
-  const NpyVersion({
-    this.major = 1,
-    this.minor = 0,
-  });
+  const NpyVersion({this.major = 1, this.minor = 0});
 
   final int major;
   final int minor;
