@@ -602,12 +602,7 @@ class NpyHeader<T> {
 
     if (list.isEmpty) {
       return NpyHeader.buildString(
-        dtype: dtype ??
-            NpyDType.fromArgs(
-              endian: endian ?? NpyEndian.getNative(),
-              type: NpyType.float,
-              itemSize: NpyDType.defaultItemSize,
-            ),
+        dtype: dtype ?? NpyDType.fromArgs(endian: endian),
         fortranOrder: fortranOrder ?? false,
         shape: shape.isEmpty ? shape : [...shape, list.length],
       );
@@ -748,11 +743,13 @@ class NpyDType {
   /// The default item size for the boolean type.
   static const defaultBoolItemSize = 1;
 
-  factory NpyDType.fromArgs({required NpyType type, int? itemSize, NpyEndian? endian}) {
+  factory NpyDType.fromArgs({NpyType? type, int? itemSize, NpyEndian? endian}) {
     switch (type) {
       case NpyType.float:
+      case null:
         switch (itemSize) {
           case 8:
+          case null:
             return NpyDType.float64(endian: endian);
           case 4:
             return NpyDType.float32(endian: endian);
@@ -762,13 +759,14 @@ class NpyDType {
       case NpyType.int:
         switch (itemSize) {
           case 8:
+          case null:
             return NpyDType.int64(endian: endian);
           case 4:
             return NpyDType.int32(endian: endian);
           case 2:
             return NpyDType.int16(endian: endian);
           case 1:
-            assert(endian == NpyEndian.none, 'Int8 endian must be none');
+            assert(endian == null || endian == NpyEndian.none, 'Int8 endian must be none');
             return const NpyDType.int8();
           default:
             throw NpyInvalidDTypeException(message: 'Unsupported int item size: $itemSize');
@@ -776,13 +774,14 @@ class NpyDType {
       case NpyType.uint:
         switch (itemSize) {
           case 8:
+          case null:
             return NpyDType.uint64(endian: endian);
           case 4:
             return NpyDType.uint32(endian: endian);
           case 2:
             return NpyDType.uint16(endian: endian);
           case 1:
-            assert(endian == NpyEndian.none, 'Uint8 endian must be none');
+            assert(endian == null || endian == NpyEndian.none, 'Uint8 endian must be none');
             return const NpyDType.uint8();
           default:
             throw NpyInvalidDTypeException(message: 'Unsupported uint item size: $itemSize');
@@ -826,11 +825,14 @@ enum NpyEndian {
 
   const NpyEndian(this.char);
 
+  /// The char representation of the [NpyEndian].
   final String char;
 
+  /// Get the endian that is native on the current platform.
   factory NpyEndian.getNative() =>
       ByteData.view(Uint16List.fromList([1]).buffer).getInt8(0) == 1 ? NpyEndian.little : NpyEndian.big;
 
+  /// Converts the given [char] to an [NpyEndian].
   factory NpyEndian.fromChar(String char) {
     assert(char.length == 1);
     return NpyEndian.values.firstWhere(
