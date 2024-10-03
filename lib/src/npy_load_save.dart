@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
-import 'package:npy/src/np_exception.dart';
-import 'package:npy/src/np_file.dart';
+import 'package:npy/src/npy_chunktransformer.dart';
+import 'package:npy/src/npy_exception.dart';
+import 'package:npy/src/npy_ndarray.dart';
+import 'package:npy/src/npy_parser.dart';
 
 /// Loads an NPY file from the given [path] and returns an [NdArray] object.
 ///
@@ -18,7 +19,7 @@ import 'package:npy/src/np_file.dart';
 /// ```
 Future<NdArray<T>> load<T>(String path, {int? bufferSize}) async {
   if (T != dynamic && T != double && T != int && T != bool) {
-    throw NpyUnsupportedTypeException(message: 'Unsupported NdArray type: $T');
+    throw NpyInvalidNpyTypeException('Unsupported NdArray type: $T');
   }
 
   final stream = File(path).openRead().transform(ChunkTransformer(bufferSize: bufferSize));
@@ -41,47 +42,14 @@ Future<NdArray<T>> load<T>(String path, {int? bufferSize}) async {
       if (parser.isCompleted) return NdArray(headerSection: parser.headerSection!, data: parser.data);
     }
   } on FileSystemException catch (e) {
-    if (e.osError?.errorCode == 2) throw NpFileNotExistsException(path: path);
-    throw NpFileOpenException(path: path, error: e.toString());
+    if (e.osError?.errorCode == 2) throw NpyFileNotExistsException(path);
+    throw NpFileOpenException(path, e.toString());
   } on NpyParseException {
     rethrow;
   } catch (e) {
-    throw NpFileOpenException(path: path, error: e.toString());
+    throw NpFileOpenException(path, e.toString());
   }
-  throw NpyParseException(message: "Error parsing '$path' as an NPY file.");
-}
-
-/// Transforms a stream to emit chunks of the specified [bufferSize]. If [bufferSize] is not provided, the stream will
-/// be emitted as chunks of default size.
-class ChunkTransformer extends StreamTransformerBase<List<int>, List<int>> {
-  /// Creates an instance of a [ChunkTransformer] that transforms a stream to emit chunks of the specified [bufferSize].
-  /// If [bufferSize] is not provided, the stream will be emitted as chunks of default size.
-  const ChunkTransformer({this.bufferSize});
-
-  final int? bufferSize;
-
-  @override
-  Stream<List<int>> bind(Stream<List<int>> stream) async* {
-    if (bufferSize == null) {
-      yield* stream;
-      return;
-    }
-
-    bool hasNotReceivedData = true;
-    final buffer = BytesBuilder();
-    await for (final chunk in stream) {
-      if (hasNotReceivedData && chunk.isNotEmpty) hasNotReceivedData = false;
-      buffer.add(chunk);
-
-      while (buffer.length >= bufferSize!) {
-        final bytesTaken = buffer.takeBytes();
-        yield Uint8List.sublistView(bytesTaken, 0, bufferSize);
-        buffer.add(bytesTaken.sublist(bufferSize!));
-      }
-    }
-
-    if (buffer.isNotEmpty || hasNotReceivedData) yield buffer.takeBytes();
-  }
+  throw NpyParseException("Error parsing '$path' as an NPY file.");
 }
 
 /// Saves the [List] to the given [path] in NPY format.

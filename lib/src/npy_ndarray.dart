@@ -1,8 +1,7 @@
 import 'dart:convert';
-import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:npy/src/np_exception.dart';
+import 'package:npy/src/npy_exception.dart';
 
 class NdArray<T> {
   const NdArray({required this.headerSection, required this.data});
@@ -31,7 +30,7 @@ class NdArray<T> {
         endian = Endian.host;
       default:
         if (dtype.itemSize != 1) {
-          throw const NpyUnsupportedEndianException(message: 'Endian must be specified for item size > 1.');
+          throw const NpyInvalidEndianException('Endian must be specified for item size > 1.');
         }
     }
 
@@ -54,7 +53,7 @@ class NdArray<T> {
               case 1:
                 byteData.setInt8(0, element);
               default:
-                throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
+                throw NpyInvalidDTypeException('Unsupported item size: ${dtype.itemSize}');
             }
           case NpyType.uint:
             switch (dtype.itemSize) {
@@ -67,10 +66,10 @@ class NdArray<T> {
               case 1:
                 byteData.setUint8(0, element);
               default:
-                throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
+                throw NpyInvalidDTypeException('Unsupported item size: ${dtype.itemSize}');
             }
           default:
-            throw NpyUnsupportedNpyTypeException(message: 'Unsupported NpyType: ${dtype.type}');
+            throw NpyInvalidNpyTypeException('Unsupported NpyType: ${dtype.type}');
         }
       } else if (element is double) {
         switch (dtype.itemSize) {
@@ -79,12 +78,12 @@ class NdArray<T> {
           case 4:
             byteData.setFloat32(0, element, endian);
           default:
-            throw NpyUnsupportedDTypeException(message: 'Unsupported NpyType: ${dtype.type}');
+            throw NpyInvalidDTypeException('Unsupported NpyType: ${dtype.type}');
         }
       } else if (element is bool) {
         byteData.setUint8(0, element ? 1 : 0);
       } else {
-        throw NpyUnsupportedTypeException(message: 'Unsupported NdArray type: ${element.runtimeType}');
+        throw NpyInvalidNpyTypeException('Unsupported NdArray type: ${element.runtimeType}');
       }
       bytes.addAll(Uint8List.fromList(byteData.buffer.asUint8List()));
     }
@@ -122,10 +121,16 @@ void _flattenFortranOrderRecursive<T>(
   int depth,
   void Function(T) addItem,
 ) {
+  T getNestedItemRecursive(List list, List<int> indices, int depth) => depth == indices.length - 1
+      ? list[indices[depth]] as T
+      : getNestedItemRecursive(list[indices[depth]] as List, indices, depth + 1);
+
+  T getNestedItem(List list, List<int> indices) => getNestedItemRecursive(list, indices, 0);
+
   if (depth == 0) {
     for (int i = 0; i < shape[depth]; i++) {
       indices[depth] = i;
-      addItem(_getNestedItem<T>(list, indices));
+      addItem(getNestedItem(list, indices));
     }
   } else {
     for (int i = 0; i < shape[depth]; i++) {
@@ -133,249 +138,6 @@ void _flattenFortranOrderRecursive<T>(
       _flattenFortranOrderRecursive<T>(list, shape, indices, depth - 1, addItem);
     }
   }
-}
-
-T _getNestedItem<T>(List list, List<int> indices) => _getNestedItemRecursive<T>(list, indices, 0);
-
-T _getNestedItemRecursive<T>(List list, List<int> indices, int depth) => depth == indices.length - 1
-    ? list[indices[depth]] as T
-    : _getNestedItemRecursive<T>(list[indices[depth]] as List, indices, depth + 1);
-
-// class NpzFile {
-//   const NpzFile({
-//     required this.files,
-//   });
-
-//   final Map<String, NdArray> files;
-// }
-
-class NpyParser<T> {
-  NpyParser({
-    bool hasPassedMagicStringCheck = false,
-    NpyVersion? version,
-    int? headerSize,
-    NpyHeader? header,
-  })  : _hasPassedMagicStringCheck = hasPassedMagicStringCheck,
-        _version = version,
-        _headerSize = headerSize,
-        _header = header;
-
-  bool _hasPassedMagicStringCheck;
-  NpyVersion? _version;
-  int? _headerSize;
-  NpyHeader? _header;
-
-  bool get hasPassedMagicStringCheck => _hasPassedMagicStringCheck;
-  NpyVersion? get version => _version;
-  int? get headerSize => _headerSize;
-  NpyHeader? get header => _header;
-
-  NpyHeaderSection? _headerSection;
-  final List<T> _rawData = [];
-  List _data = const [];
-  bool _isCompleted = false;
-  int _dataOffset = 0;
-  int _elementsRead = 0;
-
-  NpyHeaderSection? get headerSection => _headerSection;
-  List get rawData => _rawData;
-  List get data => _data;
-  bool get isCompleted => _isCompleted;
-
-  void checkMagicString(List<int> buffer) {
-    if (_hasPassedMagicStringCheck || buffer.length < magicString.length) return;
-    for (int i = 0; i < magicString.length; i++) {
-      if (magicString.codeUnitAt(i) != buffer[i]) throw const NpyParseException(message: 'Invalid magic string.');
-    }
-    _hasPassedMagicStringCheck = true;
-  }
-
-  void getVersion(List<int> buffer) {
-    if (_version != null || buffer.length < magicString.length + NpyVersion.numberOfReservedBytes) return;
-    _version = NpyVersion.fromBytes(buffer.skip(magicString.length).take(NpyVersion.numberOfReservedBytes));
-  }
-
-  void getHeaderSize(List<int> buffer) {
-    const bytesTaken = magicString.length + NpyVersion.numberOfReservedBytes;
-    if (_headerSize != null || _version == null || buffer.length < bytesTaken + _version!.numberOfHeaderBytes) return;
-    final relevantBytes = buffer.skip(bytesTaken).take(_version!.numberOfHeaderBytes).toList();
-    _headerSize = _version!.major == 1 ? littleEndian16ToInt(relevantBytes) : littleEndian32ToInt(relevantBytes);
-  }
-
-  void getHeader(List<int> buffer) {
-    if (_header != null || _version == null || _headerSize == null) return;
-    final bytesTaken = magicString.length + NpyVersion.numberOfReservedBytes + _version!.numberOfHeaderBytes;
-    if (buffer.length < bytesTaken + _headerSize!) return;
-    _header = NpyHeader.fromBytes(buffer.skip(bytesTaken).take(_headerSize!).toList());
-  }
-
-  void buildHeaderSection() {
-    if (_headerSection != null || _header == null || _headerSize == null || _version == null) return;
-    _headerSection = NpyHeaderSection(version: _version!, headerSize: _headerSize!, header: _header!);
-  }
-
-  void getData(List<int> buffer) {
-    if (_isCompleted ||
-        _headerSection == null ||
-        _header == null ||
-        _headerSize == null ||
-        _version == null ||
-        !_hasPassedMagicStringCheck) {
-      return;
-    }
-
-    if (_header!.shape.isEmpty) {
-      _isCompleted = true;
-      return;
-    }
-
-    final itemSize = _header!.dtype.itemSize;
-    _dataOffset = _headerSection!.size + _elementsRead * itemSize;
-    final totalElements = _header!.shape.reduce((a, b) => a * b);
-    final remainingElements = totalElements - _elementsRead;
-    final elementsInBuffer = (buffer.length - _dataOffset) ~/ itemSize;
-    final elementsToProcess = min(remainingElements, elementsInBuffer);
-
-    _rawData.addAll(
-      parseByteData<T>(buffer.sublist(_dataOffset, _dataOffset + elementsToProcess * itemSize), header!.dtype),
-    );
-    _elementsRead += elementsToProcess;
-
-    if (_elementsRead != totalElements) return;
-    _data = reshape<T>(_rawData, _header!.shape, fortranOrder: _header!.fortranOrder);
-    _isCompleted = true;
-  }
-}
-
-/// Parse byte data according to the [header] metadata and return a one-dimensional [List] of values.
-List<T> parseByteData<T>(List<int> bytes, NpyDType dtype) {
-  final numberOfElements = bytes.length ~/ dtype.itemSize;
-
-  late final List<T> result;
-  switch (dtype.type) {
-    case NpyType.float:
-      result = List.filled(numberOfElements, .0 as T);
-    case NpyType.int:
-    case NpyType.uint:
-      result = List.filled(numberOfElements, 0 as T);
-    case NpyType.boolean:
-      result = List.filled(numberOfElements, false as T);
-    default:
-      throw NpyUnsupportedDTypeException(message: 'Unsupported dtype: $dtype');
-  }
-
-  late final Endian endian;
-  switch (dtype.endian) {
-    case NpyEndian.little:
-      endian = Endian.little;
-    case NpyEndian.big:
-      endian = Endian.big;
-    case NpyEndian.native:
-      endian = Endian.host;
-    default:
-      if (dtype.itemSize != 1) {
-        throw const NpyUnsupportedEndianException(message: 'Endian must be specified for item size > 1.');
-      }
-  }
-
-  final byteData = ByteData.view(Uint8List.fromList(bytes).buffer);
-
-  for (int i = 0; i < numberOfElements; i++) {
-    switch (dtype.type) {
-      case NpyType.float:
-        switch (dtype.itemSize) {
-          case 8:
-            result[i] = byteData.getFloat64(i * 8, endian) as T;
-          case 4:
-            result[i] = byteData.getFloat32(i * 4, endian) as T;
-          default:
-            throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
-        }
-      case NpyType.int:
-        switch (dtype.itemSize) {
-          case 8:
-            result[i] = byteData.getInt64(i * 8, endian) as T;
-          case 4:
-            result[i] = byteData.getInt32(i * 4, endian) as T;
-          case 2:
-            result[i] = byteData.getInt16(i * 2, endian) as T;
-          case 1:
-            result[i] = byteData.getInt8(i) as T;
-          default:
-            throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
-        }
-      case NpyType.uint:
-        switch (dtype.itemSize) {
-          case 8:
-            result[i] = byteData.getUint64(i * 8, endian) as T;
-          case 4:
-            result[i] = byteData.getUint32(i * 4, endian) as T;
-          case 2:
-            result[i] = byteData.getUint16(i * 2, endian) as T;
-          case 1:
-            result[i] = byteData.getUint8(i) as T;
-          default:
-            throw NpyUnsupportedDTypeException(message: 'Unsupported item size: ${dtype.itemSize}');
-        }
-      case NpyType.boolean:
-        result[i] = (byteData.getUint8(i) == 1) as T;
-      default:
-        throw NpyUnsupportedDTypeException(message: 'Unsupported dtype: $dtype');
-    }
-  }
-
-  return result;
-}
-
-/// Reshape a one-dimensional [List] according to the given [shape] and order (C or Fortran).
-List<dynamic> reshape<T>(List<T> oneDimensionalList, List<int> shape, {bool fortranOrder = false}) {
-  if (oneDimensionalList.isEmpty) return const [];
-  if (shape.isEmpty) throw const NpyParseException(message: 'Shape must not be empty.');
-  if (oneDimensionalList.length != shape.reduce((a, b) => a * b)) {
-    throw const NpyParseException(
-      message: 'The total number of elements does not equal the product of the shape dimensions.',
-    );
-  }
-
-  if (shape.length == 1) return oneDimensionalList;
-
-  int getIndex(List<int> indices) {
-    int index = 0;
-    int stride = 1;
-    if (fortranOrder) {
-      for (int i = 0; i < shape.length; i++) {
-        index += indices[i] * stride;
-        stride *= shape[i];
-      }
-    } else {
-      for (int i = shape.length - 1; i >= 0; i--) {
-        index += indices[i] * stride;
-        stride *= shape[i];
-      }
-    }
-    return index;
-  }
-
-  List result = oneDimensionalList;
-  final indices = List.filled(shape.length, 0);
-
-  void reshapeRecursive(int dimension) {
-    if (dimension == shape.length - 1) {
-      result = List.generate(shape[dimension], (i) {
-        indices[dimension] = i;
-        return oneDimensionalList[getIndex(indices)];
-      });
-    } else {
-      result = List.generate(shape[dimension], (i) {
-        indices[dimension] = i;
-        reshapeRecursive(dimension + 1);
-        return result;
-      });
-    }
-  }
-
-  reshapeRecursive(0);
-  return result;
 }
 
 class NpyHeaderSection {
@@ -436,11 +198,10 @@ class NpyHeaderSection {
 /// Returns the number of padding bytes needed to make the given [size] a multiple of 64.
 int getPaddingSize(int size) => (64 - (size % 64)) % 64;
 
+/// The version of the numpy file. It is composed of a major and minor version. Supported major version are currently
+/// 1, 2 and 3. Supported minor version are currently 0.
 class NpyVersion {
-  const NpyVersion({
-    this.major = 1,
-    this.minor = 0,
-  });
+  const NpyVersion({this.major = 1, this.minor = 0});
 
   final int major;
   final int minor;
@@ -459,9 +220,9 @@ class NpyVersion {
     assert(bytes.length == NpyVersion.numberOfReservedBytes);
 
     if (!_supportedMajorVersions.contains(bytes.elementAt(0))) {
-      throw NpyUnsupportedVersionException(message: 'Unsupported major version: ${bytes.elementAt(0)}');
+      throw NpyInvalidVersionException('Unsupported major version: ${bytes.elementAt(0)}');
     } else if (!_supportedMinorVersions.contains(bytes.elementAt(1))) {
-      throw NpyUnsupportedVersionException(message: 'Unsupported minor version: ${bytes.elementAt(1)}');
+      throw NpyInvalidVersionException('Unsupported minor version: ${bytes.elementAt(1)}');
     }
 
     return NpyVersion(major: bytes.elementAt(0), minor: bytes.elementAt(1));
@@ -542,16 +303,16 @@ class NpyHeader<T> {
     String closingDelimiter = "'",
   ]) {
     final keyIndex = headerString.indexOf(key);
-    if (keyIndex == -1) throw NpyInvalidHeaderException(message: "Missing '$key' field.");
+    if (keyIndex == -1) throw NpyInvalidHeaderException("Missing '$key' field.");
 
     final firstIndex = headerString.indexOf(openingDelimiter, keyIndex + key.length + 1);
     if (firstIndex == -1) {
-      throw NpyInvalidHeaderException(message: "Missing opening delimiter '$openingDelimiter' of '$key' field.");
+      throw NpyInvalidHeaderException("Missing opening delimiter '$openingDelimiter' of '$key' field.");
     }
 
     final lastIndex = headerString.indexOf(closingDelimiter, firstIndex + 1);
     if (lastIndex == -1) {
-      throw NpyInvalidHeaderException(message: "Missing closing delimiter '$closingDelimiter' of '$key' field.");
+      throw NpyInvalidHeaderException("Missing closing delimiter '$closingDelimiter' of '$key' field.");
     }
 
     return headerString.substring(firstIndex + 1, lastIndex);
@@ -572,7 +333,7 @@ class NpyHeader<T> {
       case 'False':
         fortranOrder = false;
       default:
-        throw NpyInvalidHeaderException(message: "Invalid 'fortran_order' field: '$fortranOrderString'");
+        throw NpyInvalidHeaderException("Invalid 'fortran_order' field: '$fortranOrderString'");
     }
 
     late final List<int> shape;
@@ -602,12 +363,7 @@ class NpyHeader<T> {
 
     if (list.isEmpty) {
       return NpyHeader.buildString(
-        dtype: dtype ??
-            NpyDType.fromArgs(
-              endian: endian ?? NpyEndian.little,
-              type: NpyType.float,
-              itemSize: NpyDType.defaultItemSize,
-            ),
+        dtype: dtype ?? NpyDType.fromArgs(endian: endian),
         fortranOrder: fortranOrder ?? false,
         shape: shape.isEmpty ? shape : [...shape, list.length],
       );
@@ -632,13 +388,14 @@ class NpyHeader<T> {
         shape: updatedShape,
       );
     } else {
-      throw NpyUnsupportedTypeException(message: 'Unsupported input type: ${firstElement.runtimeType}');
+      throw NpyInvalidNpyTypeException('Unsupported input type: ${firstElement.runtimeType}');
     }
 
     return NpyHeader.buildString(
       dtype: NpyDType.fromArgs(
-        endian: endian ?? dtype?.endian ?? NpyEndian.little,
-        itemSize: dtype?.itemSize ?? NpyDType.defaultItemSize,
+        endian: endian ?? dtype?.endian ?? (obtainedType == NpyType.boolean ? NpyEndian.none : NpyEndian.getNative()),
+        itemSize: dtype?.itemSize ??
+            (obtainedType == NpyType.boolean ? NpyDType.defaultBoolItemSize : NpyDType.defaultItemSize),
         type: obtainedType,
       ),
       fortranOrder: fortranOrder ?? false,
@@ -668,13 +425,13 @@ const supportedInputTypes = {int, double};
 /// Converts the given [bytes] to a 16-bit unsigned integer in little-endian byte order.
 int littleEndian16ToInt(List<int> bytes) {
   assert(bytes.length == 2);
-  return ByteData.sublistView(Uint8List.fromList(bytes)).getUint16(0, Endian.little);
+  return ByteData.view(Uint8List.fromList(bytes).buffer).getUint16(0, Endian.little);
 }
 
 /// Converts the given [bytes] to a 32-bit unsigned integer in little-endian byte order.
 int littleEndian32ToInt(List<int> bytes) {
   assert(bytes.length == 4);
-  return ByteData.sublistView(Uint8List.fromList(bytes)).getUint32(0, Endian.little);
+  return ByteData.view(Uint8List.fromList(bytes).buffer).getUint32(0, Endian.little);
 }
 
 class NpyDType {
@@ -741,56 +498,69 @@ class NpyDType {
   final NpyType type;
   final int itemSize;
 
+  /// The default item size for various types except boolean.
   static const defaultItemSize = 8;
 
-  factory NpyDType.fromArgs({required NpyType type, required int itemSize, NpyEndian? endian}) {
+  /// The default item size for the boolean type.
+  static const defaultBoolItemSize = 1;
+
+  factory NpyDType.fromArgs({NpyType? type, int? itemSize, NpyEndian? endian}) {
     switch (type) {
       case NpyType.float:
+      case null:
         switch (itemSize) {
           case 8:
+          case null:
             return NpyDType.float64(endian: endian);
           case 4:
             return NpyDType.float32(endian: endian);
           default:
-            throw NpyUnsupportedDTypeException(message: 'Unsupported float item size: $itemSize');
+            throw NpyInvalidDTypeException('Unsupported float item size or none provided: $itemSize');
         }
       case NpyType.int:
         switch (itemSize) {
           case 8:
+          case null:
             return NpyDType.int64(endian: endian);
           case 4:
             return NpyDType.int32(endian: endian);
           case 2:
             return NpyDType.int16(endian: endian);
           case 1:
+            assert(endian == null || endian == NpyEndian.none, 'Int8 endian must be none');
             return const NpyDType.int8();
           default:
-            throw NpyUnsupportedDTypeException(message: 'Unsupported int item size: $itemSize');
+            throw NpyInvalidDTypeException('Unsupported int item size: $itemSize');
         }
       case NpyType.uint:
         switch (itemSize) {
           case 8:
+          case null:
             return NpyDType.uint64(endian: endian);
           case 4:
             return NpyDType.uint32(endian: endian);
           case 2:
             return NpyDType.uint16(endian: endian);
           case 1:
+            assert(endian == null || endian == NpyEndian.none, 'Uint8 endian must be none');
             return const NpyDType.uint8();
           default:
-            throw NpyUnsupportedDTypeException(message: 'Unsupported uint item size: $itemSize');
+            throw NpyInvalidDTypeException('Unsupported uint item size: $itemSize');
         }
       case NpyType.boolean:
+        assert(endian == null || endian == NpyEndian.none, 'Boolean endian must not be provided or none');
+        assert(itemSize == null || itemSize == 1, 'Boolean item size must not be provided or 1');
         return const NpyDType.boolean();
       case NpyType.string:
+        if (itemSize == null) throw const NpyInvalidDTypeException('Item size must be specified for strings.');
         return NpyDType.string(itemSize: itemSize);
       default:
-        throw NpyUnsupportedNpyTypeException(message: 'Unsupported NpyType: $type');
+        throw NpyInvalidNpyTypeException('Unsupported NpyType: $type');
     }
   }
 
   factory NpyDType.fromString(String string) {
-    if (string.length < 3) throw NpyInvalidDTypeException(message: "'descr' field has insufficient length: '$string'");
+    if (string.length < 3) throw NpyInvalidDTypeException("'descr' field has insufficient length: '$string'");
     if (string == '|b1') return const NpyDType.boolean();
 
     try {
@@ -800,7 +570,7 @@ class NpyDType {
         itemSize: int.parse(string.substring(2)),
       );
     } catch (e) {
-      throw NpyInvalidDTypeException(message: "Invalid 'descr' field: '$string': $e");
+      throw NpyInvalidDTypeException("Invalid 'descr' field: '$string': $e");
     }
   }
 
@@ -808,6 +578,8 @@ class NpyDType {
   String toString() => type == NpyType.boolean ? '|b1' : '${endian.char}${type.chars.first}$itemSize';
 }
 
+/// The endianness of the NPY file. It is represented by a single character. Single-byte data types are always
+/// [NpyEndian.none].
 enum NpyEndian {
   little('<'),
   big('>'),
@@ -816,20 +588,26 @@ enum NpyEndian {
 
   const NpyEndian(this.char);
 
+  /// The char representation of the [NpyEndian].
   final String char;
 
+  /// Get the native endianness of the current platform.
   factory NpyEndian.getNative() =>
       ByteData.view(Uint16List.fromList([1]).buffer).getInt8(0) == 1 ? NpyEndian.little : NpyEndian.big;
 
+  /// Converts the given [char] to an [NpyEndian].
   factory NpyEndian.fromChar(String char) {
     assert(char.length == 1);
     return NpyEndian.values.firstWhere(
       (order) => order.char == char,
-      orElse: () => throw NpyUnsupportedEndianException(message: 'Unsupported endian: $char'),
+      orElse: () => throw NpyInvalidEndianException('Unsupported endian: $char'),
     );
   }
 }
 
+/// The supported data types of the NPY file. A data type is represented by one or multiple single-character
+/// representations. If more than one representation exists, the first one is used for saving. This package aims to
+/// gradually increase support for more data types.
 enum NpyType {
   boolean(['?']),
   byte(['b']),
@@ -847,13 +625,15 @@ enum NpyType {
 
   const NpyType(this.chars);
 
+  /// A list of single characters that represent an [NpyType].
   final List<String> chars;
 
+  /// Converts the given [char] to an [NpyType].
   factory NpyType.fromChar(String char) {
     assert(char.length == 1);
     return NpyType.values.firstWhere(
       (type) => type.chars.contains(char),
-      orElse: () => throw NpyUnsupportedNpyTypeException(message: 'Unsupported type: $char'),
+      orElse: () => throw NpyInvalidNpyTypeException('Unsupported type: $char'),
     );
   }
 }
