@@ -17,10 +17,9 @@ class NpzFile {
   /// Loads an `NPZ` file from the given [path] and returns an [NpzFile] object.
   static Future<NpzFile> load(String path) async {
     final inputStream = InputFileStream(path);
-    final archive = ZipDecoder().decodeBuffer(inputStream);
     final files = <String, NdArray>{};
 
-    for (final file in archive) {
+    for (final file in ZipDecoder().decodeBuffer(inputStream)) {
       if (!file.isFile) continue;
 
       final bytes = file.content as Uint8List;
