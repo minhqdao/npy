@@ -2070,6 +2070,7 @@ void main() {
       final file = File(filename)..createSync();
       await expectLater(() async => await NpzFile.load(filename), throwsA(isA<FormatException>()));
       file.deleteSync();
+      await file.delete();
     });
     test('Empty zip file (only has end of central directory record)', () async {
       const filename = 'load_empty_zip.npz';
@@ -2085,7 +2086,7 @@ void main() {
       final bytes = ZipEncoder().encode(Archive()..addFile(ArchiveFile.string('empty_file.txt', '')));
       final file = File(filename)..writeAsBytesSync(bytes!);
       await expectLater(() async => await NpzFile.load(filename), throwsA(isA<NpyParseException>()));
-      file.deleteSync();
+      await file.delete();
     });
     test('Single ndarray', () async {
       const filename = 'load_single_array.npz';
