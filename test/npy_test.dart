@@ -2065,10 +2065,10 @@ void main() {
     test('Unexisting file', () {
       expect(NpzFile.load('load_unexistent_file.npz'), throwsA(isA<PathNotFoundException>()));
     });
-    test('Not a zip file (missing end of central directory record)', () {
+    test('Not a zip file (missing end of central directory record)', () async {
       const filename = 'load_empty_file.npz';
       final file = File(filename)..createSync();
-      expect(NpzFile.load(filename), throwsA(isA<FormatException>()));
+      await expectLater(NpzFile.load(filename), throwsA(isA<FormatException>()));
       file.deleteSync();
     });
     test('Empty zip file (only has end of central directory record)', () async {
@@ -2080,11 +2080,11 @@ void main() {
       expect(npzFile.files.length, 0);
       file.deleteSync();
     });
-    test('Single file that is not an npy file', () {
+    test('Single file that is not an npy file', () async {
       const filename = 'load_non_npy_file.npz';
       final bytes = ZipEncoder().encode(Archive()..addFile(ArchiveFile.string('empty_file.txt', '')));
       final file = File(filename)..writeAsBytesSync(bytes!);
-      expect(NpzFile.load(filename), throwsA(isA<NpyParseException>()));
+      await expectLater(NpzFile.load(filename), throwsA(isA<NpyParseException>()));
       file.deleteSync();
     });
     test('Single ndarray', () async {

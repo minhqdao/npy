@@ -38,7 +38,7 @@ class NpzFile {
       files[file.name] = NdArray(headerSection: parser.headerSection!, data: parser.data);
     }
 
-    inputStream.close();
+    await inputStream.close();
     return NpzFile(files);
   }
 
