@@ -75,10 +75,15 @@ class NpzFile {
   /// an [NpyFileExistsException] will be thrown. The default value is `false`.
   void add(NdArray array, {String? name, bool replace = false}) {
     if (name != null) {
-      if (name.isEmpty) throw const NpyInvalidNameException('Name cannot be empty.');
+      final trimmedName = name.trim();
+      if (trimmedName.isEmpty || trimmedName == '.' || trimmedName == '..') {
+        throw const NpyInvalidNameException("Name cannot be empty, '.' or '..'.");
+      } else if (RegExp(r'[<>:"/\\|?*]').hasMatch(trimmedName)) {
+        throw NpyInvalidNameException("'$name' has one or more invalid characters. Invalid characters: '<>:\"/\\|?*'.");
+      }
     }
 
-    final assignedName = name ?? 'arr_${files.length}.npy';
+    final assignedName = name?.trim() ?? 'arr_${files.length}.npy';
 
     if (!replace && files.containsKey(assignedName)) {
       throw NpyFileExistsException("'$assignedName' already exists in the NPZ file.");

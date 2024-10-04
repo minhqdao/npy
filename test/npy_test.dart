@@ -2297,5 +2297,35 @@ void main() {
         throwsA(isA<NpyInvalidNameException>()),
       );
     });
+    test('Empty name after trim', () {
+      expect(
+        () => NpzFile().add(NdArray.fromList([true, true, false]), name: ' '),
+        throwsA(isA<NpyInvalidNameException>()),
+      );
+    });
+    test('Name is .', () {
+      expect(
+        () => NpzFile().add(NdArray.fromList([true, true, false]), name: ' .'),
+        throwsA(isA<NpyInvalidNameException>()),
+      );
+    });
+    test('Name is ..', () {
+      expect(
+        () => NpzFile().add(NdArray.fromList([true, true, false]), name: '.. '),
+        throwsA(isA<NpyInvalidNameException>()),
+      );
+    });
+    test('Name contains invalid characters', () {
+      expect(
+        () => NpzFile().add(NdArray.fromList([true, true, false]), name: 'a*b'),
+        throwsA(isA<NpyInvalidNameException>()),
+      );
+    });
+    test('trim name', () {
+      final npzFile = NpzFile();
+      npzFile.add(NdArray.fromList([true, true, false]), name: '  abc   ');
+      expect(npzFile.files.length, 1);
+      expect(npzFile.files['abc']?.data, [true, true, false]);
+    });
   });
 }
