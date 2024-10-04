@@ -95,6 +95,26 @@ void main() {
       File(npzFilename).deleteSync();
       expect(result.exitCode, 0, reason: result.stderr.toString());
     });
+    test('Npz file with two arrays, compressed', () async {
+      const npzFilename = '${baseDir}save_npz_compressed_test.npz';
+      const pythonScript = '${baseDir}load_npz_test.py';
+      final npzFile = NpzFile()
+        ..add(
+          NdArray.fromList(
+            [
+              [1.0, 2.0, 3.0],
+              [4.0, 5.0, 6.0],
+            ],
+            endian: NpyEndian.big,
+            fortranOrder: true,
+          ),
+        )
+        ..add(NdArray.fromList([2, 4, -8], dtype: NpyDType.int16(endian: NpyEndian.little)));
+      await npzFile.save(npzFilename, isCompressed: true);
+      final result = await runPython(pythonScript, npzFilename);
+      File(npzFilename).deleteSync();
+      expect(result.exitCode, 0, reason: result.stderr.toString());
+    });
   });
 
   group('Load:', () {
@@ -171,6 +191,34 @@ void main() {
     test('Npz file with two arrays', () async {
       const pythonScript = '${baseDir}save_npz_test.py';
       const npzFilename = '${baseDir}load_npz_test.npz';
+      await runPython(pythonScript, npzFilename);
+      final npzFile = await NpzFile.load(npzFilename);
+      File(npzFilename).deleteSync();
+      expect(npzFile.files.length, 2);
+      expect(npzFile.files['arr_0.npy']?.data, [
+        [-1.0, -2.0],
+        [0.1, 0.2],
+      ]);
+      expect(npzFile.files['arr_0.npy']?.headerSection.header.fortranOrder, false);
+      expect(npzFile.files['arr_0.npy']?.headerSection.header.shape, [2, 2]);
+      expect(npzFile.files['arr_0.npy']?.headerSection.header.dtype.type, NpyType.float);
+      expect(npzFile.files['arr_0.npy']?.headerSection.header.dtype.endian, NpyEndian.getNative());
+      expect(npzFile.files['arr_0.npy']?.headerSection.header.dtype.itemSize, 8);
+      expect(npzFile.files['arr_1.npy']?.data, [
+        [0],
+        [1],
+        [-128],
+        [127],
+      ]);
+      expect(npzFile.files['arr_1.npy']?.headerSection.header.fortranOrder, false);
+      expect(npzFile.files['arr_1.npy']?.headerSection.header.shape, [4, 1]);
+      expect(npzFile.files['arr_1.npy']?.headerSection.header.dtype.type, NpyType.int);
+      expect(npzFile.files['arr_1.npy']?.headerSection.header.dtype.endian, NpyEndian.none);
+      expect(npzFile.files['arr_1.npy']?.headerSection.header.dtype.itemSize, 1);
+    });
+    test('Npz file with two arrays, compressed', () async {
+      const pythonScript = '${baseDir}save_npz_compressed_test.py';
+      const npzFilename = '${baseDir}load_npz_compressed_test.npz';
       await runPython(pythonScript, npzFilename);
       final npzFile = await NpzFile.load(npzFilename);
       File(npzFilename).deleteSync();
