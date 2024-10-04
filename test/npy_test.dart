@@ -2069,7 +2069,6 @@ void main() {
       const filename = 'load_empty_file.npz';
       final file = File(filename)..createSync();
       await expectLater(() async => await NpzFile.load(filename), throwsA(isA<FormatException>()));
-      file.deleteSync();
       await file.delete();
     });
     test('Empty zip file (only has end of central directory record)', () async {
