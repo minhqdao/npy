@@ -75,6 +75,26 @@ void main() {
       File(npyFilename).deleteSync();
       expect(result.exitCode, 0, reason: result.stderr.toString());
     });
+    test('Two ndarrays in npz file', () async {
+      const npzFilename = '${baseDir}save_npz_test.npz';
+      const pythonScript = '${baseDir}load_npz_test.py';
+      final npzFile = NpzFile()
+        ..add(
+          NdArray.fromList(
+            [
+              [1.0, 2.0, 3.0],
+              [4.0, 5.0, 6.0],
+            ],
+            endian: NpyEndian.big,
+            fortranOrder: true,
+          ),
+        )
+        ..add(NdArray.fromList([2, 4, -8], dtype: NpyDType.int16(endian: NpyEndian.little)));
+      await npzFile.save(npzFilename);
+      final result = await runPython(pythonScript, npzFilename);
+      File(npzFilename).deleteSync();
+      expect(result.exitCode, 0, reason: result.stderr.toString());
+    });
   });
 
   group('Load:', () {

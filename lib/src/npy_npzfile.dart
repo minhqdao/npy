@@ -14,16 +14,6 @@ class NpzFile {
   /// [NdArray] object.
   final Map<String, NdArray> files;
 
-  factory NpzFile.fromArrays(List<NdArray> arrays) {
-    final files = <String, NdArray>{};
-
-    for (int i = 0; i < arrays.length; i++) {
-      files['arr_$i.npy'] = arrays[i];
-    }
-
-    return NpzFile(files);
-  }
-
   /// Loads an `NPZ` file from the given [path] and returns an [NpzFile] object.
   static Future<NpzFile> load(String path) async {
     final inputStream = InputFileStream(path);
