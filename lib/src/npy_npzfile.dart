@@ -16,29 +16,34 @@ class NpzFile {
 
   /// Loads an `NPZ` file from the given [path] and returns an [NpzFile] object.
   static Future<NpzFile> load(String path) async {
-    final inputStream = InputFileStream(path);
-    final files = <String, NdArray>{};
+    InputFileStream? inputStream;
 
-    for (final file in ZipDecoder().decodeBuffer(inputStream)) {
-      if (!file.isFile) continue;
+    try {
+      inputStream = InputFileStream(path);
+      final files = <String, NdArray>{};
 
-      final bytes = file.content as Uint8List;
-      final parser = NpyParser();
+      for (final file in ZipDecoder().decodeBuffer(inputStream)) {
+        if (!file.isFile) continue;
 
-      parser
-        ..checkMagicString(bytes)
-        ..getVersion(bytes)
-        ..getHeaderSize(bytes)
-        ..getHeader(bytes)
-        ..buildHeaderSection()
-        ..getData(bytes);
+        final bytes = file.content as Uint8List;
+        final parser = NpyParser();
 
-      if (!parser.isCompleted) throw NpyParseException("Error parsing '${file.name}' as an NPY file.");
-      files[file.name] = NdArray(headerSection: parser.headerSection!, data: parser.data);
+        parser
+          ..checkMagicString(bytes)
+          ..getVersion(bytes)
+          ..getHeaderSize(bytes)
+          ..getHeader(bytes)
+          ..buildHeaderSection()
+          ..getData(bytes);
+
+        if (!parser.isCompleted) throw NpyParseException("Error parsing '${file.name}' as an NPY file.");
+        files[file.name] = NdArray(headerSection: parser.headerSection!, data: parser.data);
+      }
+
+      return NpzFile(files);
+    } finally {
+      await inputStream?.close();
     }
-
-    await inputStream.close();
-    return NpzFile(files);
   }
 
   /// Saves the [NpzFile] to the given [path] in NPZ format. If [isCompressed] is set to `true`, the archive will be
