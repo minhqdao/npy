@@ -1,8 +1,9 @@
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/minhqdao/npy/blob/main/LICENSE)
+# npy
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/minhqdao/npy/blob/main/LICENSE)
 [![CI](https://github.com/minhqdao/npy/actions/workflows/ci.yml/badge.svg)](https://github.com/minhqdao/npy/actions/workflows/ci.yml)
 
-Read and write NumPy binary files ( `.npy` and `.npz` ) in Dart.
+Read and write NumPy binary files (`.npy` and `.npz`) in Dart.
 
 ## Usage
 
@@ -63,15 +64,17 @@ Supported file formats:
 
 ## Tests
 
-`dart test` will run integration tests, too, so make sure to have `python` and `numpy` installed and `python` available in your system's `PATH` .
+`dart test` will run integration tests, too, so make sure to have `python` and `numpy` installed and `python` available in your system's `PATH`.
 
-## Further Information
+## Further Reading
 
-Find more information on the `.npy` format [here](https://numpy.org/doc/stable/reference/generated/numpy.lib.format.html).
+More information on the `.npy` format can be found [here](https://numpy.org/doc/stable/reference/generated/numpy.lib.format.html).
 
 ## Contribute
 
-Feel free to [create an issue](https://github.com/minhqdao/npy/issues) in case you found a bug, have any questions or want to propose new features. Please [check open issues](https://github.com/minhqdao/npy/issues) before creating a new one. Make sure to satisfy formatter, analyzer and tests when [opening a pull request](https://github.com/minhqdao/npy/pulls).
+- Feel free to [create an issue](https://github.com/minhqdao/npy/issues) in case you found a bug, have any questions or want to propose new features.
+- Please [check open issues](https://github.com/minhqdao/npy/issues) before creating a new one.
+- Make sure to satisfy formatter, analyzer and tests when [opening a pull request](https://github.com/minhqdao/npy/pulls).
 
 ## License
 
