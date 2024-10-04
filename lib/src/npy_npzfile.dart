@@ -6,15 +6,17 @@ import 'package:npy/src/npy_exception.dart';
 import 'package:npy/src/npy_ndarray.dart';
 import 'package:npy/src/npy_parser.dart';
 
-/// Zip file containing one or more `NPY` files.
+/// The [NpzFile] class represents a zip file containing one or more `.NPY` files. It provides methods for loading,
+/// saving, and manipulating the contents of the `.NPZ` file.
 class NpzFile {
   NpzFile([Map<String, NdArray>? files]) : files = files ?? {};
 
-  /// The map of files contained in the [NpzFile]. The key is the name of the file, and the value represents the
+  /// Map of files contained in the [NpzFile]. The key is the name of the file, and the value represents the
   /// [NdArray] object.
   final Map<String, NdArray> files;
 
-  /// Loads an `NPZ` file from the given [path] and returns an [NpzFile] object.
+  /// Loads an `NPZ` file from the given [path] and returns an [NpzFile] object. Both compressed and uncompressed
+  /// archives are supported.
   static Future<NpzFile> load(String path) async {
     InputFileStream? inputStream;
 
