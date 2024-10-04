@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:npy/src/npy_chunktransformer.dart';
+import 'package:npy/src/npy_bytetransformer.dart';
 import 'package:npy/src/npy_exception.dart';
 import 'package:npy/src/npy_parser.dart';
 
@@ -22,7 +22,7 @@ class NdArray<T> {
       throw NpyInvalidNpyTypeException('Unsupported NdArray type: $T');
     }
 
-    final stream = File(path).openRead().transform(ChunkTransformer(bufferSize: bufferSize));
+    final stream = File(path).openRead().transform(ByteTransformer(bufferSize: bufferSize));
 
     final List<int> buffer = [];
     final parser = NpyParser();

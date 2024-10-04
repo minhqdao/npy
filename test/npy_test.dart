@@ -18,12 +18,12 @@ void main() {
     return true;
   }
 
-  group('ChunkTransformer:', () {
+  group('ByteTransformer:', () {
     test('Empty list', () {
       final controller = StreamController<List<int>>();
       controller.add([]);
       expect(
-        controller.stream.transform(const ChunkTransformer()),
+        controller.stream.transform(const ByteTransformer()),
         emitsInOrder([
           [],
         ]),
@@ -34,7 +34,7 @@ void main() {
       final controller = StreamController<List<int>>();
       controller.add([]);
       expect(
-        controller.stream.transform(const ChunkTransformer(bufferSize: 1)),
+        controller.stream.transform(const ByteTransformer(bufferSize: 1)),
         emitsInOrder([
           [],
         ]),
@@ -45,7 +45,7 @@ void main() {
       final controller = StreamController<List<int>>();
       controller.add([1]);
       expect(
-        controller.stream.transform(const ChunkTransformer()),
+        controller.stream.transform(const ByteTransformer()),
         emitsInOrder([
           [1],
         ]),
@@ -56,7 +56,7 @@ void main() {
       final controller = StreamController<List<int>>();
       controller.add([1, 2]);
       expect(
-        controller.stream.transform(const ChunkTransformer()),
+        controller.stream.transform(const ByteTransformer()),
         emitsInOrder([
           [1, 2],
         ]),
@@ -67,7 +67,7 @@ void main() {
       final controller = StreamController<List<int>>();
       controller.add([1, 2]);
       expect(
-        controller.stream.transform(const ChunkTransformer(bufferSize: 1)),
+        controller.stream.transform(const ByteTransformer(bufferSize: 1)),
         emitsInOrder([
           [1],
           [2],
@@ -79,7 +79,7 @@ void main() {
       final controller = StreamController<List<int>>();
       controller.add([1, 2]);
       expect(
-        controller.stream.transform(const ChunkTransformer(bufferSize: 2)),
+        controller.stream.transform(const ByteTransformer(bufferSize: 2)),
         emitsInOrder([
           [1, 2],
         ]),
@@ -90,7 +90,7 @@ void main() {
       final controller = StreamController<List<int>>();
       controller.add([1, 2]);
       expect(
-        controller.stream.transform(const ChunkTransformer(bufferSize: 3)),
+        controller.stream.transform(const ByteTransformer(bufferSize: 3)),
         emitsInOrder([
           [1, 2],
         ]),
@@ -101,7 +101,7 @@ void main() {
       final controller = StreamController<List<int>>();
       controller.add([1, 2, 3]);
       expect(
-        controller.stream.transform(const ChunkTransformer(bufferSize: 2)),
+        controller.stream.transform(const ByteTransformer(bufferSize: 2)),
         emitsInOrder([
           [1, 2],
           [3],
@@ -113,7 +113,7 @@ void main() {
       final controller = StreamController<List<int>>();
       controller.add([1, 2, 3, 4]);
       expect(
-        controller.stream.transform(const ChunkTransformer(bufferSize: 2)),
+        controller.stream.transform(const ByteTransformer(bufferSize: 2)),
         emitsInOrder([
           [1, 2],
           [3, 4],
@@ -127,7 +127,7 @@ void main() {
         ..add([1])
         ..add([2]);
       expect(
-        controller.stream.transform(const ChunkTransformer(bufferSize: 1)),
+        controller.stream.transform(const ByteTransformer(bufferSize: 1)),
         emitsInOrder([
           [1],
           [2],
@@ -143,7 +143,7 @@ void main() {
         ..add([3])
         ..add([4, 5, 6, 7]);
       expect(
-        controller.stream.transform(const ChunkTransformer(bufferSize: 2)),
+        controller.stream.transform(const ByteTransformer(bufferSize: 2)),
         emitsInOrder([
           [1, 2],
           [3, 4],
