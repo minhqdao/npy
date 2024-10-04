@@ -63,3 +63,17 @@ class NpyWriteException extends NpyException {
   @override
   final String message;
 }
+
+class NpyFileExistsException extends NpyException {
+  const NpyFileExistsException(this.message);
+
+  @override
+  final String message;
+}
+
+class NpyInvalidNameException extends NpyException {
+  const NpyInvalidNameException(this.message);
+
+  @override
+  final String message;
+}

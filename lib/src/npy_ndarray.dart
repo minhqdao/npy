@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:npy/src/npy_bytetransformer.dart';
 import 'package:npy/src/npy_exception.dart';
+import 'package:npy/src/npy_parser.dart';
 
 class NdArray<T> {
   const NdArray({required this.headerSection, required this.data});
@@ -13,6 +16,41 @@ class NdArray<T> {
         headerSection: NpyHeaderSection.fromList(list, dtype: dtype, endian: endian, fortranOrder: fortranOrder),
         data: list,
       );
+
+  static Future<NdArray<T>> load<T>(String path, {int? bufferSize}) async {
+    if (T != dynamic && T != double && T != int && T != bool) {
+      throw NpyInvalidNpyTypeException('Unsupported NdArray type: $T');
+    }
+
+    final stream = File(path).openRead().transform(ByteTransformer(bufferSize: bufferSize));
+
+    final List<int> buffer = [];
+    final parser = NpyParser();
+
+    try {
+      await for (final chunk in stream) {
+        buffer.addAll(chunk);
+
+        parser
+          ..checkMagicString(buffer)
+          ..getVersion(buffer)
+          ..getHeaderSize(buffer)
+          ..getHeader(buffer)
+          ..buildHeaderSection()
+          ..getData(buffer);
+
+        if (parser.isCompleted) return NdArray(headerSection: parser.headerSection!, data: parser.data);
+      }
+    } on FileSystemException catch (e) {
+      if (e.osError?.errorCode == 2) throw NpyFileNotExistsException(path);
+      throw NpFileOpenException(path, e.toString());
+    } on NpyParseException {
+      rethrow;
+    } catch (e) {
+      throw NpFileOpenException(path, e.toString());
+    }
+    throw NpyParseException("Error parsing '$path' as an NPY file.");
+  }
 
   List<int> get asBytes => [...headerSection.asBytes, ...dataBytes];
 
@@ -90,6 +128,9 @@ class NdArray<T> {
 
     return bytes;
   }
+
+  /// Saves the [NdArray] to the given [path] in NPY format.
+  Future<void> save(String path) async => File(path).writeAsBytes(asBytes);
 }
 
 List<T> flattenCOrder<T>(List list) {
@@ -139,6 +180,10 @@ void _flattenFortranOrderRecursive<T>(
     }
   }
 }
+
+/// Convenience function to save a [List] to the given [path] in NPY format. Alternatively use [NdArray.save].
+Future<void> save(String path, List list, {NpyDType? dtype, NpyEndian? endian, bool? fortranOrder}) async =>
+    NdArray.fromList(list, dtype: dtype, endian: endian, fortranOrder: fortranOrder).save(path);
 
 class NpyHeaderSection {
   const NpyHeaderSection({

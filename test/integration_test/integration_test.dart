@@ -19,7 +19,7 @@ void main() {
     test('1d float32', () async {
       const npyFilename = '${baseDir}save_float_test.npy';
       const pythonScript = '${baseDir}load_float_test.py';
-      await saveList(npyFilename, [.111, 2.22, -33.3], dtype: NpyDType.float32());
+      await save(npyFilename, [.111, 2.22, -33.3], dtype: NpyDType.float32());
       final result = await runPython(pythonScript, npyFilename);
       File(npyFilename).deleteSync();
       expect(result.exitCode, 0, reason: result.stderr.toString());
@@ -27,7 +27,7 @@ void main() {
     test('2d bool, fortran order', () async {
       const npyFilename = '${baseDir}save_bool_test.npy';
       const pythonScript = '${baseDir}load_bool_test.py';
-      await saveList(
+      await save(
         npyFilename,
         [
           [true, true, true],
@@ -42,7 +42,7 @@ void main() {
     test('3d int16', () async {
       const npyFilename = '${baseDir}save_int_test.npy';
       const pythonScript = '${baseDir}load_int_test.py';
-      await saveList(
+      await save(
         npyFilename,
         [
           [
@@ -63,7 +63,7 @@ void main() {
     test('2d uint32, big endian', () async {
       const npyFilename = '${baseDir}save_uint_test.npy';
       const pythonScript = '${baseDir}load_uint_test.py';
-      await saveList(
+      await save(
         npyFilename,
         [
           [1, 2, 0],
@@ -75,6 +75,46 @@ void main() {
       File(npyFilename).deleteSync();
       expect(result.exitCode, 0, reason: result.stderr.toString());
     });
+    test('Npz file with two arrays', () async {
+      const npzFilename = '${baseDir}save_npz_test.npz';
+      const pythonScript = '${baseDir}load_npz_test.py';
+      final npzFile = NpzFile()
+        ..add(
+          NdArray.fromList(
+            [
+              [1.0, 2.0, 3.0],
+              [4.0, 5.0, 6.0],
+            ],
+            endian: NpyEndian.big,
+            fortranOrder: true,
+          ),
+        )
+        ..add(NdArray.fromList([2, 4, -8], dtype: NpyDType.int16(endian: NpyEndian.little)));
+      await npzFile.save(npzFilename);
+      final result = await runPython(pythonScript, npzFilename);
+      File(npzFilename).deleteSync();
+      expect(result.exitCode, 0, reason: result.stderr.toString());
+    });
+    test('Npz file with two arrays, compressed', () async {
+      const npzFilename = '${baseDir}save_npz_compressed_test.npz';
+      const pythonScript = '${baseDir}load_npz_test.py';
+      final npzFile = NpzFile()
+        ..add(
+          NdArray.fromList(
+            [
+              [1.0, 2.0, 3.0],
+              [4.0, 5.0, 6.0],
+            ],
+            endian: NpyEndian.big,
+            fortranOrder: true,
+          ),
+        )
+        ..add(NdArray.fromList([2, 4, -8], dtype: NpyDType.int16(endian: NpyEndian.little)));
+      await npzFile.save(npzFilename, isCompressed: true);
+      final result = await runPython(pythonScript, npzFilename);
+      File(npzFilename).deleteSync();
+      expect(result.exitCode, 0, reason: result.stderr.toString());
+    });
   });
 
   group('Load:', () {
@@ -82,7 +122,7 @@ void main() {
       const pythonScript = '${baseDir}save_float_test.py';
       const npyFilename = '${baseDir}load_float_test.npy';
       await runPython(pythonScript, npyFilename);
-      final ndarray = await load(npyFilename);
+      final ndarray = await NdArray.load(npyFilename);
       File(npyFilename).deleteSync();
       expect(ndarray.data, [
         [-9.999, -1.1],
@@ -100,7 +140,7 @@ void main() {
       const pythonScript = '${baseDir}save_bool_test.py';
       const npyFilename = '${baseDir}load_bool_test.npy';
       await runPython(pythonScript, npyFilename);
-      final ndarray = await load(npyFilename);
+      final ndarray = await NdArray.load(npyFilename);
       File(npyFilename).deleteSync();
       expect(ndarray.data, [
         [
@@ -122,7 +162,7 @@ void main() {
       const pythonScript = '${baseDir}save_int_test.py';
       const npyFilename = '${baseDir}load_int_test.npy';
       await runPython(pythonScript, npyFilename);
-      final ndarray = await load(npyFilename);
+      final ndarray = await NdArray.load(npyFilename);
       File(npyFilename).deleteSync();
       expect(ndarray.data, [
         [-9223372036854775808, -1],
@@ -139,7 +179,7 @@ void main() {
       const pythonScript = '${baseDir}save_uint_test.py';
       const npyFilename = '${baseDir}load_uint_test.npy';
       await runPython(pythonScript, npyFilename);
-      final ndarray = await load(npyFilename);
+      final ndarray = await NdArray.load(npyFilename);
       File(npyFilename).deleteSync();
       expect(ndarray.data, [0, 1, 254, 255]);
       expect(ndarray.headerSection.header.fortranOrder, false);
@@ -147,6 +187,62 @@ void main() {
       expect(ndarray.headerSection.header.dtype.type, NpyType.uint);
       expect(ndarray.headerSection.header.dtype.endian, NpyEndian.none);
       expect(ndarray.headerSection.header.dtype.itemSize, 1);
+    });
+    test('Npz file with two arrays', () async {
+      const pythonScript = '${baseDir}save_npz_test.py';
+      const npzFilename = '${baseDir}load_npz_test.npz';
+      await runPython(pythonScript, npzFilename);
+      final npzFile = await NpzFile.load(npzFilename);
+      File(npzFilename).deleteSync();
+      expect(npzFile.files.length, 2);
+      expect(npzFile.files['arr_0.npy']?.data, [
+        [-1.0, -2.0],
+        [0.1, 0.2],
+      ]);
+      expect(npzFile.files['arr_0.npy']?.headerSection.header.fortranOrder, false);
+      expect(npzFile.files['arr_0.npy']?.headerSection.header.shape, [2, 2]);
+      expect(npzFile.files['arr_0.npy']?.headerSection.header.dtype.type, NpyType.float);
+      expect(npzFile.files['arr_0.npy']?.headerSection.header.dtype.endian, NpyEndian.getNative());
+      expect(npzFile.files['arr_0.npy']?.headerSection.header.dtype.itemSize, 8);
+      expect(npzFile.files['arr_1.npy']?.data, [
+        [0],
+        [1],
+        [-128],
+        [127],
+      ]);
+      expect(npzFile.files['arr_1.npy']?.headerSection.header.fortranOrder, false);
+      expect(npzFile.files['arr_1.npy']?.headerSection.header.shape, [4, 1]);
+      expect(npzFile.files['arr_1.npy']?.headerSection.header.dtype.type, NpyType.int);
+      expect(npzFile.files['arr_1.npy']?.headerSection.header.dtype.endian, NpyEndian.none);
+      expect(npzFile.files['arr_1.npy']?.headerSection.header.dtype.itemSize, 1);
+    });
+    test('Npz file with two arrays, compressed', () async {
+      const pythonScript = '${baseDir}save_npz_compressed_test.py';
+      const npzFilename = '${baseDir}load_npz_compressed_test.npz';
+      await runPython(pythonScript, npzFilename);
+      final npzFile = await NpzFile.load(npzFilename);
+      File(npzFilename).deleteSync();
+      expect(npzFile.files.length, 2);
+      expect(npzFile.files['arr_0.npy']?.data, [
+        [-1.0, -2.0],
+        [0.1, 0.2],
+      ]);
+      expect(npzFile.files['arr_0.npy']?.headerSection.header.fortranOrder, false);
+      expect(npzFile.files['arr_0.npy']?.headerSection.header.shape, [2, 2]);
+      expect(npzFile.files['arr_0.npy']?.headerSection.header.dtype.type, NpyType.float);
+      expect(npzFile.files['arr_0.npy']?.headerSection.header.dtype.endian, NpyEndian.getNative());
+      expect(npzFile.files['arr_0.npy']?.headerSection.header.dtype.itemSize, 8);
+      expect(npzFile.files['arr_1.npy']?.data, [
+        [0],
+        [1],
+        [-128],
+        [127],
+      ]);
+      expect(npzFile.files['arr_1.npy']?.headerSection.header.fortranOrder, false);
+      expect(npzFile.files['arr_1.npy']?.headerSection.header.shape, [4, 1]);
+      expect(npzFile.files['arr_1.npy']?.headerSection.header.dtype.type, NpyType.int);
+      expect(npzFile.files['arr_1.npy']?.headerSection.header.dtype.endian, NpyEndian.none);
+      expect(npzFile.files['arr_1.npy']?.headerSection.header.dtype.itemSize, 1);
     });
   });
 

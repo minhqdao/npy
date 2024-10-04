@@ -10,10 +10,10 @@ void main() async {
   final list = List.generate(listLength, (_) => Random().nextDouble());
   stdout.writeln('List generated in ${stopwatch.elapsedMilliseconds} ms');
   stopwatch.reset();
-  await saveList(filename, list);
+  await save(filename, list);
   stdout.writeln('List saved in ${stopwatch.elapsedMilliseconds} ms');
   stopwatch.reset();
-  await load(filename);
+  await NdArray.load(filename);
   stdout.writeln('List loaded in ${stopwatch.elapsedMilliseconds} ms');
   File(filename).deleteSync();
 }
