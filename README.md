@@ -37,15 +37,25 @@ final arr_1 = npzFile.files['arr_1.npy'];
 Write (compressed) `.npz` files:
 
 ```dart
-final npzFile = NpzFile()
-  ..add(NdArray.fromList([1.0, 2.0, 3.0]))
-  ..add(NdArray.fromList([[true, false, true]]));
+final array1 = NdArray.fromList([1.0, 2.0, 3.0]);
+final array2 = NdArray.fromList([[true, false, true]]);
+
+final npzFile = NpzFile();
+
+npzFile.add(array1);
+npzFile.add(array2);
+
 await npzFile.save('example_save.npz');
 ```
 
 ## Features
 
-Load and save n-dimensional arrays of the following data types:
+Load and save n-dimensional arrays from and to the following file formats:
+
+✅ `.npy` \
+✅ `.npz` (compressed and uncompressed)
+
+Supported data types:
 
 ✅ float64, float32\
 ✅ int64, int32, int16, int8\
@@ -54,27 +64,22 @@ Load and save n-dimensional arrays of the following data types:
 
 Supported memory representations:
 
-✅ Little and Big Endian\
+✅ Little and big endian\
 ✅ C and Fortran order
-
-Supported file formats:
-
-✅ `.npy` \
-✅ `.npz` (compressed and uncompressed)
 
 ## Tests
 
 `dart test` will run integration tests, too, so make sure to have `python` and `numpy` installed and `python` available in your system's `PATH`.
-
-## Further Reading
-
-More information on the `.npy` format can be found [here](https://numpy.org/doc/stable/reference/generated/numpy.lib.format.html).
 
 ## Contribute
 
 - Feel free to [create an issue](https://github.com/minhqdao/npy/issues) in case you found a bug, have any questions or want to propose new features.
 - Please [check open issues](https://github.com/minhqdao/npy/issues) before creating a new one.
 - Make sure to satisfy formatter, analyzer and tests when [opening a pull request](https://github.com/minhqdao/npy/pulls).
+
+## Further Reading
+
+More information on the `.npy` format can be found [here](https://numpy.org/doc/stable/reference/generated/numpy.lib.format.html).
 
 ## License
 
