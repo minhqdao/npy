@@ -1,4 +1,5 @@
 import 'package:npy/src/npy_ndarray.dart';
+import 'package:npy/src/npy_npzfile.dart';
 
 void main() async {
   final npzFile = NpzFile();

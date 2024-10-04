@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:npy/src/npy_ndarray.dart';
+import 'package:npy/src/npy_npzfile.dart';
 
 void main() async {
   final npzFile = await NpzFile.load('example/load/load_example.npz');
