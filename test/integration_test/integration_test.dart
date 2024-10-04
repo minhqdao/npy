@@ -19,7 +19,7 @@ void main() {
     test('1d float32', () async {
       const npyFilename = '${baseDir}save_float_test.npy';
       const pythonScript = '${baseDir}load_float_test.py';
-      await saveList(npyFilename, [.111, 2.22, -33.3], dtype: NpyDType.float32());
+      await save(npyFilename, [.111, 2.22, -33.3], dtype: NpyDType.float32());
       final result = await runPython(pythonScript, npyFilename);
       File(npyFilename).deleteSync();
       expect(result.exitCode, 0, reason: result.stderr.toString());
@@ -27,7 +27,7 @@ void main() {
     test('2d bool, fortran order', () async {
       const npyFilename = '${baseDir}save_bool_test.npy';
       const pythonScript = '${baseDir}load_bool_test.py';
-      await saveList(
+      await save(
         npyFilename,
         [
           [true, true, true],
@@ -42,7 +42,7 @@ void main() {
     test('3d int16', () async {
       const npyFilename = '${baseDir}save_int_test.npy';
       const pythonScript = '${baseDir}load_int_test.py';
-      await saveList(
+      await save(
         npyFilename,
         [
           [
@@ -63,7 +63,7 @@ void main() {
     test('2d uint32, big endian', () async {
       const npyFilename = '${baseDir}save_uint_test.npy';
       const pythonScript = '${baseDir}load_uint_test.py';
-      await saveList(
+      await save(
         npyFilename,
         [
           [1, 2, 0],
@@ -82,7 +82,7 @@ void main() {
       const pythonScript = '${baseDir}save_float_test.py';
       const npyFilename = '${baseDir}load_float_test.npy';
       await runPython(pythonScript, npyFilename);
-      final ndarray = await load(npyFilename);
+      final ndarray = await NdArray.load(npyFilename);
       File(npyFilename).deleteSync();
       expect(ndarray.data, [
         [-9.999, -1.1],
@@ -100,7 +100,7 @@ void main() {
       const pythonScript = '${baseDir}save_bool_test.py';
       const npyFilename = '${baseDir}load_bool_test.npy';
       await runPython(pythonScript, npyFilename);
-      final ndarray = await load(npyFilename);
+      final ndarray = await NdArray.load(npyFilename);
       File(npyFilename).deleteSync();
       expect(ndarray.data, [
         [
@@ -122,7 +122,7 @@ void main() {
       const pythonScript = '${baseDir}save_int_test.py';
       const npyFilename = '${baseDir}load_int_test.npy';
       await runPython(pythonScript, npyFilename);
-      final ndarray = await load(npyFilename);
+      final ndarray = await NdArray.load(npyFilename);
       File(npyFilename).deleteSync();
       expect(ndarray.data, [
         [-9223372036854775808, -1],
@@ -139,7 +139,7 @@ void main() {
       const pythonScript = '${baseDir}save_uint_test.py';
       const npyFilename = '${baseDir}load_uint_test.npy';
       await runPython(pythonScript, npyFilename);
-      final ndarray = await load(npyFilename);
+      final ndarray = await NdArray.load(npyFilename);
       File(npyFilename).deleteSync();
       expect(ndarray.data, [0, 1, 254, 255]);
       expect(ndarray.headerSection.header.fortranOrder, false);
