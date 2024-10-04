@@ -2080,15 +2080,15 @@ void main() {
       expect(npzFile.files.length, 0);
       file.deleteSync();
     });
-    test('Contains file that is not an npy file', () {
+    test('Single file that is not an npy file', () {
       const filename = 'load_non_npy_file.npz';
       final bytes = ZipEncoder().encode(Archive()..addFile(ArchiveFile.string('empty_file.txt', '')));
       final file = File(filename)..writeAsBytesSync(bytes!);
       expect(NpzFile.load(filename), throwsA(isA<NpyParseException>()));
       file.deleteSync();
     });
-    test('Contains npy file', () async {
-      const filename = 'load_contains_npy_file.npz';
+    test('Single ndarray', () async {
+      const filename = 'load_single_array.npz';
       const npyFilename = 'load_2d_float.npy';
       await save(npyFilename, [
         [.111, 2.22, -33.3],
@@ -2108,8 +2108,8 @@ void main() {
       expect(npzFile.files[npyFilename]?.headerSection.header.shape, [1, 3]);
       file.deleteSync();
     });
-    test('Contains two npy files', () async {
-      const filename = 'load_contains_two_npy_files.npz';
+    test('Two ndarrays', () async {
+      const filename = 'load_two_arrays.npz';
       const npyFilename1 = 'load_1d_float64.npy';
       const npyFilename2 = 'load_3d_uint16.npy';
       await save(npyFilename1, [0.123, -4.567], endian: NpyEndian.little);
@@ -2133,6 +2133,58 @@ void main() {
         Archive()
           ..addFile(ArchiveFile(npyFilename1, npyBytes1.length, npyBytes1))
           ..addFile(ArchiveFile(npyFilename2, npyBytes2.length, npyBytes2)),
+      );
+      npyFile1.deleteSync();
+      npyFile2.deleteSync();
+      final file = File(filename)..writeAsBytesSync(npzBytes!);
+      final npzFile = await NpzFile.load(filename);
+      expect(npzFile.files.length, 2);
+      expect(npzFile.files[npyFilename1]?.data, [0.123, -4.567]);
+      expect(npzFile.files[npyFilename1]?.headerSection.header.dtype.type, NpyType.float);
+      expect(npzFile.files[npyFilename1]?.headerSection.header.dtype.itemSize, 8);
+      expect(npzFile.files[npyFilename1]?.headerSection.header.dtype.endian, NpyEndian.little);
+      expect(npzFile.files[npyFilename1]?.headerSection.header.fortranOrder, false);
+      expect(npzFile.files[npyFilename1]?.headerSection.header.shape, [2]);
+      expect(npzFile.files[npyFilename2]?.data, [
+        [
+          [1, 2],
+          [3, 4],
+          [5, 6],
+        ]
+      ]);
+      expect(npzFile.files[npyFilename2]?.headerSection.header.dtype.type, NpyType.uint);
+      expect(npzFile.files[npyFilename2]?.headerSection.header.dtype.itemSize, 2);
+      expect(npzFile.files[npyFilename2]?.headerSection.header.dtype.endian, NpyEndian.big);
+      expect(npzFile.files[npyFilename2]?.headerSection.header.fortranOrder, true);
+      expect(npzFile.files[npyFilename2]?.headerSection.header.shape, [1, 3, 2]);
+      file.deleteSync();
+    });
+    test('Two ndarrays, compressed', () async {
+      const filename = 'load_two_arrays_compressed.npz';
+      const npyFilename1 = 'load_1d_float64.npy';
+      const npyFilename2 = 'load_3d_uint16.npy';
+      await save(npyFilename1, [0.123, -4.567], endian: NpyEndian.little);
+      await save(
+        npyFilename2,
+        [
+          [
+            [1, 2],
+            [3, 4],
+            [5, 6],
+          ],
+        ],
+        dtype: NpyDType.uint16(endian: NpyEndian.big),
+        fortranOrder: true,
+      );
+      final npyFile1 = File(npyFilename1);
+      final npyFile2 = File(npyFilename2);
+      final npyBytes1 = npyFile1.readAsBytesSync();
+      final npyBytes2 = npyFile2.readAsBytesSync();
+      final npzBytes = ZipEncoder().encode(
+        Archive()
+          ..addFile(ArchiveFile(npyFilename1, npyBytes1.length, npyBytes1))
+          ..addFile(ArchiveFile(npyFilename2, npyBytes2.length, npyBytes2)),
+        level: Deflate.DEFAULT_COMPRESSION,
       );
       npyFile1.deleteSync();
       npyFile2.deleteSync();
@@ -2197,22 +2249,41 @@ void main() {
       ]);
       file.deleteSync();
     });
-  });
-  test('Two ndarrays', () async {
-    const filename = 'save_two_arrays.npz';
-    const npyFilename1 = 'first.npy';
-    const npyFilename2 = 'second.npy';
-    final ndarray1 = NdArray.fromList(
-      [
+    test('Two ndarrays', () async {
+      const filename = 'save_two_arrays.npz';
+      const npyFilename1 = 'first.npy';
+      const npyFilename2 = 'second.npy';
+      final ndarray1 = NdArray.fromList(
+        [
+          [
+            [12, 123, 234],
+          ]
+        ],
+        dtype: const NpyDType.uint8(),
+        fortranOrder: true,
+      );
+      final ndarray2 = NdArray.fromList(
+        [
+          [
+            [
+              [1, 2],
+              [3, 4],
+              [5, 6],
+            ]
+          ],
+        ],
+        dtype: NpyDType.int16(endian: NpyEndian.big),
+      );
+      await NpzFile({npyFilename1: ndarray1, npyFilename2: ndarray2}).save(filename);
+      final file = File(filename);
+      final npzFile = await NpzFile.load(filename);
+      expect(npzFile.files.length, 2);
+      expect(npzFile.files[npyFilename1]?.data, [
         [
           [12, 123, 234],
         ]
-      ],
-      dtype: const NpyDType.uint8(),
-      fortranOrder: true,
-    );
-    final ndarray2 = NdArray.fromList(
-      [
+      ]);
+      expect(npzFile.files[npyFilename2]?.data, [
         [
           [
             [1, 2],
@@ -2220,28 +2291,54 @@ void main() {
             [5, 6],
           ]
         ],
-      ],
-      dtype: NpyDType.int16(endian: NpyEndian.big),
-    );
-    await NpzFile({npyFilename1: ndarray1, npyFilename2: ndarray2}).save(filename);
-    final file = File(filename);
-    final npzFile = await NpzFile.load(filename);
-    expect(npzFile.files.length, 2);
-    expect(npzFile.files[npyFilename1]?.data, [
-      [
-        [12, 123, 234],
-      ]
-    ]);
-    expect(npzFile.files[npyFilename2]?.data, [
-      [
+      ]);
+      file.deleteSync();
+    });
+    test('Two ndarrays, compressed', () async {
+      const filename = 'save_two_arrays_compressed.npz';
+      const npyFilename1 = 'first.npy';
+      const npyFilename2 = 'second.npy';
+      final ndarray1 = NdArray.fromList(
         [
-          [1, 2],
-          [3, 4],
-          [5, 6],
+          [
+            [12, 123, 234],
+          ]
+        ],
+        dtype: const NpyDType.uint8(),
+        fortranOrder: true,
+      );
+      final ndarray2 = NdArray.fromList(
+        [
+          [
+            [
+              [1, 2],
+              [3, 4],
+              [5, 6],
+            ]
+          ],
+        ],
+        dtype: NpyDType.int16(endian: NpyEndian.big),
+      );
+      await NpzFile({npyFilename1: ndarray1, npyFilename2: ndarray2}).save(filename, isCompressed: true);
+      final file = File(filename);
+      final npzFile = await NpzFile.load(filename);
+      expect(npzFile.files.length, 2);
+      expect(npzFile.files[npyFilename1]?.data, [
+        [
+          [12, 123, 234],
         ]
-      ],
-    ]);
-    file.deleteSync();
+      ]);
+      expect(npzFile.files[npyFilename2]?.data, [
+        [
+          [
+            [1, 2],
+            [3, 4],
+            [5, 6],
+          ]
+        ],
+      ]);
+      file.deleteSync();
+    });
   });
 
   group('Add ndarray to NpzFile:', () {
