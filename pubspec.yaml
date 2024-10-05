@@ -4,7 +4,7 @@ version: 0.1.0
 repository: https://github.com/minhqdao/npy
 
 environment:
-  sdk: ^3.5.3
+  sdk: ^3.0.0
 
 dependencies:
   archive: ^3.6.1
