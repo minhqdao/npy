@@ -8,6 +8,7 @@ environment:
 
 dependencies:
   archive: ^3.6.1
+  universal_io: ^2.2.2
 
 dev_dependencies:
   lint: ^2.3.0

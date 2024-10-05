@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import 'package:npy/npy.dart';
 import 'package:test/test.dart';
+import 'package:universal_io/io.dart';
 
 void main() {
   const baseDir = 'test/integration_test/';

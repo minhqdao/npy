@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
 import 'package:npy/src/npy_exception.dart';
 import 'package:npy/src/npy_ndarray.dart';
 import 'package:npy/src/npy_parser.dart';
+import 'package:universal_io/io.dart';
 
 /// The [NpzFile] class represents a zip file containing one or more `.NPY` files. It provides methods for loading,
 /// saving, and manipulating the contents of the `.NPZ` file.

@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:npy/npy.dart';
 import 'package:test/test.dart';
+import 'package:universal_io/io.dart';
 
 void main() {
   const epsilon = 1e-6;

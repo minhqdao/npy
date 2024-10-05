@@ -1,10 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:npy/src/npy_bytetransformer.dart';
 import 'package:npy/src/npy_exception.dart';
 import 'package:npy/src/npy_parser.dart';
+import 'package:universal_io/io.dart';
 
 class NdArray<T> {
   const NdArray({required this.headerSection, required this.data});
