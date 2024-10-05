@@ -2354,8 +2354,8 @@ void main() {
       await npzFile.save(filename);
       final loadedNpzFile = await NpzFile.load(filename);
       expect(loadedNpzFile.files.length, 2);
-      expect(loadedNpzFile.files['arr_0.npy']?.data, [true, true, false]);
-      expect(loadedNpzFile.files['arr_1.npy']?.data, [
+      expect(loadedNpzFile.take('arr_0.npy').data, [true, true, false]);
+      expect(loadedNpzFile.take('arr_1.npy').data, [
         [-1.1, 2.2, -3.3],
       ]);
       File(filename).deleteSync();
@@ -2422,7 +2422,16 @@ void main() {
       final npzFile = NpzFile();
       npzFile.add(NdArray.fromList([true, true, false]), name: '  abc   ');
       expect(npzFile.files.length, 1);
-      expect(npzFile.files['abc']?.data, [true, true, false]);
+      expect(npzFile.take('abc').data, [true, true, false]);
+    });
+  });
+
+  group('Take ndarray from NpzFile:', () {
+    test('One file exists, one does not', () {
+      final npzFile = NpzFile();
+      npzFile.add(NdArray.fromList([1, 2, 3]));
+      expect(npzFile.take('arr_0.npy').data, [1, 2, 3]);
+      expect(() => npzFile.take('arr_1.npy'), throwsA(isA<NpyFileNotExistsException>()));
     });
   });
 }

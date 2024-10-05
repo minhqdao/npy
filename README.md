@@ -30,8 +30,8 @@ Read (compressed) `.npz` files:
 
 ```dart
 final npzFile = await NpzFile.load('example.npz');
-final arr_0 = npzFile.files['arr_0.npy'];
-final arr_1 = npzFile.files['arr_1.npy'];
+final arr_0 = npzFile.take('arr_0.npy');
+final arr_1 = npzFile.take('arr_1.npy');
 ```
 
 Write (compressed) `.npz` files:

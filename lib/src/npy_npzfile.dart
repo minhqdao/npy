@@ -87,4 +87,12 @@ class NpzFile {
 
     files[assignedName] = array;
   }
+
+  /// Returns the [NdArray] with the given [name]. If the [NdArray] does not exist, an [NpyFileNotExistsException]
+  /// will be thrown.
+  NdArray take(String name) {
+    final ndarray = files[name];
+    if (ndarray == null) throw NpyFileNotExistsException(name);
+    return files[name]!;
+  }
 }
