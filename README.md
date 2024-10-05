@@ -1,5 +1,3 @@
-# npy
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/minhqdao/npy/blob/main/LICENSE)
 [![CI](https://github.com/minhqdao/npy/actions/workflows/ci.yml/badge.svg)](https://github.com/minhqdao/npy/actions/workflows/ci.yml)
 
@@ -20,7 +18,7 @@ final ndarray = NdArray.fromList([1.0, 2.0, 3.0]);
 await ndarray.save('example_save.npy');
 ```
 
-Conveniently save a `List` to an `.npy` file:
+Conveniently save an n-dimensional `List` to an `.npy` file:
 
 ```dart
 await save('example_save.npy', [[1, 2, 3], [4, 5, 6]]);

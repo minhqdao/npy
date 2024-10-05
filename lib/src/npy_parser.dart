@@ -137,8 +137,8 @@ class NpyParser<T> {
   }
 }
 
-/// Parse byte data according to the [header] metadata and return a one-
-/// dimensional [List] of values.
+/// Parse byte data according to the [dtype] and return a one-dimensional,
+/// flattened [List] of values.
 List<T> parseByteData<T>(List<int> bytes, NpyDType dtype) {
   final numberOfElements = bytes.length ~/ dtype.itemSize;
 
