@@ -1,15 +1,18 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-/// Transforms a stream to emit chunks of the specified [bufferSize]. If [bufferSize] is not provided, the stream will
-/// be emitted as chunks of default size.
+/// Transforms a stream to emit chunks of the specified [bufferSize]. If
+/// [bufferSize] is not provided, the stream will be emitted as chunks of
+/// default size.
 class ByteTransformer extends StreamTransformerBase<Uint8List, Uint8List> {
-  /// Creates an instance of a [ByteTransformer] that transforms a stream to emit chunks of the specified [bufferSize].
-  /// If [bufferSize] is not provided, the stream will be emitted as chunks of default size.
+  /// Creates an instance of a [ByteTransformer] that transforms a stream to
+  /// emit chunks of the specified [bufferSize]. If [bufferSize] is not
+  /// provided, the stream will be emitted as chunks of default size.
   const ByteTransformer({this.bufferSize});
 
-  /// Size of the chunks emitted by the transformed stream. If not provided, the chunk size of the transformed stream
-  /// will equal the chunk size of the untransformed stream.
+  /// Size of the chunks emitted by the transformed stream. If not provided,
+  /// the chunk size of the transformed stream will equal the chunk size of the
+  /// untransformed stream.
   final int? bufferSize;
 
   @override

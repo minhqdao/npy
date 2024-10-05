@@ -1,17 +1,19 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:npy/npy.dart';
 import 'package:test/test.dart';
+import 'package:universal_io/io.dart';
 
 void main() {
   const epsilon = 1e-6;
-  bool almostEqual(double a, double b, [double tolerance = epsilon]) => (a - b).abs() < tolerance;
+  bool almostEqual(double a, double b, [double tolerance = epsilon]) =>
+      (a - b).abs() < tolerance;
   bool listAlmostEquals(List a, List<double> b, [double tolerance = epsilon]) {
     if (a.length != b.length) return false;
-    final mappedList = List<double>.from(a.map((e) => e is double ? e : throw 'Not a double'));
+    final mappedList =
+        List<double>.from(a.map((e) => e is double ? e : throw 'Not a double'));
     for (int i = 0; i < a.length; i++) {
       if (!almostEqual(mappedList[i], b[i], tolerance)) return false;
     }
@@ -227,16 +229,37 @@ void main() {
       expect(version.minor, 0);
       expect(version.numberOfHeaderBytes, 4);
     });
-    test('Insufficient byte length', () => expect(() => NpyVersion.fromBytes([1]), throwsA(isA<AssertionError>())));
-    test('Exceeded byte length', () => expect(() => NpyVersion.fromBytes([1, 0, 0]), throwsA(isA<AssertionError>())));
+    test(
+      'Insufficient byte length',
+      () => expect(
+        () => NpyVersion.fromBytes([1]),
+        throwsA(isA<AssertionError>()),
+      ),
+    );
+    test(
+      'Exceeded byte length',
+      () => expect(
+        () => NpyVersion.fromBytes([1, 0, 0]),
+        throwsA(isA<AssertionError>()),
+      ),
+    );
     test('Create instance: Invalid major version: 0', () {
-      expect(() => NpyVersion.fromBytes([0, 0]), throwsA(const TypeMatcher<NpyInvalidVersionException>()));
+      expect(
+        () => NpyVersion.fromBytes([0, 0]),
+        throwsA(const TypeMatcher<NpyInvalidVersionException>()),
+      );
     });
     test('Create instance: Invalid major version: 4', () {
-      expect(() => NpyVersion.fromBytes([4, 0]), throwsA(const TypeMatcher<NpyInvalidVersionException>()));
+      expect(
+        () => NpyVersion.fromBytes([4, 0]),
+        throwsA(const TypeMatcher<NpyInvalidVersionException>()),
+      );
     });
     test('Create instance: Invalid minor version', () {
-      expect(() => NpyVersion.fromBytes([1, 1]), throwsA(const TypeMatcher<NpyInvalidVersionException>()));
+      expect(
+        () => NpyVersion.fromBytes([1, 1]),
+        throwsA(const TypeMatcher<NpyInvalidVersionException>()),
+      );
     });
     test('Parse major: 1, minor: 0', () {
       final parser = NpyParser();
@@ -308,62 +331,120 @@ void main() {
     test('[0, 1]', () => expect(littleEndian16ToInt([0, 1]), 256));
     test('[2, 1]', () => expect(littleEndian16ToInt([2, 1]), 258));
     test('[1, 2]', () => expect(littleEndian16ToInt([1, 2]), 513));
-    test('[4, 3, 2, 1]', () => expect(littleEndian32ToInt([4, 3, 2, 1]), 16909060));
-    test('[1, 2, 3, 4]', () => expect(littleEndian32ToInt([1, 2, 3, 4]), 67305985));
-    test('Less than 2 bytes', () => expect(() => littleEndian16ToInt([1]), throwsA(isA<AssertionError>())));
-    test('Exceed 2 bytes', () => expect(() => littleEndian16ToInt([1, 2, 3]), throwsA(isA<AssertionError>())));
-    test('Less than 4 bytes', () => expect(() => littleEndian32ToInt([1, 2, 3]), throwsA(isA<AssertionError>())));
-    test('Exceed 4 bytes', () => expect(() => littleEndian32ToInt([1, 2, 3, 3, 4]), throwsA(isA<AssertionError>())));
+    test(
+      '[4, 3, 2, 1]',
+      () => expect(littleEndian32ToInt([4, 3, 2, 1]), 16909060),
+    );
+    test(
+      '[1, 2, 3, 4]',
+      () => expect(littleEndian32ToInt([1, 2, 3, 4]), 67305985),
+    );
+    test(
+      'Less than 2 bytes',
+      () => expect(
+        () => littleEndian16ToInt([1]),
+        throwsA(isA<AssertionError>()),
+      ),
+    );
+    test(
+      'Exceed 2 bytes',
+      () => expect(
+        () => littleEndian16ToInt([1, 2, 3]),
+        throwsA(isA<AssertionError>()),
+      ),
+    );
+    test(
+      'Less than 4 bytes',
+      () => expect(
+        () => littleEndian32ToInt([1, 2, 3]),
+        throwsA(isA<AssertionError>()),
+      ),
+    );
+    test(
+      'Exceed 4 bytes',
+      () => expect(
+        () => littleEndian32ToInt([1, 2, 3, 3, 4]),
+        throwsA(isA<AssertionError>()),
+      ),
+    );
     test('[2, 1] through parser', () {
       final parser = NpyParser(version: const NpyVersion());
-      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 2, 1]);
+      parser.getHeaderSize(
+        [...magicString.codeUnits, ...parser.version!.asBytes, 2, 1],
+      );
       expect(parser.headerSize, 258);
     });
     test('[1, 2] through parser', () {
       final parser = NpyParser(version: const NpyVersion());
-      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2]);
+      parser.getHeaderSize(
+        [...magicString.codeUnits, ...parser.version!.asBytes, 1, 2],
+      );
       expect(parser.headerSize, 513);
     });
     test('Ignore parsing less than 2 bytes', () {
       final parser = NpyParser(version: const NpyVersion());
-      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 1]);
+      parser.getHeaderSize(
+        [...magicString.codeUnits, ...parser.version!.asBytes, 1],
+      );
       expect(parser.headerSize, null);
     });
     test('Ignore additional bytes after 2', () {
       final parser = NpyParser(version: const NpyVersion());
-      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3]);
+      parser.getHeaderSize(
+        [...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3],
+      );
       expect(parser.headerSize, 513);
     });
     test('[4, 3, 2, 1] through parser', () {
       final parser = NpyParser(version: const NpyVersion(major: 2));
-      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 4, 3, 2, 1]);
+      parser.getHeaderSize(
+        [...magicString.codeUnits, ...parser.version!.asBytes, 4, 3, 2, 1],
+      );
       expect(parser.headerSize, 16909060);
     });
     test('[1, 2, 3, 4] through parser', () {
       final parser = NpyParser(version: const NpyVersion(major: 2));
-      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3, 4]);
+      parser.getHeaderSize(
+        [...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3, 4],
+      );
       expect(parser.headerSize, 67305985);
     });
     test('Ignore parsing less than 4 bytes', () {
       final parser = NpyParser(version: const NpyVersion(major: 2));
-      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3]);
+      parser.getHeaderSize(
+        [...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3],
+      );
       expect(parser.headerSize, null);
     });
     test('Ignore additional bytes after 4', () {
       final parser = NpyParser(version: const NpyVersion(major: 2));
-      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2, 3, 4, 5]);
+      parser.getHeaderSize([
+        ...magicString.codeUnits,
+        ...parser.version!.asBytes,
+        1,
+        2,
+        3,
+        4,
+        5,
+      ]);
       expect(parser.headerSize, 67305985);
     });
     test('Ignore second run', () {
       final parser = NpyParser(version: const NpyVersion());
-      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 1, 2]);
+      parser.getHeaderSize(
+        [...magicString.codeUnits, ...parser.version!.asBytes, 1, 2],
+      );
       expect(parser.headerSize, 513);
-      parser.getHeaderSize([...magicString.codeUnits, ...parser.version!.asBytes, 3, 3]);
+      parser.getHeaderSize(
+        [...magicString.codeUnits, ...parser.version!.asBytes, 3, 3],
+      );
       expect(parser.headerSize, 513);
     });
     test('Return early if version not set', () {
       final parser = NpyParser();
-      parser.getHeaderSize([...magicString.codeUnits, 147, 78, 85, 77, 80, 89, 1, 0, 1, 2]);
+      parser.getHeaderSize(
+        [...magicString.codeUnits, 147, 78, 85, 77, 80, 89, 1, 0, 1, 2],
+      );
       expect(parser.headerSize, null);
     });
     test('[0x56, 0x78]', () {
@@ -389,15 +470,36 @@ void main() {
   });
 
   group('Parse NpyEndian:', () {
-    test('Little endian', () => expect(NpyEndian.fromChar('<'), NpyEndian.little));
+    test(
+      'Little endian',
+      () => expect(NpyEndian.fromChar('<'), NpyEndian.little),
+    );
     test('Big endian', () => expect(NpyEndian.fromChar('>'), NpyEndian.big));
-    test('Native byte', () => expect(NpyEndian.fromChar('='), NpyEndian.native));
+    test(
+      'Native byte',
+      () => expect(NpyEndian.fromChar('='), NpyEndian.native),
+    );
     test('None', () => expect(NpyEndian.fromChar('|'), NpyEndian.none));
     test('Invalid endian', () {
-      expect(() => NpyEndian.fromChar('!'), throwsA(const TypeMatcher<NpyInvalidEndianException>()));
+      expect(
+        () => NpyEndian.fromChar('!'),
+        throwsA(const TypeMatcher<NpyInvalidEndianException>()),
+      );
     });
-    test('Empty string', () => expect(() => NpyEndian.fromChar(''), throwsA(isA<AssertionError>())));
-    test('Two characters', () => expect(() => NpyEndian.fromChar('<>'), throwsA(isA<AssertionError>())));
+    test(
+      'Empty string',
+      () => expect(
+        () => NpyEndian.fromChar(''),
+        throwsA(isA<AssertionError>()),
+      ),
+    );
+    test(
+      'Two characters',
+      () => expect(
+        () => NpyEndian.fromChar('<>'),
+        throwsA(isA<AssertionError>()),
+      ),
+    );
   });
 
   test('Get native NpyEndian', () {
@@ -414,23 +516,53 @@ void main() {
   group('Parse NpyType:', () {
     test('Boolean type', () => expect(NpyType.fromChar('?'), NpyType.boolean));
     test('Byte type', () => expect(NpyType.fromChar('b'), NpyType.byte));
-    test('Unsigned byte type', () => expect(NpyType.fromChar('B'), NpyType.uByte));
+    test(
+      'Unsigned byte type',
+      () => expect(NpyType.fromChar('B'), NpyType.uByte),
+    );
     test('Integer type', () => expect(NpyType.fromChar('i'), NpyType.int));
-    test('Unsigned integer type', () => expect(NpyType.fromChar('u'), NpyType.uint));
+    test(
+      'Unsigned integer type',
+      () => expect(NpyType.fromChar('u'), NpyType.uint),
+    );
     test('Float type', () => expect(NpyType.fromChar('f'), NpyType.float));
     test('Complex type', () => expect(NpyType.fromChar('c'), NpyType.complex));
-    test('Time delta type', () => expect(NpyType.fromChar('m'), NpyType.timeDelta));
-    test('Date time type', () => expect(NpyType.fromChar('M'), NpyType.dateTime));
+    test(
+      'Time delta type',
+      () => expect(NpyType.fromChar('m'), NpyType.timeDelta),
+    );
+    test(
+      'Date time type',
+      () => expect(NpyType.fromChar('M'), NpyType.dateTime),
+    );
     test('Object type', () => expect(NpyType.fromChar('O'), NpyType.object));
-    test("String type, 'S' representation", () => expect(NpyType.fromChar('S'), NpyType.string));
-    test("String type, 'a' representation", () => expect(NpyType.fromChar('a'), NpyType.string));
+    test(
+      "String type, 'S' representation",
+      () => expect(NpyType.fromChar('S'), NpyType.string),
+    );
+    test(
+      "String type, 'a' representation",
+      () => expect(NpyType.fromChar('a'), NpyType.string),
+    );
     test('Unicode type', () => expect(NpyType.fromChar('U'), NpyType.unicode));
     test('Void type', () => expect(NpyType.fromChar('V'), NpyType.voidType));
     test('Invalid type', () {
-      expect(() => NpyType.fromChar('x'), throwsA(const TypeMatcher<NpyInvalidNpyTypeException>()));
+      expect(
+        () => NpyType.fromChar('x'),
+        throwsA(const TypeMatcher<NpyInvalidNpyTypeException>()),
+      );
     });
-    test('Empty string', () => expect(() => NpyType.fromChar(''), throwsA(isA<AssertionError>())));
-    test('Two characters', () => expect(() => NpyType.fromChar('fc'), throwsA(isA<AssertionError>())));
+    test(
+      'Empty string',
+      () => expect(() => NpyType.fromChar(''), throwsA(isA<AssertionError>())),
+    );
+    test(
+      'Two characters',
+      () => expect(
+        () => NpyType.fromChar('fc'),
+        throwsA(isA<AssertionError>()),
+      ),
+    );
   });
 
   group('Parse NpyDType:', () {
@@ -464,24 +596,48 @@ void main() {
       expect(dtype.type, NpyType.boolean);
       expect(dtype.itemSize, 1);
     });
-    test('|b2', () => expect(() => NpyDType.fromString('|b2'), throwsA(const TypeMatcher<NpyInvalidDTypeException>())));
+    test(
+      '|b2',
+      () => expect(
+        () => NpyDType.fromString('|b2'),
+        throwsA(const TypeMatcher<NpyInvalidDTypeException>()),
+      ),
+    );
     test('Empty string', () {
-      expect(() => NpyDType.fromString(''), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
+      expect(
+        () => NpyDType.fromString(''),
+        throwsA(const TypeMatcher<NpyInvalidDTypeException>()),
+      );
     });
     test('Unsufficient length', () {
-      expect(() => NpyDType.fromString('<f'), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
+      expect(
+        () => NpyDType.fromString('<f'),
+        throwsA(const TypeMatcher<NpyInvalidDTypeException>()),
+      );
     });
     test('Invalid descr', () {
-      expect(() => NpyDType.fromString('f>8'), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
+      expect(
+        () => NpyDType.fromString('f>8'),
+        throwsA(const TypeMatcher<NpyInvalidDTypeException>()),
+      );
     });
     test('Invalid endian', () {
-      expect(() => NpyDType.fromString('!f8'), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
+      expect(
+        () => NpyDType.fromString('!f8'),
+        throwsA(const TypeMatcher<NpyInvalidDTypeException>()),
+      );
     });
     test('Invalid type', () {
-      expect(() => NpyDType.fromString('|X8'), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
+      expect(
+        () => NpyDType.fromString('|X8'),
+        throwsA(const TypeMatcher<NpyInvalidDTypeException>()),
+      );
     });
     test('Invalid digit', () {
-      expect(() => NpyDType.fromString('>ff'), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
+      expect(
+        () => NpyDType.fromString('>ff'),
+        throwsA(const TypeMatcher<NpyInvalidDTypeException>()),
+      );
     });
   });
 
@@ -511,7 +667,10 @@ void main() {
       expect(dtype.endian, NpyEndian.big);
     });
     test('No type but invalid item size provided', () {
-      expect(() => NpyDType.fromArgs(itemSize: 2), throwsA(const TypeMatcher<NpyInvalidDTypeException>()));
+      expect(
+        () => NpyDType.fromArgs(itemSize: 2),
+        throwsA(const TypeMatcher<NpyInvalidDTypeException>()),
+      );
     });
     test('Invalid float itemSize', () {
       expect(
@@ -520,7 +679,11 @@ void main() {
       );
     });
     test('Valid float64, little endian', () {
-      final dtype = NpyDType.fromArgs(type: NpyType.float, itemSize: 8, endian: NpyEndian.little);
+      final dtype = NpyDType.fromArgs(
+        type: NpyType.float,
+        itemSize: 8,
+        endian: NpyEndian.little,
+      );
       expect(dtype.type, NpyType.float);
       expect(dtype.itemSize, 8);
       expect(dtype.endian, NpyEndian.little);
@@ -532,7 +695,11 @@ void main() {
       expect(dtype.endian, NpyEndian.getNative());
     });
     test('Valid uint32', () {
-      final dtype = NpyDType.fromArgs(type: NpyType.uint, itemSize: 4, endian: NpyEndian.big);
+      final dtype = NpyDType.fromArgs(
+        type: NpyType.uint,
+        itemSize: 4,
+        endian: NpyEndian.big,
+      );
       expect(dtype.type, NpyType.uint);
       expect(dtype.itemSize, 4);
       expect(dtype.endian, NpyEndian.big);
@@ -545,7 +712,11 @@ void main() {
     });
     test('Invalid int8 endian', () {
       expect(
-        () => NpyDType.fromArgs(type: NpyType.int, itemSize: 1, endian: NpyEndian.big),
+        () => NpyDType.fromArgs(
+          type: NpyType.int,
+          itemSize: 1,
+          endian: NpyEndian.big,
+        ),
         throwsA(isA<AssertionError>()),
       );
     });
@@ -557,7 +728,11 @@ void main() {
     });
     test('Invalid uint8 endian', () {
       expect(
-        () => NpyDType.fromArgs(type: NpyType.uint, itemSize: 1, endian: NpyEndian.big),
+        () => NpyDType.fromArgs(
+          type: NpyType.uint,
+          itemSize: 1,
+          endian: NpyEndian.big,
+        ),
         throwsA(isA<AssertionError>()),
       );
     });
@@ -568,10 +743,16 @@ void main() {
       expect(dtype.endian, NpyEndian.none);
     });
     test('Invalid boolean itemSize', () {
-      expect(() => NpyDType.fromArgs(type: NpyType.boolean, itemSize: 2), throwsA(isA<AssertionError>()));
+      expect(
+        () => NpyDType.fromArgs(type: NpyType.boolean, itemSize: 2),
+        throwsA(isA<AssertionError>()),
+      );
     });
     test('Invalid boolean endian', () {
-      expect(() => NpyDType.fromArgs(type: NpyType.boolean, endian: NpyEndian.big), throwsA(isA<AssertionError>()));
+      expect(
+        () => NpyDType.fromArgs(type: NpyType.boolean, endian: NpyEndian.big),
+        throwsA(isA<AssertionError>()),
+      );
     });
   });
 
@@ -589,15 +770,27 @@ void main() {
     test('float64, native endian, fromArgs', () {
       switch (Endian.host) {
         case Endian.little:
-          expect(NpyDType.fromArgs(type: NpyType.float, itemSize: 8).toString(), '<f8');
+          expect(
+            NpyDType.fromArgs(type: NpyType.float, itemSize: 8).toString(),
+            '<f8',
+          );
         case Endian.big:
-          expect(NpyDType.fromArgs(type: NpyType.float, itemSize: 8).toString(), '>f8');
+          expect(
+            NpyDType.fromArgs(type: NpyType.float, itemSize: 8).toString(),
+            '>f8',
+          );
         default:
           fail('Unknown endian');
       }
     });
-    test('>f4', () => expect(NpyDType.float32(endian: NpyEndian.big).toString(), '>f4'));
-    test('<i8', () => expect(NpyDType.int64(endian: NpyEndian.little).toString(), '<i8'));
+    test(
+      '>f4',
+      () => expect(NpyDType.float32(endian: NpyEndian.big).toString(), '>f4'),
+    );
+    test(
+      '<i8',
+      () => expect(NpyDType.int64(endian: NpyEndian.little).toString(), '<i8'),
+    );
     test('native i4', () {
       switch (Endian.host) {
         case Endian.little:
@@ -608,10 +801,22 @@ void main() {
           fail('Unknown endian');
       }
     });
-    test('>i2', () => expect(NpyDType.int16(endian: NpyEndian.big).toString(), '>i2'));
+    test(
+      '>i2',
+      () => expect(NpyDType.int16(endian: NpyEndian.big).toString(), '>i2'),
+    );
     test('|i1', () => expect(const NpyDType.int8().toString(), '|i1'));
-    test('>u8', () => expect(NpyDType.uint64(endian: NpyEndian.big).toString(), '>u8'));
-    test('<u4', () => expect(NpyDType.uint32(endian: NpyEndian.little).toString(), '<u4'));
+    test(
+      '>u8',
+      () => expect(NpyDType.uint64(endian: NpyEndian.big).toString(), '>u8'),
+    );
+    test(
+      '<u4',
+      () => expect(
+        NpyDType.uint32(endian: NpyEndian.little).toString(),
+        '<u4',
+      ),
+    );
     test('native u2', () {
       switch (Endian.host) {
         case Endian.little:
@@ -644,7 +849,10 @@ void main() {
       expect(header.dtype.itemSize, 4);
     });
     test('float32, [2], big endian', () {
-      final header = NpyHeader.fromList([0.1, 2.3], dtype: NpyDType.float32(endian: NpyEndian.big));
+      final header = NpyHeader.fromList(
+        [0.1, 2.3],
+        dtype: NpyDType.float32(endian: NpyEndian.big),
+      );
       expect(header.shape, [2]);
       expect(header.dtype.type, NpyType.float);
       expect(header.dtype.itemSize, 4);
@@ -716,22 +924,36 @@ void main() {
       expect(header.fortranOrder, true);
     });
     test('String throws error', () {
-      expect(() => NpyHeader.fromList(['hi']), throwsA(const TypeMatcher<NpyInvalidNpyTypeException>()));
+      expect(
+        () => NpyHeader.fromList(['hi']),
+        throwsA(const TypeMatcher<NpyInvalidNpyTypeException>()),
+      );
     });
   });
 
   group('Parse NpyHeader:', () {
     test('Empty header', () {
-      expect(() => NpyHeader.fromBytes(''.codeUnits), throwsA(const TypeMatcher<NpyInvalidHeaderException>()));
+      expect(
+        () => NpyHeader.fromBytes(''.codeUnits),
+        throwsA(const TypeMatcher<NpyInvalidHeaderException>()),
+      );
     });
     test('Only curly braces', () {
-      expect(() => NpyHeader.fromBytes('{}'.codeUnits), throwsA(const TypeMatcher<NpyInvalidHeaderException>()));
+      expect(
+        () => NpyHeader.fromBytes('{}'.codeUnits),
+        throwsA(const TypeMatcher<NpyInvalidHeaderException>()),
+      );
     });
     test('Something random', () {
-      expect(() => NpyHeader.fromBytes('xyz'.codeUnits), throwsA(const TypeMatcher<NpyInvalidHeaderException>()));
+      expect(
+        () => NpyHeader.fromBytes('xyz'.codeUnits),
+        throwsA(const TypeMatcher<NpyInvalidHeaderException>()),
+      );
     });
     test('<f8, False, (3,)', () {
-      final header = NpyHeader.fromBytes("{'descr': '<f8', 'fortran_order': False, 'shape': (3,)}".codeUnits);
+      final header = NpyHeader.fromBytes(
+        "{'descr': '<f8', 'fortran_order': False, 'shape': (3,)}".codeUnits,
+      );
       expect(header.dtype.endian, NpyEndian.little);
       expect(header.dtype.type, NpyType.float);
       expect(header.dtype.itemSize, 8);
@@ -739,7 +961,9 @@ void main() {
       expect(header.shape, [3]);
     });
     test('<f8, True, (3,)', () {
-      final header = NpyHeader.fromBytes("{'descr': '<f8', 'fortran_order': True, 'shape': (3,)}".codeUnits);
+      final header = NpyHeader.fromBytes(
+        "{'descr': '<f8', 'fortran_order': True, 'shape': (3,)}".codeUnits,
+      );
       expect(header.dtype.endian, NpyEndian.little);
       expect(header.dtype.type, NpyType.float);
       expect(header.dtype.itemSize, 8);
@@ -748,12 +972,16 @@ void main() {
     });
     test('<f8, null, (3,)', () {
       expect(
-        () => NpyHeader.fromBytes("{'descr': '<f8', 'fortran_order': null, 'shape': (3,)}".codeUnits),
+        () => NpyHeader.fromBytes(
+          "{'descr': '<f8', 'fortran_order': null, 'shape': (3,)}".codeUnits,
+        ),
         throwsA(const TypeMatcher<NpyInvalidHeaderException>()),
       );
     });
     test('>i4, True, (3,)', () {
-      final header = NpyHeader.fromBytes("{'descr': '>i4', 'fortran_order': True, 'shape': (3,)}".codeUnits);
+      final header = NpyHeader.fromBytes(
+        "{'descr': '>i4', 'fortran_order': True, 'shape': (3,)}".codeUnits,
+      );
       expect(header.dtype.endian, NpyEndian.big);
       expect(header.dtype.type, NpyType.int);
       expect(header.dtype.itemSize, 4);
@@ -761,7 +989,9 @@ void main() {
       expect(header.shape, [3]);
     });
     test('|S200, True, (3,)', () {
-      final header = NpyHeader.fromBytes("{'descr': '|S200', 'fortran_order': True, 'shape': (3,)}".codeUnits);
+      final header = NpyHeader.fromBytes(
+        "{'descr': '|S200', 'fortran_order': True, 'shape': (3,)}".codeUnits,
+      );
       expect(header.dtype.endian, NpyEndian.none);
       expect(header.dtype.type, NpyType.string);
       expect(header.dtype.itemSize, 200);
@@ -770,13 +1000,17 @@ void main() {
     });
     test('<x4, True, (3,)', () {
       expect(
-        () => NpyHeader.fromBytes("{'descr': '<x4', 'fortran_order': True, 'shape': (3,)}".codeUnits),
+        () => NpyHeader.fromBytes(
+          "{'descr': '<x4', 'fortran_order': True, 'shape': (3,)}".codeUnits,
+        ),
         throwsA(const TypeMatcher<NpyInvalidHeaderException>()),
       );
     });
     test('Missing descr', () {
       expect(
-        () => NpyHeader.fromBytes("{'fortran_order': True, 'shape': (3,)}".codeUnits),
+        () => NpyHeader.fromBytes(
+          "{'fortran_order': True, 'shape': (3,)}".codeUnits,
+        ),
         throwsA(const TypeMatcher<NpyInvalidHeaderException>()),
       );
     });
@@ -788,12 +1022,16 @@ void main() {
     });
     test('Missing shape', () {
       expect(
-        () => NpyHeader.fromBytes("{'descr': '<f8', 'fortran_order': True}".codeUnits),
+        () => NpyHeader.fromBytes(
+          "{'descr': '<f8', 'fortran_order': True}".codeUnits,
+        ),
         throwsA(const TypeMatcher<NpyInvalidHeaderException>()),
       );
     });
     test('<f8, True, ()', () {
-      final header = NpyHeader.fromBytes("{'descr': '<f8', 'fortran_order': True, 'shape': ()}".codeUnits);
+      final header = NpyHeader.fromBytes(
+        "{'descr': '<f8', 'fortran_order': True, 'shape': ()}".codeUnits,
+      );
       expect(header.dtype.endian, NpyEndian.little);
       expect(header.dtype.type, NpyType.float);
       expect(header.dtype.itemSize, 8);
@@ -801,7 +1039,9 @@ void main() {
       expect(header.shape, []);
     });
     test('<f8, True, (2, 3)', () {
-      final header = NpyHeader.fromBytes("{'descr': '<f8', 'fortran_order': True, 'shape': (2, 3)}".codeUnits);
+      final header = NpyHeader.fromBytes(
+        "{'descr': '<f8', 'fortran_order': True, 'shape': (2, 3)}".codeUnits,
+      );
       expect(header.dtype.endian, NpyEndian.little);
       expect(header.dtype.type, NpyType.float);
       expect(header.dtype.itemSize, 8);
@@ -809,8 +1049,10 @@ void main() {
       expect(header.shape, [2, 3]);
     });
     test('<f8, True, (2, 3) with extra whitespace', () {
-      final header =
-          NpyHeader.fromBytes("{' descr' :  '<f8 ' ,  ' fortran_order ':  True ,  ' shape' :  ( 2 , 3 ) }".codeUnits);
+      final header = NpyHeader.fromBytes(
+        "{' descr' :  '<f8 ' ,  ' fortran_order ':  True ,  ' shape' :  ( 2 , 3 ) }"
+            .codeUnits,
+      );
       expect(header.dtype.endian, NpyEndian.little);
       expect(header.dtype.type, NpyType.float);
       expect(header.dtype.itemSize, 8);
@@ -818,8 +1060,10 @@ void main() {
       expect(header.shape, [2, 3]);
     });
     test('<f8, True, (2, 3) with whitespace and trailing comma', () {
-      final header =
-          NpyHeader.fromBytes("{'descr' :'<f8 ' , ' fortran_order ':  True ,  ' shape' :  ( 2 , 3 ) , }".codeUnits);
+      final header = NpyHeader.fromBytes(
+        "{'descr' :'<f8 ' , ' fortran_order ':  True ,  ' shape' :  ( 2 , 3 ) , }"
+            .codeUnits,
+      );
       expect(header.dtype.endian, NpyEndian.little);
       expect(header.dtype.type, NpyType.float);
       expect(header.dtype.itemSize, 8);
@@ -827,7 +1071,9 @@ void main() {
       expect(header.shape, [2, 3]);
     });
     test('<f8, True, (2, 3, 4)', () {
-      final header = NpyHeader.fromBytes("{'descr': '<f8', 'fortran_order': True, 'shape': (2, 3, 4)}".codeUnits);
+      final header = NpyHeader.fromBytes(
+        "{'descr': '<f8', 'fortran_order': True, 'shape': (2, 3, 4)}".codeUnits,
+      );
       expect(header.dtype.endian, NpyEndian.little);
       expect(header.dtype.type, NpyType.float);
       expect(header.dtype.itemSize, 8);
@@ -836,7 +1082,9 @@ void main() {
     });
     test('Invalid shape', () {
       expect(
-        () => NpyHeader.fromBytes("{'descr': '<f8', 'fortran_order': True, 'shape': [2, 3]}".codeUnits),
+        () => NpyHeader.fromBytes(
+          "{'descr': '<f8', 'fortran_order': True, 'shape': [2, 3]}".codeUnits,
+        ),
         throwsA(const TypeMatcher<NpyInvalidHeaderException>()),
       );
     });
@@ -1012,13 +1260,22 @@ void main() {
   group('Parse data bytes:', () {
     test(
       '1 little endian float64',
-      () => expect(parseByteData([0, 0, 0, 0, 0, 0, 240, 63], NpyDType.float64(endian: NpyEndian.little)), [1.0]),
+      () => expect(
+        parseByteData(
+          [0, 0, 0, 0, 0, 0, 240, 63],
+          NpyDType.float64(endian: NpyEndian.little),
+        ),
+        [1.0],
+      ),
     );
     test(
       '2 big endian float32',
       () => expect(
         listAlmostEquals(
-          parseByteData<double>([63, 102, 102, 102, 190, 76, 204, 205], NpyDType.float32(endian: NpyEndian.big)),
+          parseByteData<double>(
+            [63, 102, 102, 102, 190, 76, 204, 205],
+            NpyDType.float32(endian: NpyEndian.big),
+          ),
           [0.9, -0.2],
         ),
         true,
@@ -1034,32 +1291,83 @@ void main() {
         [-42, 2],
       ),
     );
-    test('1 big endian int32', () => expect(parseByteData([0, 0, 0, 1], NpyDType.int32(endian: NpyEndian.big)), [1]));
+    test(
+      '1 big endian int32',
+      () => expect(
+        parseByteData([0, 0, 0, 1], NpyDType.int32(endian: NpyEndian.big)),
+        [1],
+      ),
+    );
     test(
       '2 little endian int16',
-      () => expect(parseByteData([1, 0, 2, 0], NpyDType.int16(endian: NpyEndian.little)), [1, 2]),
+      () => expect(
+        parseByteData([1, 0, 2, 0], NpyDType.int16(endian: NpyEndian.little)),
+        [1, 2],
+      ),
     );
-    test('4 int8', () => expect(parseByteData([1, 255, 3, 4], const NpyDType.int8()), [1, -1, 3, 4]));
+    test(
+      '4 int8',
+      () => expect(
+        parseByteData([1, 255, 3, 4], const NpyDType.int8()),
+        [1, -1, 3, 4],
+      ),
+    );
     test(
       '1 big endian uint64',
-      () => expect(parseByteData([0, 0, 0, 0, 0, 0, 0, 1], NpyDType.uint64(endian: NpyEndian.big)), [1]),
+      () => expect(
+        parseByteData(
+          [0, 0, 0, 0, 0, 0, 0, 1],
+          NpyDType.uint64(endian: NpyEndian.big),
+        ),
+        [1],
+      ),
     );
     test(
       '2 little endian uint32',
-      () => expect(parseByteData([1, 0, 0, 0, 2, 0, 0, 0], NpyDType.uint32(endian: NpyEndian.little)), [1, 2]),
+      () => expect(
+        parseByteData(
+          [1, 0, 0, 0, 2, 0, 0, 0],
+          NpyDType.uint32(endian: NpyEndian.little),
+        ),
+        [1, 2],
+      ),
     );
-    test('1 big endian uint16', () => expect(parseByteData([0, 1], NpyDType.uint16(endian: NpyEndian.big)), [1]));
-    test('3 uint8', () => expect(parseByteData([1, 255, 3], const NpyDType.uint8()), [1, 255, 3]));
-    test('3 bool', () => expect(parseByteData([1, 0, 1], const NpyDType.boolean()), [true, false, true]));
+    test(
+      '1 big endian uint16',
+      () => expect(
+        parseByteData([0, 1], NpyDType.uint16(endian: NpyEndian.big)),
+        [1],
+      ),
+    );
+    test(
+      '3 uint8',
+      () => expect(
+        parseByteData([1, 255, 3], const NpyDType.uint8()),
+        [1, 255, 3],
+      ),
+    );
+    test(
+      '3 bool',
+      () => expect(
+        parseByteData([1, 0, 1], const NpyDType.boolean()),
+        [true, false, true],
+      ),
+    );
   });
 
   group('Reshape:', () {
     test('Empty list', () => expect(reshape([], []), []));
     test(
       'Empty shape',
-      () => expect(() => reshape([1, 2, 3, 4, 5, 6], []), throwsA(const TypeMatcher<NpyParseException>())),
+      () => expect(
+        () => reshape([1, 2, 3, 4, 5, 6], []),
+        throwsA(const TypeMatcher<NpyParseException>()),
+      ),
     );
-    test('1D int', () => expect(reshape([1, 2, 3, 4, 5, 6], [6]), [1, 2, 3, 4, 5, 6]));
+    test(
+      '1D int',
+      () => expect(reshape([1, 2, 3, 4, 5, 6], [6]), [1, 2, 3, 4, 5, 6]),
+    );
     test('2D int', () {
       expect(reshape([1, 2, 3, 4, 5, 6], [2, 3]), [
         [1, 2, 3],
@@ -1104,9 +1412,15 @@ void main() {
     });
     test(
       'List length does not match shape',
-      () => expect(() => reshape([1, 2, 3, 4], [5]), throwsA(const TypeMatcher<NpyParseException>())),
+      () => expect(
+        () => reshape([1, 2, 3, 4], [5]),
+        throwsA(const TypeMatcher<NpyParseException>()),
+      ),
     );
-    test('Empty list, fortran oder', () => expect(reshape([], [], fortranOrder: true), []));
+    test(
+      'Empty list, fortran oder',
+      () => expect(reshape([], [], fortranOrder: true), []),
+    );
     test(
       'Empty shape, fortran order',
       () => expect(
@@ -1116,7 +1430,10 @@ void main() {
     );
     test(
       '1D int, fortran order',
-      () => expect(reshape([1, 2, 3, 4, 5, 6], [6], fortranOrder: true), [1, 2, 3, 4, 5, 6]),
+      () => expect(
+        reshape([1, 2, 3, 4, 5, 6], [6], fortranOrder: true),
+        [1, 2, 3, 4, 5, 6],
+      ),
     );
     test('2D int, fortran order', () {
       expect(reshape([1, 4, 2, 5, 3, 6], [2, 3], fortranOrder: true), [
@@ -1149,7 +1466,32 @@ void main() {
     test('3D int, fortran order', () {
       expect(
           reshape(
-            [1, 13, 5, 17, 9, 21, 2, 14, 6, 18, 10, 22, 3, 15, 7, 19, 11, 23, 4, 16, 8, 20, 12, 24],
+            [
+              1,
+              13,
+              5,
+              17,
+              9,
+              21,
+              2,
+              14,
+              6,
+              18,
+              10,
+              22,
+              3,
+              15,
+              7,
+              19,
+              11,
+              23,
+              4,
+              16,
+              8,
+              20,
+              12,
+              24,
+            ],
             [2, 3, 4],
             fortranOrder: true,
           ),
@@ -1167,52 +1509,79 @@ void main() {
           ]);
     });
     test('2D float, fortran order', () {
-      expect(reshape([1.0, 4.3, 2.1, 5.4, 3.2, 6.5], fortranOrder: true, [2, 3]), [
+      expect(
+          reshape([1.0, 4.3, 2.1, 5.4, 3.2, 6.5], fortranOrder: true, [2, 3]), [
         [1.0, 2.1, 3.2],
         [4.3, 5.4, 6.5],
       ]);
     });
     test(
       'List length does not match shape',
-      () => expect(() => reshape([1, 2, 3, 4], [5]), throwsA(const TypeMatcher<NpyParseException>())),
+      () => expect(
+        () => reshape([1, 2, 3, 4], [5]),
+        throwsA(const TypeMatcher<NpyParseException>()),
+      ),
     );
   });
 
   group('Load npy:', () {
     test('Non-existent file', () {
-      expect(NdArray.load('load_not_existent.npy'), throwsA(const TypeMatcher<NpyFileNotExistsException>()));
+      expect(
+        NdArray.load('load_not_existent.npy'),
+        throwsA(const TypeMatcher<NpyFileNotExistsException>()),
+      );
     });
     test('Pointing at current directory', () {
-      expect(NdArray.load('.'), throwsA(const TypeMatcher<NpFileOpenException>()));
+      expect(
+        NdArray.load('.'),
+        throwsA(const TypeMatcher<NpFileOpenException>()),
+      );
     });
     test('Empty file', () async {
       const filename = 'load_empty_file.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([]);
-      await expectLater(NdArray.load(filename), throwsA(const TypeMatcher<NpyParseException>()));
+      await expectLater(
+        NdArray.load(filename),
+        throwsA(const TypeMatcher<NpyParseException>()),
+      );
       tmpFile.deleteSync();
     });
     test('Insufficient length', () async {
       const filename = 'load_insufficient_length.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([1, 2, 3]);
-      await expectLater(NdArray.load(filename), throwsA(const TypeMatcher<NpyParseException>()));
+      await expectLater(
+        NdArray.load(filename),
+        throwsA(const TypeMatcher<NpyParseException>()),
+      );
       tmpFile.deleteSync();
     });
     test('Invalid magic string', () async {
       const filename = 'load_invalid_magic_string.tmp';
       final tmpFile = File(filename)..writeAsBytesSync([1, 2, 3, 4, 5, 6]);
-      await expectLater(NdArray.load(filename), throwsA(const TypeMatcher<NpyParseException>()));
+      await expectLater(
+        NdArray.load(filename),
+        throwsA(const TypeMatcher<NpyParseException>()),
+      );
       tmpFile.deleteSync();
     });
     test('Invalid major version', () async {
       const filename = 'load_invalid_major_version.tmp';
-      final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 4, 0]);
-      await expectLater(NdArray.load(filename), throwsA(const TypeMatcher<NpyParseException>()));
+      final tmpFile = File(filename)
+        ..writeAsBytesSync([...magicString.codeUnits, 4, 0]);
+      await expectLater(
+        NdArray.load(filename),
+        throwsA(const TypeMatcher<NpyParseException>()),
+      );
       tmpFile.deleteSync();
     });
     test('Invalid minor version', () async {
       const filename = 'load_invalid_minor_version.tmp';
-      final tmpFile = File(filename)..writeAsBytesSync([...magicString.codeUnits, 1, 1]);
-      await expectLater(NdArray.load(filename), throwsA(const TypeMatcher<NpyParseException>()));
+      final tmpFile = File(filename)
+        ..writeAsBytesSync([...magicString.codeUnits, 1, 1]);
+      await expectLater(
+        NdArray.load(filename),
+        throwsA(const TypeMatcher<NpyParseException>()),
+      );
       tmpFile.deleteSync();
     });
     test('Empty list', () async {
@@ -1232,7 +1601,25 @@ void main() {
       const filename = 'load_float_list.tmp';
       final headerSection = NpyHeaderSection.fromList([1.0, -2.1]);
       final tmpFile = File(filename)
-        ..writeAsBytesSync([...headerSection.asBytes, 0, 0, 0, 0, 0, 0, 240, 63, 205, 204, 204, 204, 204, 204, 0, 192]);
+        ..writeAsBytesSync([
+          ...headerSection.asBytes,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          240,
+          63,
+          205,
+          204,
+          204,
+          204,
+          204,
+          204,
+          0,
+          192,
+        ]);
       final ndarray = await NdArray.load(filename);
       expect(ndarray.headerSection.header.dtype.endian, NpyEndian.little);
       expect(ndarray.headerSection.header.dtype.type, NpyType.float);
@@ -1244,8 +1631,12 @@ void main() {
     });
     test('1d uint list', () async {
       const filename = 'load_uint_list.tmp';
-      final headerSection = NpyHeaderSection.fromList([4294967295, 1], dtype: NpyDType.uint32());
-      final tmpFile = File(filename)..writeAsBytesSync([...headerSection.asBytes, 255, 255, 255, 255, 1, 0, 0, 0]);
+      final headerSection =
+          NpyHeaderSection.fromList([4294967295, 1], dtype: NpyDType.uint32());
+      final tmpFile = File(filename)
+        ..writeAsBytesSync(
+          [...headerSection.asBytes, 255, 255, 255, 255, 1, 0, 0, 0],
+        );
       final ndarray = await NdArray.load(filename);
       expect(ndarray.headerSection.header.dtype.type, NpyType.uint);
       expect(ndarray.headerSection.header.shape, [2]);
@@ -1262,7 +1653,9 @@ void main() {
         dtype: NpyDType.int16(),
       );
       final tmpFile = File(filename)
-        ..writeAsBytesSync([...headerSection.asBytes, 255, 255, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0]);
+        ..writeAsBytesSync(
+          [...headerSection.asBytes, 255, 255, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0],
+        );
       final ndarray = await NdArray.load(filename);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
       expect(ndarray.headerSection.header.dtype.itemSize, 2);
@@ -1276,7 +1669,8 @@ void main() {
     test('1d bool list', () async {
       const filename = 'load_bool_list.tmp';
       final headerSection = NpyHeaderSection.fromList([true, false]);
-      final tmpFile = File(filename)..writeAsBytesSync([...headerSection.asBytes, 1, 0]);
+      final tmpFile = File(filename)
+        ..writeAsBytesSync([...headerSection.asBytes, 1, 0]);
       final ndarray = await NdArray.load(filename);
       expect(ndarray.headerSection.header.shape, [2]);
       expect(ndarray.data, [true, false]);
@@ -1286,7 +1680,25 @@ void main() {
       const filename = 'load_float_list_bytewise.tmp';
       final headerSection = NpyHeaderSection.fromList([1.0, -2.1]);
       final tmpFile = File(filename)
-        ..writeAsBytesSync([...headerSection.asBytes, 0, 0, 0, 0, 0, 0, 240, 63, 205, 204, 204, 204, 204, 204, 0, 192]);
+        ..writeAsBytesSync([
+          ...headerSection.asBytes,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          240,
+          63,
+          205,
+          204,
+          204,
+          204,
+          204,
+          204,
+          0,
+          192,
+        ]);
       final ndarray = await NdArray.load(filename, bufferSize: 1);
       expect(ndarray.headerSection.header.dtype.endian, NpyEndian.little);
       expect(ndarray.headerSection.header.dtype.type, NpyType.float);
@@ -1311,7 +1723,10 @@ void main() {
         ],
         fortranOrder: true,
       );
-      final tmpFile = File(filename)..writeAsBytesSync([...headerSection.asBytes, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]);
+      final tmpFile = File(filename)
+        ..writeAsBytesSync(
+          [...headerSection.asBytes, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+        );
       final ndarray = await NdArray.load(filename, bufferSize: 1);
       expect(ndarray.headerSection.header.fortranOrder, true);
       expect(ndarray.headerSection.header.dtype.type, NpyType.boolean);
@@ -1340,14 +1755,23 @@ void main() {
   });
 
   group('Cannot be ASCII endoded:', () {
-    test('Empty String', () => expect(NpyVersion.cannotBeAsciiEncoded(''), false));
-    test('Blank space', () => expect(NpyVersion.cannotBeAsciiEncoded(' '), false));
+    test(
+      'Empty String',
+      () => expect(NpyVersion.cannotBeAsciiEncoded(''), false),
+    );
+    test(
+      'Blank space',
+      () => expect(NpyVersion.cannotBeAsciiEncoded(' '), false),
+    );
     test('abc', () => expect(NpyVersion.cannotBeAsciiEncoded('abc'), false));
     test('~', () => expect(NpyVersion.cannotBeAsciiEncoded('~'), false));
     test('\x79', () => expect(NpyVersion.cannotBeAsciiEncoded('\x79'), false));
     test('\x80', () => expect(NpyVersion.cannotBeAsciiEncoded('\x80'), true));
     test('€', () => expect(NpyVersion.cannotBeAsciiEncoded('€'), true));
-    test('42.50 €', () => expect(NpyVersion.cannotBeAsciiEncoded('42.50 €'), true));
+    test(
+      '42.50 €',
+      () => expect(NpyVersion.cannotBeAsciiEncoded('42.50 €'), true),
+    );
   });
 
   group('Build header string:', () {
@@ -1357,7 +1781,10 @@ void main() {
         fortranOrder: false,
         shape: [],
       );
-      expect(header.string, "{'descr': '<f8', 'fortran_order': False, 'shape': (), }");
+      expect(
+        header.string,
+        "{'descr': '<f8', 'fortran_order': False, 'shape': (), }",
+      );
     });
     test('<f8, True, ()', () {
       final header = NpyHeader.buildString(
@@ -1365,7 +1792,10 @@ void main() {
         fortranOrder: true,
         shape: [],
       );
-      expect(header.string, "{'descr': '<f8', 'fortran_order': True, 'shape': (), }");
+      expect(
+        header.string,
+        "{'descr': '<f8', 'fortran_order': True, 'shape': (), }",
+      );
     });
     test('>i4, True, ()', () {
       final header = NpyHeader.buildString(
@@ -1373,7 +1803,10 @@ void main() {
         fortranOrder: true,
         shape: [],
       );
-      expect(header.string, "{'descr': '>i4', 'fortran_order': True, 'shape': (), }");
+      expect(
+        header.string,
+        "{'descr': '>i4', 'fortran_order': True, 'shape': (), }",
+      );
     });
     test('<i2, True, (3,)', () {
       final header = NpyHeader.buildString(
@@ -1381,7 +1814,10 @@ void main() {
         fortranOrder: true,
         shape: [3],
       );
-      expect(header.string, "{'descr': '<i2', 'fortran_order': True, 'shape': (3,), }");
+      expect(
+        header.string,
+        "{'descr': '<i2', 'fortran_order': True, 'shape': (3,), }",
+      );
     });
     test('>f4, True, (3, 4)', () {
       final header = NpyHeader.buildString(
@@ -1389,7 +1825,10 @@ void main() {
         fortranOrder: true,
         shape: [3, 4],
       );
-      expect(header.string, "{'descr': '>f4', 'fortran_order': True, 'shape': (3, 4), }");
+      expect(
+        header.string,
+        "{'descr': '>f4', 'fortran_order': True, 'shape': (3, 4), }",
+      );
     });
   });
 
@@ -1404,9 +1843,18 @@ void main() {
 
   group('Flatten:', () {
     test('Empty list, C order', () => expect(flattenCOrder([]), []));
-    test('1D int, C order', () => expect(flattenCOrder([1, 2, 3, 4, 5, 6]), [1, 2, 3, 4, 5, 6]));
-    test('1D int, C order, expect int', () => expect(flattenCOrder<int>([1, 2, 3]), [1, 2, 3]));
-    test('1D int, C order, expect wrong type', () => expect(() => flattenCOrder<bool>([1]), throwsA(isA<TypeError>())));
+    test(
+      '1D int, C order',
+      () => expect(flattenCOrder([1, 2, 3, 4, 5, 6]), [1, 2, 3, 4, 5, 6]),
+    );
+    test(
+      '1D int, C order, expect int',
+      () => expect(flattenCOrder<int>([1, 2, 3]), [1, 2, 3]),
+    );
+    test(
+      '1D int, C order, expect wrong type',
+      () => expect(() => flattenCOrder<bool>([1]), throwsA(isA<TypeError>())),
+    );
     test(
       '2D int, C order',
       () => expect(
@@ -1449,18 +1897,30 @@ void main() {
         [1, 2, 3, 4, 5, 6, 7, 8],
       ),
     );
-    test('Empty list, Fortran order', () => expect(flattenFortranOrder([], shape: []), []));
+    test(
+      'Empty list, Fortran order',
+      () => expect(flattenFortranOrder([], shape: []), []),
+    );
     test(
       '1D int, Fortran order',
-      () => expect(flattenFortranOrder([1, 2, 3, 4, 5, 6], shape: [6]), [1, 2, 3, 4, 5, 6]),
+      () => expect(
+        flattenFortranOrder([1, 2, 3, 4, 5, 6], shape: [6]),
+        [1, 2, 3, 4, 5, 6],
+      ),
     );
     test(
       '1D int, Fortran order, expect int',
-      () => expect(flattenFortranOrder<int>([1, 2, 3, 4, 5, 6], shape: [6]), [1, 2, 3, 4, 5, 6]),
+      () => expect(
+        flattenFortranOrder<int>([1, 2, 3, 4, 5, 6], shape: [6]),
+        [1, 2, 3, 4, 5, 6],
+      ),
     );
     test(
       '1D int, Fortran order, expect wrong type',
-      () => expect(() => flattenFortranOrder<double>([1], shape: [1]), throwsA(isA<TypeError>())),
+      () => expect(
+        () => flattenFortranOrder<double>([1], shape: [1]),
+        throwsA(isA<TypeError>()),
+      ),
     );
     test(
       '2D int, Fortran order',
@@ -1519,7 +1979,32 @@ void main() {
           ],
           shape: [2, 3, 4],
         ),
-        [1, 13, 5, 17, 9, 21, 2, 14, 6, 18, 10, 22, 3, 15, 7, 19, 11, 23, 4, 16, 8, 20, 12, 24],
+        [
+          1,
+          13,
+          5,
+          17,
+          9,
+          21,
+          2,
+          14,
+          6,
+          18,
+          10,
+          22,
+          3,
+          15,
+          7,
+          19,
+          11,
+          23,
+          4,
+          16,
+          8,
+          20,
+          12,
+          24,
+        ],
       );
     });
     test('3D int, fortran order, expect int', () {
@@ -1539,7 +2024,32 @@ void main() {
           ],
           shape: [2, 3, 4],
         ),
-        [1, 13, 5, 17, 9, 21, 2, 14, 6, 18, 10, 22, 3, 15, 7, 19, 11, 23, 4, 16, 8, 20, 12, 24],
+        [
+          1,
+          13,
+          5,
+          17,
+          9,
+          21,
+          2,
+          14,
+          6,
+          18,
+          10,
+          22,
+          3,
+          15,
+          7,
+          19,
+          11,
+          23,
+          4,
+          16,
+          8,
+          20,
+          12,
+          24,
+        ],
       );
     });
   });
@@ -1642,7 +2152,10 @@ void main() {
       expect(dataBytes.elementAt(5), 0);
     });
     test('[1, 200], big endian', () {
-      final ndarray = NdArray.fromList(const [1, 200], dtype: NpyDType.int32(endian: NpyEndian.big));
+      final ndarray = NdArray.fromList(
+        const [1, 200],
+        dtype: NpyDType.int32(endian: NpyEndian.big),
+      );
       expect(ndarray.data, const [1, 200]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.int);
       final dataBytes = ndarray.dataBytes;
@@ -1654,7 +2167,10 @@ void main() {
       expect(dataBytes.last, 200);
     });
     test('[0.5, 2.0]', () {
-      final ndarray = NdArray.fromList(const [0.5, 2.0], dtype: NpyDType.float32(endian: NpyEndian.little));
+      final ndarray = NdArray.fromList(
+        const [0.5, 2.0],
+        dtype: NpyDType.float32(endian: NpyEndian.little),
+      );
       expect(ndarray.data, const [0.5, 2.0]);
       expect(ndarray.headerSection.header.dtype.type, NpyType.float);
       final dataBytes = ndarray.dataBytes;
@@ -1874,7 +2390,8 @@ void main() {
       final bytes = File(filename).readAsBytesSync();
       expect(bytes.length, 128);
       File(filename).delete();
-      final headerSection = NpyHeaderSection.fromHeader(NpyHeader.fromBytes(bytes));
+      final headerSection =
+          NpyHeaderSection.fromHeader(NpyHeader.fromBytes(bytes));
       expect(headerSection.header.fortranOrder, false);
       expect(headerSection.header.dtype.endian, NpyEndian.little);
       expect(headerSection.header.dtype.type, NpyType.float);
@@ -1886,7 +2403,9 @@ void main() {
       await save(filename, [true, false]);
       final bytes = File(filename).readAsBytesSync();
       File(filename).delete();
-      final headerSection = NpyHeaderSection.fromHeader(NpyHeader.fromBytes(bytes.sublist(0, 128)));
+      final headerSection = NpyHeaderSection.fromHeader(
+        NpyHeader.fromBytes(bytes.sublist(0, 128)),
+      );
       expect(headerSection.header.fortranOrder, false);
       expect(headerSection.header.dtype.endian, NpyEndian.none);
       expect(headerSection.header.dtype.type, NpyType.boolean);
@@ -1903,7 +2422,9 @@ void main() {
       ]);
       final bytes = File(filename).readAsBytesSync();
       File(filename).delete();
-      final headerSection = NpyHeaderSection.fromHeader(NpyHeader.fromBytes(bytes.sublist(0, 128)));
+      final headerSection = NpyHeaderSection.fromHeader(
+        NpyHeader.fromBytes(bytes.sublist(0, 128)),
+      );
       expect(headerSection.header.fortranOrder, false);
       expect(headerSection.header.dtype.endian, NpyEndian.little);
       expect(headerSection.header.dtype.type, NpyType.float);
@@ -1982,13 +2503,40 @@ void main() {
       );
       final bytes = File(filename).readAsBytesSync();
       File(filename).delete();
-      final headerSection = NpyHeaderSection.fromHeader(NpyHeader.fromBytes(bytes.sublist(0, 128)));
+      final headerSection = NpyHeaderSection.fromHeader(
+        NpyHeader.fromBytes(bytes.sublist(0, 128)),
+      );
       expect(headerSection.header.dtype.type, NpyType.int);
       expect(headerSection.header.dtype.endian, NpyEndian.big);
       expect(headerSection.header.fortranOrder, true);
       expect(headerSection.header.dtype.itemSize, 2);
       expect(headerSection.header.shape, [2, 2, 3]);
-      expect(bytes.sublist(128), [0, 1, 0, 7, 0, 4, 0, 10, 0, 2, 0, 8, 0, 5, 0, 11, 0, 3, 0, 9, 0, 6, 0, 12]);
+      expect(bytes.sublist(128), [
+        0,
+        1,
+        0,
+        7,
+        0,
+        4,
+        0,
+        10,
+        0,
+        2,
+        0,
+        8,
+        0,
+        5,
+        0,
+        11,
+        0,
+        3,
+        0,
+        9,
+        0,
+        6,
+        0,
+        12,
+      ]);
     });
   });
 
@@ -1998,7 +2546,9 @@ void main() {
       await NdArray.fromList(const [-1.0, 2.2, -4.2]).save(filename);
       final bytes = File(filename).readAsBytesSync();
       File(filename).delete();
-      final headerSection = NpyHeaderSection.fromHeader(NpyHeader.fromBytes(bytes.sublist(0, 128)));
+      final headerSection = NpyHeaderSection.fromHeader(
+        NpyHeader.fromBytes(bytes.sublist(0, 128)),
+      );
       expect(headerSection.header.fortranOrder, false);
       expect(headerSection.header.dtype.endian, NpyEndian.little);
       expect(headerSection.header.dtype.type, NpyType.float);
@@ -2051,24 +2601,57 @@ void main() {
       ).save(filename);
       final bytes = File(filename).readAsBytesSync();
       File(filename).delete();
-      final headerSection = NpyHeaderSection.fromHeader(NpyHeader.fromBytes(bytes.sublist(0, 128)));
+      final headerSection = NpyHeaderSection.fromHeader(
+        NpyHeader.fromBytes(bytes.sublist(0, 128)),
+      );
       expect(headerSection.header.dtype.type, NpyType.uint);
       expect(headerSection.header.dtype.endian, NpyEndian.big);
       expect(headerSection.header.fortranOrder, true);
       expect(headerSection.header.dtype.itemSize, 2);
       expect(headerSection.header.shape, [2, 3, 2]);
-      expect(bytes.sublist(128), [0, 1, 0, 7, 0, 3, 0, 9, 0, 5, 0, 11, 0, 2, 0, 8, 0, 4, 0, 10, 0, 6, 0, 12]);
+      expect(bytes.sublist(128), [
+        0,
+        1,
+        0,
+        7,
+        0,
+        3,
+        0,
+        9,
+        0,
+        5,
+        0,
+        11,
+        0,
+        2,
+        0,
+        8,
+        0,
+        4,
+        0,
+        10,
+        0,
+        6,
+        0,
+        12,
+      ]);
     });
   });
 
   group('Load npz file:', () {
     test('Unexisting file', () {
-      expect(NpzFile.load('load_unexistent_file.npz'), throwsA(const TypeMatcher<PathNotFoundException>()));
+      expect(
+        NpzFile.load('load_unexistent_file.npz'),
+        throwsA(const TypeMatcher<PathNotFoundException>()),
+      );
     });
     test('Not a zip file (missing end of central directory record)', () async {
       const filename = 'load_empty_file.npz';
       final file = File(filename)..createSync();
-      await expectLater(NpzFile.load(filename), throwsA(const TypeMatcher<FormatException>()));
+      await expectLater(
+        NpzFile.load(filename),
+        throwsA(const TypeMatcher<FormatException>()),
+      );
       file.deleteSync();
     });
     test('Empty zip file (only has end of central directory record)', () async {
@@ -2082,9 +2665,13 @@ void main() {
     });
     test('Single file that is not an npy file', () async {
       const filename = 'load_non_npy_file.npz';
-      final bytes = ZipEncoder().encode(Archive()..addFile(ArchiveFile.string('empty_file.txt', '')));
+      final bytes = ZipEncoder()
+          .encode(Archive()..addFile(ArchiveFile.string('empty_file.txt', '')));
       final file = File(filename)..writeAsBytesSync(bytes!);
-      await expectLater(NpzFile.load(filename), throwsA(const TypeMatcher<NpyParseException>()));
+      await expectLater(
+        NpzFile.load(filename),
+        throwsA(const TypeMatcher<NpyParseException>()),
+      );
       file.deleteSync();
     });
     test('Single ndarray', () async {
@@ -2095,7 +2682,9 @@ void main() {
       ]);
       final npyFile = File(npyFilename);
       final npyBytes = npyFile.readAsBytesSync();
-      final npzBytes = ZipEncoder().encode(Archive()..addFile(ArchiveFile(npyFilename, npyBytes.length, npyBytes)));
+      final npzBytes = ZipEncoder().encode(
+        Archive()..addFile(ArchiveFile(npyFilename, npyBytes.length, npyBytes)),
+      );
       npyFile.deleteSync();
       final file = File(filename)..writeAsBytesSync(npzBytes!);
       final npzFile = await NpzFile.load(filename);
@@ -2103,8 +2692,14 @@ void main() {
       expect(npzFile.files[npyFilename]?.data, [
         [.111, 2.22, -33.3],
       ]);
-      expect(npzFile.files[npyFilename]?.headerSection.header.dtype.type, NpyType.float);
-      expect(npzFile.files[npyFilename]?.headerSection.header.dtype.itemSize, 8);
+      expect(
+        npzFile.files[npyFilename]?.headerSection.header.dtype.type,
+        NpyType.float,
+      );
+      expect(
+        npzFile.files[npyFilename]?.headerSection.header.dtype.itemSize,
+        8,
+      );
       expect(npzFile.files[npyFilename]?.headerSection.header.shape, [1, 3]);
       file.deleteSync();
     });
@@ -2140,10 +2735,22 @@ void main() {
       final npzFile = await NpzFile.load(filename);
       expect(npzFile.files.length, 2);
       expect(npzFile.files[npyFilename1]?.data, [0.123, -4.567]);
-      expect(npzFile.files[npyFilename1]?.headerSection.header.dtype.type, NpyType.float);
-      expect(npzFile.files[npyFilename1]?.headerSection.header.dtype.itemSize, 8);
-      expect(npzFile.files[npyFilename1]?.headerSection.header.dtype.endian, NpyEndian.little);
-      expect(npzFile.files[npyFilename1]?.headerSection.header.fortranOrder, false);
+      expect(
+        npzFile.files[npyFilename1]?.headerSection.header.dtype.type,
+        NpyType.float,
+      );
+      expect(
+        npzFile.files[npyFilename1]?.headerSection.header.dtype.itemSize,
+        8,
+      );
+      expect(
+        npzFile.files[npyFilename1]?.headerSection.header.dtype.endian,
+        NpyEndian.little,
+      );
+      expect(
+        npzFile.files[npyFilename1]?.headerSection.header.fortranOrder,
+        false,
+      );
       expect(npzFile.files[npyFilename1]?.headerSection.header.shape, [2]);
       expect(npzFile.files[npyFilename2]?.data, [
         [
@@ -2152,11 +2759,26 @@ void main() {
           [5, 6],
         ]
       ]);
-      expect(npzFile.files[npyFilename2]?.headerSection.header.dtype.type, NpyType.uint);
-      expect(npzFile.files[npyFilename2]?.headerSection.header.dtype.itemSize, 2);
-      expect(npzFile.files[npyFilename2]?.headerSection.header.dtype.endian, NpyEndian.big);
-      expect(npzFile.files[npyFilename2]?.headerSection.header.fortranOrder, true);
-      expect(npzFile.files[npyFilename2]?.headerSection.header.shape, [1, 3, 2]);
+      expect(
+        npzFile.files[npyFilename2]?.headerSection.header.dtype.type,
+        NpyType.uint,
+      );
+      expect(
+        npzFile.files[npyFilename2]?.headerSection.header.dtype.itemSize,
+        2,
+      );
+      expect(
+        npzFile.files[npyFilename2]?.headerSection.header.dtype.endian,
+        NpyEndian.big,
+      );
+      expect(
+        npzFile.files[npyFilename2]?.headerSection.header.fortranOrder,
+        true,
+      );
+      expect(
+        npzFile.files[npyFilename2]?.headerSection.header.shape,
+        [1, 3, 2],
+      );
       file.deleteSync();
     });
     test('Two ndarrays, compressed', () async {
@@ -2192,10 +2814,22 @@ void main() {
       final npzFile = await NpzFile.load(filename);
       expect(npzFile.files.length, 2);
       expect(npzFile.files[npyFilename1]?.data, [0.123, -4.567]);
-      expect(npzFile.files[npyFilename1]?.headerSection.header.dtype.type, NpyType.float);
-      expect(npzFile.files[npyFilename1]?.headerSection.header.dtype.itemSize, 8);
-      expect(npzFile.files[npyFilename1]?.headerSection.header.dtype.endian, NpyEndian.little);
-      expect(npzFile.files[npyFilename1]?.headerSection.header.fortranOrder, false);
+      expect(
+        npzFile.files[npyFilename1]?.headerSection.header.dtype.type,
+        NpyType.float,
+      );
+      expect(
+        npzFile.files[npyFilename1]?.headerSection.header.dtype.itemSize,
+        8,
+      );
+      expect(
+        npzFile.files[npyFilename1]?.headerSection.header.dtype.endian,
+        NpyEndian.little,
+      );
+      expect(
+        npzFile.files[npyFilename1]?.headerSection.header.fortranOrder,
+        false,
+      );
       expect(npzFile.files[npyFilename1]?.headerSection.header.shape, [2]);
       expect(npzFile.files[npyFilename2]?.data, [
         [
@@ -2204,11 +2838,26 @@ void main() {
           [5, 6],
         ]
       ]);
-      expect(npzFile.files[npyFilename2]?.headerSection.header.dtype.type, NpyType.uint);
-      expect(npzFile.files[npyFilename2]?.headerSection.header.dtype.itemSize, 2);
-      expect(npzFile.files[npyFilename2]?.headerSection.header.dtype.endian, NpyEndian.big);
-      expect(npzFile.files[npyFilename2]?.headerSection.header.fortranOrder, true);
-      expect(npzFile.files[npyFilename2]?.headerSection.header.shape, [1, 3, 2]);
+      expect(
+        npzFile.files[npyFilename2]?.headerSection.header.dtype.type,
+        NpyType.uint,
+      );
+      expect(
+        npzFile.files[npyFilename2]?.headerSection.header.dtype.itemSize,
+        2,
+      );
+      expect(
+        npzFile.files[npyFilename2]?.headerSection.header.dtype.endian,
+        NpyEndian.big,
+      );
+      expect(
+        npzFile.files[npyFilename2]?.headerSection.header.fortranOrder,
+        true,
+      );
+      expect(
+        npzFile.files[npyFilename2]?.headerSection.header.shape,
+        [1, 3, 2],
+      );
       file.deleteSync();
     });
   });
@@ -2274,7 +2923,8 @@ void main() {
         ],
         dtype: NpyDType.int16(endian: NpyEndian.big),
       );
-      await NpzFile({npyFilename1: ndarray1, npyFilename2: ndarray2}).save(filename);
+      await NpzFile({npyFilename1: ndarray1, npyFilename2: ndarray2})
+          .save(filename);
       final file = File(filename);
       final npzFile = await NpzFile.load(filename);
       expect(npzFile.files.length, 2);
@@ -2319,7 +2969,8 @@ void main() {
         ],
         dtype: NpyDType.int16(endian: NpyEndian.big),
       );
-      await NpzFile({npyFilename1: ndarray1, npyFilename2: ndarray2}).save(filename, isCompressed: true);
+      await NpzFile({npyFilename1: ndarray1, npyFilename2: ndarray2})
+          .save(filename, isCompressed: true);
       final file = File(filename);
       final npzFile = await NpzFile.load(filename);
       expect(npzFile.files.length, 2);
@@ -2354,8 +3005,8 @@ void main() {
       await npzFile.save(filename);
       final loadedNpzFile = await NpzFile.load(filename);
       expect(loadedNpzFile.files.length, 2);
-      expect(loadedNpzFile.files['arr_0.npy']?.data, [true, true, false]);
-      expect(loadedNpzFile.files['arr_1.npy']?.data, [
+      expect(loadedNpzFile.take('arr_0.npy').data, [true, true, false]);
+      expect(loadedNpzFile.take('arr_1.npy').data, [
         [-1.1, 2.2, -3.3],
       ]);
       File(filename).deleteSync();
@@ -2384,7 +3035,8 @@ void main() {
       final npzFile = NpzFile();
       npzFile.add(NdArray.fromList([true, true, false]));
       expect(
-        () => npzFile.add(NdArray.fromList([-1.1, 2.2, -3.3]), name: 'arr_0.npy'),
+        () =>
+            npzFile.add(NdArray.fromList([-1.1, 2.2, -3.3]), name: 'arr_0.npy'),
         throwsA(isA<NpyFileExistsException>()),
       );
     });
@@ -2422,7 +3074,19 @@ void main() {
       final npzFile = NpzFile();
       npzFile.add(NdArray.fromList([true, true, false]), name: '  abc   ');
       expect(npzFile.files.length, 1);
-      expect(npzFile.files['abc']?.data, [true, true, false]);
+      expect(npzFile.take('abc').data, [true, true, false]);
+    });
+  });
+
+  group('Take ndarray from NpzFile:', () {
+    test('One file exists, one does not', () {
+      final npzFile = NpzFile();
+      npzFile.add(NdArray.fromList([1, 2, 3]));
+      expect(npzFile.take('arr_0.npy').data, [1, 2, 3]);
+      expect(
+        () => npzFile.take('arr_1.npy'),
+        throwsA(isA<NpyFileNotExistsException>()),
+      );
     });
   });
 }

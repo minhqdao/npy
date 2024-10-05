@@ -2,7 +2,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:npy/src/npy_exception.dart';
-import 'package:npy/src/npy_ndarray.dart';
+import 'package:npy/src/npy_header.dart';
 
 class NpyParser<T> {
   NpyParser({
@@ -38,35 +38,60 @@ class NpyParser<T> {
   bool get isCompleted => _isCompleted;
 
   void checkMagicString(List<int> buffer) {
-    if (_hasPassedMagicStringCheck || buffer.length < magicString.length) return;
+    if (_hasPassedMagicStringCheck || buffer.length < magicString.length) {
+      return;
+    }
     for (int i = 0; i < magicString.length; i++) {
-      if (magicString.codeUnitAt(i) != buffer[i]) throw const NpyParseException('Invalid magic string.');
+      if (magicString.codeUnitAt(i) != buffer[i]) {
+        throw const NpyParseException('Invalid magic string.');
+      }
     }
     _hasPassedMagicStringCheck = true;
   }
 
   void getVersion(List<int> buffer) {
-    if (_version != null || buffer.length < magicString.length + NpyVersion.numberOfReservedBytes) return;
-    _version = NpyVersion.fromBytes(buffer.skip(magicString.length).take(NpyVersion.numberOfReservedBytes));
+    if (_version != null ||
+        buffer.length < magicString.length + NpyVersion.numberOfReservedBytes) {
+      return;
+    }
+    _version = NpyVersion.fromBytes(
+      buffer.skip(magicString.length).take(NpyVersion.numberOfReservedBytes),
+    );
   }
 
   void getHeaderSize(List<int> buffer) {
     const bytesTaken = magicString.length + NpyVersion.numberOfReservedBytes;
-    if (_headerSize != null || _version == null || buffer.length < bytesTaken + _version!.numberOfHeaderBytes) return;
-    final relevantBytes = buffer.skip(bytesTaken).take(_version!.numberOfHeaderBytes).toList();
-    _headerSize = _version!.major == 1 ? littleEndian16ToInt(relevantBytes) : littleEndian32ToInt(relevantBytes);
+    if (_headerSize != null ||
+        _version == null ||
+        buffer.length < bytesTaken + _version!.numberOfHeaderBytes) return;
+    final relevantBytes =
+        buffer.skip(bytesTaken).take(_version!.numberOfHeaderBytes).toList();
+    _headerSize = _version!.major == 1
+        ? littleEndian16ToInt(relevantBytes)
+        : littleEndian32ToInt(relevantBytes);
   }
 
   void getHeader(List<int> buffer) {
     if (_header != null || _version == null || _headerSize == null) return;
-    final bytesTaken = magicString.length + NpyVersion.numberOfReservedBytes + _version!.numberOfHeaderBytes;
+    final bytesTaken = magicString.length +
+        NpyVersion.numberOfReservedBytes +
+        _version!.numberOfHeaderBytes;
     if (buffer.length < bytesTaken + _headerSize!) return;
-    _header = NpyHeader.fromBytes(buffer.skip(bytesTaken).take(_headerSize!).toList());
+    _header = NpyHeader.fromBytes(
+      buffer.skip(bytesTaken).take(_headerSize!).toList(),
+    );
   }
 
   void buildHeaderSection() {
-    if (_headerSection != null || _header == null || _headerSize == null || _version == null) return;
-    _headerSection = NpyHeaderSection(version: _version!, headerSize: _headerSize!, header: _header!);
+    if (_headerSection != null ||
+        _header == null ||
+        _headerSize == null ||
+        _version == null) return;
+    _headerSection = NpyHeaderSection(
+      version: _version!,
+      headerSize: _headerSize!,
+      header: _header!,
+    );
   }
 
   void getData(List<int> buffer) {
@@ -92,17 +117,28 @@ class NpyParser<T> {
     final elementsToProcess = min(remainingElements, elementsInBuffer);
 
     _rawData.addAll(
-      parseByteData<T>(buffer.sublist(_dataOffset, _dataOffset + elementsToProcess * itemSize), header!.dtype),
+      parseByteData<T>(
+        buffer.sublist(
+          _dataOffset,
+          _dataOffset + elementsToProcess * itemSize,
+        ),
+        header!.dtype,
+      ),
     );
     _elementsRead += elementsToProcess;
 
     if (_elementsRead != totalElements) return;
-    _data = reshape<T>(_rawData, _header!.shape, fortranOrder: _header!.fortranOrder);
+    _data = reshape<T>(
+      _rawData,
+      _header!.shape,
+      fortranOrder: _header!.fortranOrder,
+    );
     _isCompleted = true;
   }
 }
 
-/// Parse byte data according to the [header] metadata and return a one-dimensional [List] of values.
+/// Parse byte data according to the [dtype] and return a one-dimensional,
+/// flattened [List] of values.
 List<T> parseByteData<T>(List<int> bytes, NpyDType dtype) {
   final numberOfElements = bytes.length ~/ dtype.itemSize;
 
@@ -129,7 +165,9 @@ List<T> parseByteData<T>(List<int> bytes, NpyDType dtype) {
       endian = Endian.host;
     default:
       if (dtype.itemSize != 1) {
-        throw const NpyInvalidEndianException('Endian must be specified for item size > 1.');
+        throw const NpyInvalidEndianException(
+          'Endian must be specified for item size > 1.',
+        );
       }
   }
 
@@ -144,7 +182,9 @@ List<T> parseByteData<T>(List<int> bytes, NpyDType dtype) {
           case 4:
             result[i] = byteData.getFloat32(i * 4, endian) as T;
           default:
-            throw NpyInvalidDTypeException('Unsupported item size: ${dtype.itemSize}');
+            throw NpyInvalidDTypeException(
+              'Unsupported item size: ${dtype.itemSize}',
+            );
         }
       case NpyType.int:
         switch (dtype.itemSize) {
@@ -157,7 +197,9 @@ List<T> parseByteData<T>(List<int> bytes, NpyDType dtype) {
           case 1:
             result[i] = byteData.getInt8(i) as T;
           default:
-            throw NpyInvalidDTypeException('Unsupported item size: ${dtype.itemSize}');
+            throw NpyInvalidDTypeException(
+              'Unsupported item size: ${dtype.itemSize}',
+            );
         }
       case NpyType.uint:
         switch (dtype.itemSize) {
@@ -170,7 +212,9 @@ List<T> parseByteData<T>(List<int> bytes, NpyDType dtype) {
           case 1:
             result[i] = byteData.getUint8(i) as T;
           default:
-            throw NpyInvalidDTypeException('Unsupported item size: ${dtype.itemSize}');
+            throw NpyInvalidDTypeException(
+              'Unsupported item size: ${dtype.itemSize}',
+            );
         }
       case NpyType.boolean:
         result[i] = (byteData.getUint8(i) == 1) as T;
@@ -182,12 +226,19 @@ List<T> parseByteData<T>(List<int> bytes, NpyDType dtype) {
   return result;
 }
 
-/// Reshape a one-dimensional [List] according to the given [shape] and order (C or Fortran).
-List reshape<T>(List<T> oneDimensionalList, List<int> shape, {bool fortranOrder = false}) {
+/// Reshape a one-dimensional [List] according to the given [shape] and order
+/// (C or Fortran).
+List reshape<T>(
+  List<T> oneDimensionalList,
+  List<int> shape, {
+  bool fortranOrder = false,
+}) {
   if (oneDimensionalList.isEmpty) return const [];
   if (shape.isEmpty) throw const NpyParseException('Shape must not be empty.');
   if (oneDimensionalList.length != shape.reduce((a, b) => a * b)) {
-    throw const NpyParseException('The total number of elements does not equal the product of the shape dimensions.');
+    throw const NpyParseException(
+      'The total number of elements does not equal the product of the shape dimensions.',
+    );
   }
 
   if (shape.length == 1) return oneDimensionalList;

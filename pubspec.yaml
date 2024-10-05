@@ -1,5 +1,5 @@
 name: npy
-description: Handle numpy binary (NPY and NPZ) files in Dart.
+description: Read and write NumPy binary files (.npy and .npz formats) in Dart.
 version: 0.1.0
 repository: https://github.com/minhqdao/npy
 
@@ -8,6 +8,7 @@ environment:
 
 dependencies:
   archive: ^3.6.1
+  universal_io: ^2.2.2
 
 dev_dependencies:
   lint: ^2.3.0

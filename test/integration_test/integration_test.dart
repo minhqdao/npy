@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import 'package:npy/npy.dart';
 import 'package:test/test.dart';
+import 'package:universal_io/io.dart';
 
 void main() {
   const baseDir = 'test/integration_test/';
@@ -89,7 +88,12 @@ void main() {
             fortranOrder: true,
           ),
         )
-        ..add(NdArray.fromList([2, 4, -8], dtype: NpyDType.int16(endian: NpyEndian.little)));
+        ..add(
+          NdArray.fromList(
+            [2, 4, -8],
+            dtype: NpyDType.int16(endian: NpyEndian.little),
+          ),
+        );
       await npzFile.save(npzFilename);
       final result = await runPython(pythonScript, npzFilename);
       File(npzFilename).deleteSync();
@@ -109,7 +113,12 @@ void main() {
             fortranOrder: true,
           ),
         )
-        ..add(NdArray.fromList([2, 4, -8], dtype: NpyDType.int16(endian: NpyEndian.little)));
+        ..add(
+          NdArray.fromList(
+            [2, 4, -8],
+            dtype: NpyDType.int16(endian: NpyEndian.little),
+          ),
+        );
       await npzFile.save(npzFilename, isCompressed: true);
       final result = await runPython(pythonScript, npzFilename);
       File(npzFilename).deleteSync();
@@ -195,26 +204,28 @@ void main() {
       final npzFile = await NpzFile.load(npzFilename);
       File(npzFilename).deleteSync();
       expect(npzFile.files.length, 2);
-      expect(npzFile.files['arr_0.npy']?.data, [
+      final arr0 = npzFile.take('arr_0.npy');
+      expect(arr0.data, [
         [-1.0, -2.0],
         [0.1, 0.2],
       ]);
-      expect(npzFile.files['arr_0.npy']?.headerSection.header.fortranOrder, false);
-      expect(npzFile.files['arr_0.npy']?.headerSection.header.shape, [2, 2]);
-      expect(npzFile.files['arr_0.npy']?.headerSection.header.dtype.type, NpyType.float);
-      expect(npzFile.files['arr_0.npy']?.headerSection.header.dtype.endian, NpyEndian.getNative());
-      expect(npzFile.files['arr_0.npy']?.headerSection.header.dtype.itemSize, 8);
-      expect(npzFile.files['arr_1.npy']?.data, [
+      expect(arr0.headerSection.header.fortranOrder, false);
+      expect(arr0.headerSection.header.shape, [2, 2]);
+      expect(arr0.headerSection.header.dtype.type, NpyType.float);
+      expect(arr0.headerSection.header.dtype.endian, NpyEndian.getNative());
+      expect(arr0.headerSection.header.dtype.itemSize, 8);
+      final arr1 = npzFile.take('arr_1.npy');
+      expect(arr1.data, [
         [0],
         [1],
         [-128],
         [127],
       ]);
-      expect(npzFile.files['arr_1.npy']?.headerSection.header.fortranOrder, false);
-      expect(npzFile.files['arr_1.npy']?.headerSection.header.shape, [4, 1]);
-      expect(npzFile.files['arr_1.npy']?.headerSection.header.dtype.type, NpyType.int);
-      expect(npzFile.files['arr_1.npy']?.headerSection.header.dtype.endian, NpyEndian.none);
-      expect(npzFile.files['arr_1.npy']?.headerSection.header.dtype.itemSize, 1);
+      expect(arr1.headerSection.header.fortranOrder, false);
+      expect(arr1.headerSection.header.shape, [4, 1]);
+      expect(arr1.headerSection.header.dtype.type, NpyType.int);
+      expect(arr1.headerSection.header.dtype.endian, NpyEndian.none);
+      expect(arr1.headerSection.header.dtype.itemSize, 1);
     });
     test('Npz file with two arrays, compressed', () async {
       const pythonScript = '${baseDir}save_npz_compressed_test.py';
@@ -223,26 +234,28 @@ void main() {
       final npzFile = await NpzFile.load(npzFilename);
       File(npzFilename).deleteSync();
       expect(npzFile.files.length, 2);
-      expect(npzFile.files['arr_0.npy']?.data, [
+      final arr0 = npzFile.take('arr_0.npy');
+      expect(arr0.data, [
         [-1.0, -2.0],
         [0.1, 0.2],
       ]);
-      expect(npzFile.files['arr_0.npy']?.headerSection.header.fortranOrder, false);
-      expect(npzFile.files['arr_0.npy']?.headerSection.header.shape, [2, 2]);
-      expect(npzFile.files['arr_0.npy']?.headerSection.header.dtype.type, NpyType.float);
-      expect(npzFile.files['arr_0.npy']?.headerSection.header.dtype.endian, NpyEndian.getNative());
-      expect(npzFile.files['arr_0.npy']?.headerSection.header.dtype.itemSize, 8);
-      expect(npzFile.files['arr_1.npy']?.data, [
+      expect(arr0.headerSection.header.fortranOrder, false);
+      expect(arr0.headerSection.header.shape, [2, 2]);
+      expect(arr0.headerSection.header.dtype.type, NpyType.float);
+      expect(arr0.headerSection.header.dtype.endian, NpyEndian.getNative());
+      expect(arr0.headerSection.header.dtype.itemSize, 8);
+      final arr1 = npzFile.take('arr_1.npy');
+      expect(arr1.data, [
         [0],
         [1],
         [-128],
         [127],
       ]);
-      expect(npzFile.files['arr_1.npy']?.headerSection.header.fortranOrder, false);
-      expect(npzFile.files['arr_1.npy']?.headerSection.header.shape, [4, 1]);
-      expect(npzFile.files['arr_1.npy']?.headerSection.header.dtype.type, NpyType.int);
-      expect(npzFile.files['arr_1.npy']?.headerSection.header.dtype.endian, NpyEndian.none);
-      expect(npzFile.files['arr_1.npy']?.headerSection.header.dtype.itemSize, 1);
+      expect(arr1.headerSection.header.fortranOrder, false);
+      expect(arr1.headerSection.header.shape, [4, 1]);
+      expect(arr1.headerSection.header.dtype.type, NpyType.int);
+      expect(arr1.headerSection.header.dtype.endian, NpyEndian.none);
+      expect(arr1.headerSection.header.dtype.itemSize, 1);
     });
   });
 
@@ -308,7 +321,9 @@ void main() {
       await runPython(pythonScript, npyFilename);
       final pyBytes = await File(npyFilename).readAsBytes();
       File(npyFilename).deleteSync();
-      final dartBytes = NdArray.fromList([0, 1, 254, 255], dtype: const NpyDType.uint8()).asBytes;
+      final dartBytes =
+          NdArray.fromList([0, 1, 254, 255], dtype: const NpyDType.uint8())
+              .asBytes;
       expect(pyBytes, dartBytes);
     });
   });

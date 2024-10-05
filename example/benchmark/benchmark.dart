@@ -1,7 +1,7 @@
-import 'dart:io';
 import 'dart:math';
 
 import 'package:npy/npy.dart';
+import 'package:universal_io/io.dart';
 
 void main() async {
   const listLength = 2000000;
