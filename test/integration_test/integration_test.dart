@@ -88,7 +88,12 @@ void main() {
             fortranOrder: true,
           ),
         )
-        ..add(NdArray.fromList([2, 4, -8], dtype: NpyDType.int16(endian: NpyEndian.little)));
+        ..add(
+          NdArray.fromList(
+            [2, 4, -8],
+            dtype: NpyDType.int16(endian: NpyEndian.little),
+          ),
+        );
       await npzFile.save(npzFilename);
       final result = await runPython(pythonScript, npzFilename);
       File(npzFilename).deleteSync();
@@ -108,7 +113,12 @@ void main() {
             fortranOrder: true,
           ),
         )
-        ..add(NdArray.fromList([2, 4, -8], dtype: NpyDType.int16(endian: NpyEndian.little)));
+        ..add(
+          NdArray.fromList(
+            [2, 4, -8],
+            dtype: NpyDType.int16(endian: NpyEndian.little),
+          ),
+        );
       await npzFile.save(npzFilename, isCompressed: true);
       final result = await runPython(pythonScript, npzFilename);
       File(npzFilename).deleteSync();
@@ -311,7 +321,9 @@ void main() {
       await runPython(pythonScript, npyFilename);
       final pyBytes = await File(npyFilename).readAsBytes();
       File(npyFilename).deleteSync();
-      final dartBytes = NdArray.fromList([0, 1, 254, 255], dtype: const NpyDType.uint8()).asBytes;
+      final dartBytes =
+          NdArray.fromList([0, 1, 254, 255], dtype: const NpyDType.uint8())
+              .asBytes;
       expect(pyBytes, dartBytes);
     });
   });

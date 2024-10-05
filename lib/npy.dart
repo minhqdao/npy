@@ -1,6 +1,4 @@
-/// Support for doing something awesome.
-///
-/// More dartdocs go here.
+/// Plugin for reading and writing NumPy binary files (`.npy` and `.npz`).
 library;
 
 export 'src/npy_bytetransformer.dart';
