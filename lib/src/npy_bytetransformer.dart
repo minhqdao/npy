@@ -18,9 +18,7 @@ class ByteTransformer extends StreamTransformerBase<Uint8List, Uint8List> {
   @override
   Stream<Uint8List> bind(Stream<List<int>> stream) async* {
     if (bufferSize == null) {
-      await for (final chunk in stream) {
-        yield Uint8List.fromList(chunk);
-      }
+      yield* stream.map((chunk) => Uint8List.fromList(chunk));
       return;
     }
 
